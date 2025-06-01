@@ -101,20 +101,34 @@ const StudyDetailPage = () => {
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchStudyDetail = async () => {
       try {
         setLoading(true);
-        const response = await axios.get<StudyGroupDetail>(`http://localhost:8080/api/studies/${id}`);
-        setStudy(response.data);
+        const response = await axios.get<StudyGroupDetail>(
+          `http://localhost:8080/api/studies/${id}`
+        );
+        // 컴포넌트가 마운트된 상태일 때만 상태 업데이트
+        if (mounted) {
+          setStudy(response.data);
+          setLoading(false);
+        }
       } catch (err) {
-        setError('스터디 정보를 불러오는데 실패했습니다.');
-        console.error('Error fetching study detail:', err);
-      } finally {
-        setLoading(false);
+        if (mounted) {
+          console.error('Error fetching study detail:', err);
+          setError('스터디 정보를 불러오는데 실패했습니다.');
+          setLoading(false);
+        }
       }
     };
 
     fetchStudyDetail();
+
+    // cleanup 함수에서 마운트 상태만 관리
+    return () => {
+      mounted = false;
+    };
   }, [id]);
 
   const handleDelete = async () => {

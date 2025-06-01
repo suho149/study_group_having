@@ -6,6 +6,7 @@ import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
 import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,8 +37,14 @@ public class StudyGroupController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StudyGroupDetailResponse> getStudyGroupDetail(@PathVariable Long id) {
-        log.debug("스터디 그룹 상세 조회 요청: id={}", id);
+    public ResponseEntity<StudyGroupDetailResponse> getStudyGroupDetail(
+            @PathVariable Long id,
+            HttpServletRequest request) {
+        log.info("스터디 그룹 상세 조회 요청: id={}, URI={}, Method={}, ContentType={}", 
+            id, 
+            request.getRequestURI(),
+            request.getMethod(),
+            request.getContentType());
         StudyGroupDetailResponse response = studyGroupService.getStudyGroupDetail(id);
         return ResponseEntity.ok(response);
     }

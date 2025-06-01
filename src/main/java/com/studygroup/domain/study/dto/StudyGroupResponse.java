@@ -29,6 +29,7 @@ public class StudyGroupResponse {
     private String leaderProfile;
     private LocalDateTime createdAt;
     private LocalDateTime modifiedAt;
+    private int viewCount;
 
     public static StudyGroupResponse from(StudyGroup studyGroup) {
         return StudyGroupResponse.builder()
@@ -49,6 +50,7 @@ public class StudyGroupResponse {
                 .leaderProfile(studyGroup.getLeader().getProfile())
                 .createdAt(studyGroup.getCreatedAt())
                 .modifiedAt(studyGroup.getModifiedAt())
+                .viewCount(studyGroup.getViewCount())
                 .build();
     }
 } 

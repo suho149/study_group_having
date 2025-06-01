@@ -3,6 +3,7 @@ import { Card, CardContent, Typography, Chip, Box, IconButton } from '@mui/mater
 import { styled } from '@mui/material/styles';
 import FavoriteIcon from '@mui/icons-material/FavoriteBorder';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import GroupIcon from '@mui/icons-material/Group';
 import { useNavigate } from 'react-router-dom';
 
 interface PostCardProps {
@@ -14,6 +15,7 @@ interface PostCardProps {
   tags: string[];
   isHot?: boolean;
   status: string;
+  viewCount: number;
 }
 
 const StyledCard = styled(Card)({
@@ -88,6 +90,7 @@ const PostCard: React.FC<PostCardProps> = ({
   tags,
   isHot = false,
   status,
+  viewCount,
 }) => {
   const navigate = useNavigate();
 
@@ -128,8 +131,12 @@ const PostCard: React.FC<PostCardProps> = ({
           <Typography variant="body2">{date}</Typography>
           <Box display="flex" alignItems="center" gap={2}>
             <ViewCount>
-              <VisibilityIcon fontSize="small" />
+              <GroupIcon fontSize="small" />
               <Typography variant="body2">{views}</Typography>
+            </ViewCount>
+            <ViewCount>
+              <VisibilityIcon fontSize="small" />
+              <Typography variant="body2">{viewCount}</Typography>
             </ViewCount>
             <IconButton size="small">
               <FavoriteIcon fontSize="small" />

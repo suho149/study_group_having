@@ -14,6 +14,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import jakarta.servlet.http.HttpSession;
 
 import java.util.HashSet;
 import java.util.List;
@@ -28,14 +30,33 @@ public class StudyGroupService {
     private final StudyGroupRepository studyGroupRepository;
     private final TagRepository tagRepository;
     private final UserRepository userRepository;
+    private final HttpSession httpSession;
+    private static final String VIEW_COUNT_KEY = "VIEW_COUNT_";
+    private static final long VIEW_COUNT_INTERVAL = 1000; // 1초
 
     @Transactional
     public StudyGroupDetailResponse getStudyGroupDetail(Long id) {
         StudyGroup studyGroup = studyGroupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + id));
         
-        studyGroup.incrementViewCount();
+        incrementViewCountIfNeeded(studyGroup);
         return StudyGroupDetailResponse.from(studyGroup);
+    }
+
+    private void incrementViewCountIfNeeded(StudyGroup studyGroup) {
+        String viewKey = VIEW_COUNT_KEY + studyGroup.getId();
+        Long lastViewTime = (Long) httpSession.getAttribute(viewKey);
+        long currentTime = System.currentTimeMillis();
+
+        if (lastViewTime == null || currentTime - lastViewTime > VIEW_COUNT_INTERVAL) {
+            studyGroup.incrementViewCount();
+            httpSession.setAttribute(viewKey, currentTime);
+            log.info("조회수 증가: studyId={}, 현재 조회수={}", 
+                studyGroup.getId(), studyGroup.getViewCount());
+        } else {
+            log.info("조회수 증가 제외 (중복 요청): studyId={}, 마지막 조회 시간과의 차이={}ms", 
+                studyGroup.getId(), currentTime - lastViewTime);
+        }
     }
 
     @Transactional

@@ -64,6 +64,7 @@ interface StudyGroup {
   createdAt: string;
   modifiedAt: string;
   status: string;
+  viewCount: number;
 }
 
 const Home = () => {
@@ -155,6 +156,7 @@ const Home = () => {
               tags={study.tags}
               isHot={study.currentMembers >= study.maxMembers * 0.8}
               status={study.status}
+              viewCount={study.viewCount}
             />
           ))}
         </PostGrid>
