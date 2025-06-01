@@ -85,14 +85,19 @@ public class StudyGroup extends BaseTimeEntity {
 
     // 멤버 추가 메서드
     public void addMember(StudyMember member) {
-        this.members.add(member);
-        this.currentMembers++;
+        if (!this.members.contains(member)) {
+            this.members.add(member);
+            if (member.getStatus() == StudyMemberStatus.APPROVED) {
+                this.currentMembers = getCurrentMembers();
+            }
+        }
     }
 
     // 멤버 제거 메서드
     public void removeMember(StudyMember member) {
-        this.members.remove(member);
-        this.currentMembers--;
+        if (this.members.remove(member) && member.getStatus() == StudyMemberStatus.APPROVED) {
+            this.currentMembers = getCurrentMembers();
+        }
     }
 
     // 스터디 상태 변경 메서드

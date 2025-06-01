@@ -27,6 +27,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import GroupIcon from '@mui/icons-material/Group';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -83,22 +84,17 @@ interface StudyGroupDetail {
 const StudyDetailPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentUserId } = useAuth();
   const [study, setStudy] = useState<StudyGroupDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [inviteEmails, setInviteEmails] = useState('');
-  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      // JWT에서 사용자 ID 추출 (실제 구현에서는 디코딩 로직 필요)
-      // 임시로 하드코딩
-      setCurrentUserId(1);
-    }
-  }, []);
+    console.log('현재 사용자 ID:', currentUserId);
+  }, [currentUserId]);
 
   useEffect(() => {
     let mounted = true;
@@ -109,9 +105,11 @@ const StudyDetailPage = () => {
         const response = await axios.get<StudyGroupDetail>(
           `http://localhost:8080/api/studies/${id}`
         );
-        // 컴포넌트가 마운트된 상태일 때만 상태 업데이트
         if (mounted) {
           setStudy(response.data);
+          console.log('스터디 정보:', response.data);
+          console.log('스터디 리더 ID:', response.data.leader.id);
+          console.log('현재 사용자가 리더인가?', Number(currentUserId) === response.data.leader.id);
           setLoading(false);
         }
       } catch (err) {
@@ -125,11 +123,10 @@ const StudyDetailPage = () => {
 
     fetchStudyDetail();
 
-    // cleanup 함수에서 마운트 상태만 관리
     return () => {
       mounted = false;
     };
-  }, [id]);
+  }, [id, currentUserId]);
 
   const handleDelete = async () => {
     try {
@@ -165,7 +162,8 @@ const StudyDetailPage = () => {
     }
   };
 
-  const isLeader = study?.leader.id === currentUserId;
+  // 현재 사용자가 스터디 그룹의 리더인지 확인
+  const isLeader = study?.leader.id === Number(currentUserId);
 
   if (loading) return <Typography>로딩 중...</Typography>;
   if (error) return <Typography color="error">{error}</Typography>;
@@ -256,15 +254,17 @@ const StudyDetailPage = () => {
               </List>
             </Paper>
 
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              sx={{ mt: 3 }}
-              disabled={study.currentMembers >= study.maxMembers}
-            >
-              {study.currentMembers >= study.maxMembers ? '모집 완료' : '참여 신청하기'}
-            </Button>
+            {!isLeader && currentUserId && (
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                sx={{ mt: 3 }}
+                disabled={study.currentMembers >= study.maxMembers}
+              >
+                {study.currentMembers >= study.maxMembers ? '모집 완료' : '참여 신청하기'}
+              </Button>
+            )}
 
             {isLeader && (
               <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>

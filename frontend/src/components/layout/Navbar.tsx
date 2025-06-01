@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { AppBar, Toolbar, Typography, Button, Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import { useAuth } from '../../contexts/AuthContext';
 
 const StyledAppBar = styled(AppBar)({
   backgroundColor: '#fff',
@@ -42,17 +43,10 @@ const AuthButton = styled(NavButton)({
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    // 로컬 스토리지에서 토큰을 확인하여 로그인 상태 체크
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
-  }, []);
+  const { isLoggedIn, setIsLoggedIn } = useAuth();
 
   const handleLogout = () => {
-    // 로그아웃 처리
-    localStorage.clear(); // 모든 로컬 스토리지 데이터 삭제
+    localStorage.clear();
     setIsLoggedIn(false);
     navigate('/');
   };
