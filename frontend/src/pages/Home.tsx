@@ -63,6 +63,7 @@ interface StudyGroup {
   tags: string[];
   createdAt: string;
   modifiedAt: string;
+  status: string;
 }
 
 const Home = () => {
@@ -146,12 +147,14 @@ const Home = () => {
           {studyGroups.map((study) => (
             <PostCard
               key={study.id}
+              id={study.id}
               category={study.studyType === 'PROJECT' ? '프로젝트' : '스터디'}
               title={study.title}
               date={new Date(study.createdAt).toLocaleDateString()}
               views={study.currentMembers}
               tags={study.tags}
               isHot={study.currentMembers >= study.maxMembers * 0.8}
+              status={study.status}
             />
           ))}
         </PostGrid>

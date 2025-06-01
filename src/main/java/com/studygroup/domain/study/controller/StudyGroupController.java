@@ -2,6 +2,7 @@ package com.studygroup.domain.study.controller;
 
 import com.studygroup.domain.study.dto.StudyGroupRequest;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
+import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
 import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
@@ -14,6 +15,8 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -32,6 +35,13 @@ public class StudyGroupController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<StudyGroupDetailResponse> getStudyGroupDetail(@PathVariable Long id) {
+        log.debug("스터디 그룹 상세 조회 요청: id={}", id);
+        StudyGroupDetailResponse response = studyGroupService.getStudyGroupDetail(id);
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<StudyGroupResponse> createStudyGroup(
@@ -40,5 +50,27 @@ public class StudyGroupController {
         log.debug("스터디 그룹 생성 요청: userId={}, request={}", userPrincipal.getId(), request);
         StudyGroupResponse response = studyGroupService.createStudyGroup(request, userPrincipal.getId());
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deleteStudyGroup(
+            @PathVariable Long id,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.debug("스터디 그룹 삭제 요청: id={}, userId={}", id, userPrincipal.getId());
+        studyGroupService.deleteStudyGroup(id, userPrincipal.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/invite")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> inviteMembers(
+            @PathVariable Long id,
+            @RequestBody List<Long> userIds,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.debug("스터디 그룹 초대 요청: groupId={}, userIds={}, leaderId={}", 
+                id, userIds, userPrincipal.getId());
+        studyGroupService.inviteMembers(id, userIds, userPrincipal.getId());
+        return ResponseEntity.ok().build();
     }
 } 

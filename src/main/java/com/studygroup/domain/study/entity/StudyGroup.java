@@ -58,6 +58,8 @@ public class StudyGroup extends BaseTimeEntity {
     @OneToMany(mappedBy = "studyGroup", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StudyMember> members = new HashSet<>();
 
+    private int viewCount = 0;
+
     @Builder
     public StudyGroup(User leader, String title, String description, int maxMembers,
                      StudyStatus status, StudyType studyType, String location,
@@ -72,6 +74,7 @@ public class StudyGroup extends BaseTimeEntity {
         this.location = location;
         this.startDate = startDate;
         this.endDate = endDate;
+        this.viewCount = 0;
     }
 
     // 태그 추가 메서드
@@ -95,5 +98,15 @@ public class StudyGroup extends BaseTimeEntity {
     // 스터디 상태 변경 메서드
     public void updateStatus(StudyStatus status) {
         this.status = status;
+    }
+
+    public int getCurrentMembers() {
+        return (int) members.stream()
+                .filter(member -> member.getStatus() == StudyMemberStatus.APPROVED)
+                .count();
+    }
+
+    public void incrementViewCount() {
+        this.viewCount++;
     }
 } 

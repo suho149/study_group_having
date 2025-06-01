@@ -3,14 +3,17 @@ import { Card, CardContent, Typography, Chip, Box, IconButton } from '@mui/mater
 import { styled } from '@mui/material/styles';
 import FavoriteIcon from '@mui/icons-material/FavoriteBorder';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { useNavigate } from 'react-router-dom';
 
 interface PostCardProps {
+  id: number;
   category: string;
   title: string;
   date: string;
   views: number;
   tags: string[];
   isHot?: boolean;
+  status: string;
 }
 
 const StyledCard = styled(Card)({
@@ -70,19 +73,49 @@ const ViewCount = styled(Box)({
   gap: '4px',
 });
 
+const StatusChip = styled(Chip)(({ status }: { status: string }) => ({
+  backgroundColor: status === 'RECRUITING' ? '#4CAF50' : '#FF5722',
+  color: '#fff',
+  marginLeft: '8px',
+}));
+
 const PostCard: React.FC<PostCardProps> = ({
+  id,
   category,
   title,
   date,
   views,
   tags,
   isHot = false,
+  status,
 }) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/studies/${id}`);
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'RECRUITING':
+        return '모집중';
+      case 'CLOSED':
+        return '모집완료';
+      case 'IN_PROGRESS':
+        return '진행중';
+      case 'COMPLETED':
+        return '완료';
+      default:
+        return status;
+    }
+  };
+
   return (
-    <StyledCard>
+    <StyledCard onClick={handleClick} sx={{ cursor: 'pointer' }}>
       <CardContent>
         <Box display="flex" alignItems="center">
           <CategoryChip label={category} size="small" />
+          <StatusChip label={getStatusLabel(status)} size="small" status={status} />
           {isHot && <HotChip label="🔥 인기" size="small" />}
         </Box>
         <PostTitle>{title}</PostTitle>

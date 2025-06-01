@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import LoginPage from './pages/LoginPage';
 import MyPage from './pages/MyPage';
 import CreateStudyPage from './pages/CreateStudyPage';
+import StudyDetailPage from './pages/StudyDetailPage';
 import OAuth2RedirectHandler from './components/auth/OAuth2RedirectHandler';
 
 const theme = createTheme({
@@ -55,6 +56,7 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/mypage" element={<MyPage />} />
           <Route path="/studies/create" element={<CreateStudyPage />} />
+          <Route path="/studies/:id" element={<StudyDetailPage />} />
           <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
           {/* 추가 라우트는 여기에 */}
         </Routes>
