@@ -1,132 +1,104 @@
 package com.studygroup.global.jwt;
 
+import com.studygroup.domain.user.entity.User;
+import com.studygroup.global.security.UserPrincipal;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
-import com.studygroup.global.security.UserPrincipal;
 
 import java.security.Key;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Component
 public class TokenProvider {
 
     private final Key key;
-    private final long accessTokenValidityInMilliseconds;
+    private final long tokenValidityInMilliseconds;
     private final long refreshTokenValidityInMilliseconds;
 
     public TokenProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.access-token-validity}") long accessTokenValidityInMilliseconds,
+            @Value("${jwt.access-token-validity}") long tokenValidityInMilliseconds,
             @Value("${jwt.refresh-token-validity}") long refreshTokenValidityInMilliseconds) {
         byte[] keyBytes = Base64.getDecoder().decode(secret);
         this.key = Keys.hmacShaKeyFor(keyBytes);
-        this.accessTokenValidityInMilliseconds = accessTokenValidityInMilliseconds;
+        this.tokenValidityInMilliseconds = tokenValidityInMilliseconds;
         this.refreshTokenValidityInMilliseconds = refreshTokenValidityInMilliseconds;
-        log.info("JWT 키 초기화 완료: 키 길이 = {} 바이트", keyBytes.length);
     }
 
-    public String createAccessToken(Authentication authentication) {
-        return createToken(authentication, accessTokenValidityInMilliseconds);
-    }
-
-    public String createRefreshToken(Authentication authentication) {
-        return createToken(authentication, refreshTokenValidityInMilliseconds);
-    }
-
-    private String createToken(Authentication authentication, long validityInMilliseconds) {
+    public String createToken(Authentication authentication) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        String authorities = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.joining(","));
-
-        long now = (new Date()).getTime();
-        Date validity = new Date(now + validityInMilliseconds);
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + this.tokenValidityInMilliseconds);
 
         log.debug("토큰 생성: userId={}, email={}", userPrincipal.getId(), userPrincipal.getEmail());
 
         return Jwts.builder()
-                .setSubject(String.valueOf(userPrincipal.getId()))
+                .setSubject(userPrincipal.getId().toString())
                 .claim("email", userPrincipal.getEmail())
-                .claim("name", userPrincipal.getName())
-                .claim("auth", authorities)
-                .signWith(key, SignatureAlgorithm.HS512)
+                .claim("authorities", "ROLE_USER")
+                .setIssuedAt(now)
                 .setExpiration(validity)
+                .signWith(key, SignatureAlgorithm.HS512)
                 .compact();
     }
 
-    public Authentication getAuthentication(String token) {
+    public String createRefreshToken(Authentication authentication) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + this.refreshTokenValidityInMilliseconds);
+
+        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
+
+        return Jwts.builder()
+                .setSubject(userPrincipal.getId().toString())
+                .setIssuedAt(now)
+                .setExpiration(validity)
+                .signWith(key, SignatureAlgorithm.HS512)
+                .compact();
+    }
+
+    public UserPrincipal getPrincipalFromToken(String token) {
         Claims claims = Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
 
-        Collection<? extends GrantedAuthority> authorities =
-                Arrays.stream(claims.get("auth").toString().split(","))
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+        Long userId = Long.parseLong(claims.getSubject());
+        String email = claims.get("email", String.class);
+        Collection<? extends GrantedAuthority> authorities = 
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
 
-        String subject = claims.getSubject();
-        log.debug("토큰 파싱: subject={}, claims={}", subject, claims);
+        User user = User.builder()
+                .id(userId)
+                .email(email)
+                .build();
 
-        try {
-            Long userId = Long.parseLong(subject);
-            String email = claims.get("email", String.class);
-            String name = claims.get("name", String.class);
-
-            UserPrincipal principal = new UserPrincipal(userId, email, name, null, authorities);
-            log.debug("인증 객체 생성: userId={}, email={}", userId, email);
-
-            return new UsernamePasswordAuthenticationToken(principal, token, authorities);
-        } catch (NumberFormatException e) {
-            log.error("토큰의 subject가 유효한 사용자 ID가 아닙니다: {}", subject);
-            throw new IllegalArgumentException("Invalid user ID in token subject: " + subject);
-        }
+        return UserPrincipal.create(user);
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
-        } catch (SecurityException | MalformedJwtException e) {
-            log.error("잘못된 JWT 서명입니다: {}", e.getMessage());
+        } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
+            log.error("잘못된 JWT 서명입니다.");
         } catch (ExpiredJwtException e) {
-            log.error("만료된 JWT 토큰입니다: {}", e.getMessage());
+            log.error("만료된 JWT 토큰입니다.");
         } catch (UnsupportedJwtException e) {
-            log.error("지원되지 않는 JWT 토큰입니다: {}", e.getMessage());
+            log.error("지원되지 않는 JWT 토큰입니다.");
         } catch (IllegalArgumentException e) {
-            log.error("JWT 토큰이 잘못되었습니다: {}", e.getMessage());
+            log.error("JWT 토큰이 잘못되었습니다.");
         }
         return false;
-    }
-
-    public Long getUserIdFromToken(String token) {
-        try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            return Long.parseLong(claims.getSubject());
-        } catch (Exception e) {
-            log.error("토큰에서 사용자 ID를 추출하는데 실패했습니다: {}", e.getMessage());
-            throw new IllegalArgumentException("Invalid token");
-        }
     }
 }

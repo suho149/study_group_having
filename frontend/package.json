@@ -53,6 +53,7 @@
     "@babel/preset-env": "^7.27.2",
     "@babel/preset-react": "^7.27.1",
     "@babel/preset-typescript": "^7.27.1",
+    "@types/lodash": "^4.17.17",
     "babel-loader": "9.1.3"
   }
 }

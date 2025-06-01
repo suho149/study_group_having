@@ -1,5 +1,7 @@
 package com.studygroup.domain.study.service;
 
+import com.studygroup.domain.notification.entity.NotificationType;
+import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.study.dto.StudyGroupRequest;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
 import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
@@ -33,6 +35,7 @@ public class StudyGroupService {
     private final HttpSession httpSession;
     private static final String VIEW_COUNT_KEY = "VIEW_COUNT_";
     private static final long VIEW_COUNT_INTERVAL = 1000; // 1초
+    private final NotificationService notificationService;
 
     @Transactional
     public StudyGroupDetailResponse getStudyGroupDetail(Long id) {
@@ -150,6 +153,9 @@ public class StudyGroupService {
             throw new IllegalStateException("Cannot invite members when the group is not recruiting");
         }
 
+        User leader = userRepository.findById(leaderId)
+                .orElseThrow(() -> new IllegalArgumentException("Leader not found"));
+
         List<User> usersToInvite = userRepository.findAllById(userIds);
         
         for (User user : usersToInvite) {
@@ -159,6 +165,17 @@ public class StudyGroupService {
                 continue;
             }
 
+            // 초대 알림 생성
+            String message = String.format("%s 스터디에서 초대가 왔습니다. 수락하시겠습니까?", studyGroup.getTitle());
+            notificationService.createNotification(
+                leader,
+                user,
+                message,
+                NotificationType.STUDY_INVITE,
+                studyGroup.getId()
+            );
+
+            // 대기 상태로 멤버 추가
             StudyMember newMember = StudyMember.builder()
                     .user(user)
                     .studyGroup(studyGroup)
@@ -167,6 +184,43 @@ public class StudyGroupService {
                     .build();
             
             studyGroup.addMember(newMember);
+        }
+    }
+
+    @Transactional
+    public void handleInviteResponse(Long groupId, Long userId, boolean accept) {
+        StudyGroup studyGroup = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Study group not found"));
+                
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        StudyMember member = studyGroup.getMembers().stream()
+                .filter(m -> m.getUser().getId().equals(userId) && m.getStatus() == StudyMemberStatus.PENDING)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No pending invitation found"));
+
+        if (accept) {
+            member.updateStatus(StudyMemberStatus.APPROVED);
+            String message = String.format("%s님이 스터디 초대를 수락했습니다.", user.getName());
+            notificationService.createNotification(
+                user,
+                studyGroup.getLeader(),
+                message,
+                NotificationType.INVITE_ACCEPTED,
+                studyGroup.getId()
+            );
+        } else {
+            member.updateStatus(StudyMemberStatus.REJECTED);
+            String message = String.format("%s님이 스터디 초대를 거절했습니다.", user.getName());
+            notificationService.createNotification(
+                user,
+                studyGroup.getLeader(),
+                message,
+                NotificationType.INVITE_REJECTED,
+                studyGroup.getId()
+            );
+            studyGroup.removeMember(member);
         }
     }
 } 

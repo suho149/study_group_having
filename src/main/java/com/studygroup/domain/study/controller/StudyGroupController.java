@@ -3,6 +3,7 @@ package com.studygroup.domain.study.controller;
 import com.studygroup.domain.study.dto.StudyGroupRequest;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
 import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
+import com.studygroup.domain.study.dto.InviteResponseRequest;
 import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
@@ -78,6 +79,18 @@ public class StudyGroupController {
         log.debug("스터디 그룹 초대 요청: groupId={}, userIds={}, leaderId={}", 
                 id, userIds, userPrincipal.getId());
         studyGroupService.inviteMembers(id, userIds, userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/invite/response")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> handleInviteResponse(
+            @PathVariable Long id,
+            @RequestBody InviteResponseRequest request,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.debug("스터디 초대 응답: groupId={}, userId={}, accept={}", 
+                id, userPrincipal.getId(), request.isAccept());
+        studyGroupService.handleInviteResponse(id, userPrincipal.getId(), request.isAccept());
         return ResponseEntity.ok().build();
     }
 } 
