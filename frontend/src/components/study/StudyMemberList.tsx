@@ -25,8 +25,14 @@ interface StudyMemberListProps {
 }
 
 const StudyMemberList: React.FC<StudyMemberListProps> = ({ members }) => {
-  const approvedMembers = members.filter(member => member.status === 'APPROVED');
-  const pendingMembers = members.filter(member => member.status === 'PENDING');
+  // 스터디장을 먼저 찾고, 나머지 멤버들을 분리
+  const leader = members.find(member => member.role === 'LEADER');
+  const otherMembers = members
+    .filter(member => member.role !== 'LEADER' && member.status === 'APPROVED')
+    .sort((a, b) => a.name.localeCompare(b.name)); // 이름순 정렬
+  const pendingMembers = members
+    .filter(member => member.status === 'PENDING')
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const getMemberStatusColor = (status: string) => {
     switch (status) {
@@ -46,7 +52,7 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({ members }) => {
   };
 
   const renderMemberList = (memberList: Member[], showStatus: boolean = false) => (
-    <List>
+    <List dense>
       {memberList.map((member) => (
         <React.Fragment key={member.id}>
           <ListItem alignItems="center">
@@ -54,15 +60,15 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({ members }) => {
               <Avatar 
                 src={member.imageUrl}
                 alt={member.name}
-                sx={{ width: 40, height: 40 }}
+                sx={{ width: 32, height: 32 }}
               >
                 {member.name[0]}
               </Avatar>
             </ListItemAvatar>
             <ListItemText
               primary={
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Typography variant="subtitle1">
+                <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
+                  <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     {member.name}
                   </Typography>
                   <Chip
@@ -70,12 +76,14 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({ members }) => {
                     size="small"
                     color={member.role === 'LEADER' ? 'primary' : 'default'}
                     variant="outlined"
+                    sx={{ height: 20 }}
                   />
                   {showStatus && (
                     <Chip
                       label={member.status === 'PENDING' ? '대기중' : '승인됨'}
                       size="small"
                       color={getMemberStatusColor(member.status)}
+                      sx={{ height: 20 }}
                     />
                   )}
                 </Box>
@@ -89,21 +97,63 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({ members }) => {
   );
 
   return (
-    <Paper sx={{ p: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        스터디 구성원 ({approvedMembers.length}명)
+    <>
+      <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
+        스터디 구성원 ({otherMembers.length + 1}명)
       </Typography>
-      {renderMemberList(approvedMembers)}
+      
+      {/* 스터디장 표시 */}
+      {leader && (
+        <List dense>
+          <ListItem alignItems="center">
+            <ListItemAvatar>
+              <Avatar 
+                src={leader.imageUrl}
+                alt={leader.name}
+                sx={{ 
+                  width: 32, 
+                  height: 32,
+                  border: '2px solid',
+                  borderColor: 'primary.main'
+                }}
+              >
+                {leader.name[0]}
+              </Avatar>
+            </ListItemAvatar>
+            <ListItemText
+              primary={
+                <Box display="flex" alignItems="center" gap={0.5} flexWrap="wrap">
+                  <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                    {leader.name}
+                  </Typography>
+                  <Chip
+                    label="스터디장"
+                    size="small"
+                    color="primary"
+                    variant="outlined"
+                    sx={{ height: 20 }}
+                  />
+                </Box>
+              }
+            />
+          </ListItem>
+          <Divider variant="inset" component="li" />
+        </List>
+      )}
 
+      {/* 일반 멤버 표시 */}
+      {renderMemberList(otherMembers)}
+
+      {/* 대기 중인 멤버 표시 */}
       {pendingMembers.length > 0 && (
         <>
-          <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+          <Typography variant="subtitle1" gutterBottom sx={{ mt: 2, fontWeight: 'bold' }}>
             대기 중인 멤버 ({pendingMembers.length}명)
           </Typography>
           {renderMemberList(pendingMembers, true)}
         </>
       )}
-    </Paper>
+    </>
   );
 };
 

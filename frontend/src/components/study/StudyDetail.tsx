@@ -6,7 +6,6 @@ import {
   Typography, 
   Chip,
   Divider,
-  Avatar,
   Stack,
   IconButton,
 } from '@mui/material';
@@ -52,6 +51,36 @@ interface StudyDetailProps {
   onDelete: () => void;
 }
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'RECRUITING':
+      return 'success';
+    case 'IN_PROGRESS':
+      return 'info';
+    case 'COMPLETED':
+      return 'default';
+    case 'CANCELLED':
+      return 'error';
+    default:
+      return 'default';
+  }
+};
+
+const getStatusText = (status: string) => {
+  switch (status) {
+    case 'RECRUITING':
+      return '모집중';
+    case 'IN_PROGRESS':
+      return '진행중';
+    case 'COMPLETED':
+      return '완료';
+    case 'CANCELLED':
+      return '취소됨';
+    default:
+      return status;
+  }
+};
+
 const StudyDetail: React.FC<StudyDetailProps> = ({
   study,
   isLeader,
@@ -62,11 +91,18 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
   return (
     <Grid container spacing={3}>
       <Grid item xs={12} md={8}>
-        <Paper sx={{ p: 3, height: '100%', mb: 3 }}>
+        <Paper sx={{ p: 3 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-            <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
-              {study.title}
-            </Typography>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+                {study.title}
+              </Typography>
+              <Chip 
+                label={getStatusText(study.status)}
+                color={getStatusColor(study.status)}
+                size="medium"
+              />
+            </Box>
             {isLeader && (
               <Stack direction="row" spacing={1}>
                 <IconButton 
@@ -141,31 +177,11 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
             </Grid>
           </Grid>
         </Paper>
-
-        <StudyMemberList members={study.members} />
       </Grid>
 
-      <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 3, height: '100%' }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>스터디 리더</Typography>
-          <Box display="flex" alignItems="center">
-            <Avatar 
-              src={study.leader.imageUrl} 
-              sx={{ width: 56, height: 56, mr: 2 }}
-            >
-              {study.leader.name[0]}
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                {study.leader.name}
-              </Typography>
-              <Chip 
-                label={study.status} 
-                color={study.status === 'RECRUITING' ? 'success' : 'default'}
-                size="small"
-              />
-            </Box>
-          </Box>
+      <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column' }}>
+        <Paper sx={{ p: 3, flex: 1 }}>
+          <StudyMemberList members={study.members} />
         </Paper>
       </Grid>
     </Grid>
