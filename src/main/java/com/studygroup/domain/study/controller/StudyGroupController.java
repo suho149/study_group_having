@@ -105,4 +105,14 @@ public class StudyGroupController {
         StudyGroupResponse response = studyGroupService.updateStudyGroup(id, request, userPrincipal.getId());
         return ResponseEntity.ok(response);
     }
+
+    @PostMapping("/{id}/apply")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> applyToStudyGroup(
+            @PathVariable Long id,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.info("스터디 참여 신청 API 요청: studyGroupId={}, userId={}", id, userPrincipal.getId());
+        studyGroupService.applyToStudyGroup(id, userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
 } 

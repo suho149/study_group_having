@@ -265,4 +265,71 @@ public class StudyGroupService {
 
         return StudyGroupResponse.from(studyGroup);
     }
+
+    @Transactional
+    public void applyToStudyGroup(Long groupId, Long applicantUserId) {
+        log.info("스터디 참여 신청 처리 시작: groupId={}, applicantUserId={}", groupId, applicantUserId);
+
+        StudyGroup studyGroup = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 스터디 그룹입니다. ID: " + groupId));
+
+        User applicant = userRepository.findById(applicantUserId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다. ID: " + applicantUserId));
+
+        // 1. 스터디 상태 확인 (모집중이어야 함)
+        if (studyGroup.getStatus() != StudyStatus.RECRUITING) {
+            log.warn("스터디 참여 신청 실패 (모집중 아님): groupId={}, currentStatus={}", groupId, studyGroup.getStatus());
+            throw new IllegalStateException("현재 모집중인 스터디가 아닙니다.");
+        }
+
+        // 2. 스터디장 본인 신청 방지
+        if (studyGroup.getLeader().getId().equals(applicantUserId)) {
+            log.warn("스터디 참여 신청 실패 (스터디장 본인): groupId={}, applicantUserId={}", groupId, applicantUserId);
+            throw new IllegalStateException("스터디장은 자신의 스터디에 참여 신청할 수 없습니다.");
+        }
+
+        // 3. 이미 멤버이거나 신청 대기 중인지 확인
+        boolean alreadyMemberOrPending = studyGroup.getMembers().stream()
+                .anyMatch(member -> member.getUser().getId().equals(applicantUserId));
+        if (alreadyMemberOrPending) {
+            StudyMember existingMember = studyGroup.getMembers().stream()
+                    .filter(member -> member.getUser().getId().equals(applicantUserId)).findFirst().get(); // status 확인용
+            log.warn("스터디 참여 신청 실패 (이미 멤버 또는 신청 대기): groupId={}, applicantUserId={}, status={}", groupId, applicantUserId, existingMember.getStatus());
+            throw new IllegalStateException("이미 해당 스터디의 멤버이거나 참여 신청 처리 중입니다.");
+        }
+
+        // 4. 정원 확인 (APPROVED 된 멤버 기준)
+        if (studyGroup.getCurrentMembers() >= studyGroup.getMaxMembers()) {
+            log.warn("스터디 참여 신청 실패 (정원 초과): groupId={}, currentMembers={}, maxMembers={}",
+                    groupId, studyGroup.getCurrentMembers(), studyGroup.getMaxMembers());
+            throw new IllegalStateException("스터디 정원이 이미 가득 찼습니다.");
+        }
+
+        // 5. 참여 신청 멤버 추가 (PENDING 상태)
+        StudyMember newMember = StudyMember.builder()
+                .user(applicant)
+                .studyGroup(studyGroup)
+                .role(StudyMemberRole.MEMBER)
+                .status(StudyMemberStatus.PENDING) // 참여 신청은 PENDING 상태
+                .build();
+
+        studyGroup.addMember(newMember); // StudyGroup 엔티티의 members 컬렉션에 추가
+        // StudyGroup 엔티티의 members 필드에 cascade=CascadeType.ALL이 설정되어 있으므로
+        // studyGroup을 저장하면 StudyMember도 함께 저장됩니다.
+        studyGroupRepository.save(studyGroup);
+        log.info("스터디 멤버 추가 (신청): groupId={}, applicantUserId={}, memberStatus=PENDING", groupId, applicantUserId);
+
+
+        // 6. 스터디장에게 알림 생성
+        String message = String.format("'%s'님이 '%s' 스터디에 참여를 신청했습니다.", applicant.getName(), studyGroup.getTitle());
+        notificationService.createNotification(
+                applicant,              // 알림 발신자 (신청자)
+                studyGroup.getLeader(), // 알림 수신자 (스터디장)
+                message,
+                NotificationType.STUDY_JOIN_REQUEST,
+                studyGroup.getId()      // 관련 ID (스터디 그룹 ID)
+        );
+        log.info("스터디 참여 신청 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
+                applicant.getId(), studyGroup.getLeader().getId(), studyGroup.getId());
+    }
 } 
