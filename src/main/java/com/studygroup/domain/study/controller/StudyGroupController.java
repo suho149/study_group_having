@@ -1,10 +1,6 @@
 package com.studygroup.domain.study.controller;
 
-import com.studygroup.domain.study.dto.StudyGroupRequest;
-import com.studygroup.domain.study.dto.StudyGroupResponse;
-import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
-import com.studygroup.domain.study.dto.InviteResponseRequest;
-import com.studygroup.domain.study.dto.StudyGroupUpdateRequest;
+import com.studygroup.domain.study.dto.*;
 import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
@@ -113,6 +109,23 @@ public class StudyGroupController {
             @CurrentUser UserPrincipal userPrincipal) {
         log.info("스터디 참여 신청 API 요청: studyGroupId={}, userId={}", id, userPrincipal.getId());
         studyGroupService.applyToStudyGroup(id, userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{studyId}/members/{memberUserId}/status")
+    @PreAuthorize("isAuthenticated()") // 스터디장인지 여부는 서비스 레이어에서 검증
+    public ResponseEntity<Void> updateStudyMemberStatus(
+            @PathVariable Long studyId,
+            @PathVariable Long memberUserId,
+            @RequestBody MemberStatusUpdateRequest request,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.info("스터디 멤버 상태 변경 요청: studyId={}, memberUserId={}, newStatus={}, 요청자Id={}",
+                studyId, memberUserId, request.getStatus(), userPrincipal.getId());
+        studyGroupService.updateStudyMemberStatus(
+                studyId,
+                memberUserId,
+                request.getStatus(),
+                userPrincipal.getId());
         return ResponseEntity.ok().build();
     }
 } 

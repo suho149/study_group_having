@@ -8,6 +8,7 @@ import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
 import com.studygroup.domain.study.dto.StudyGroupUpdateRequest;
 import com.studygroup.domain.study.entity.*;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
+import com.studygroup.domain.study.repository.StudyMemberRepository;
 import com.studygroup.domain.study.repository.TagRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
@@ -37,6 +38,7 @@ public class StudyGroupService {
     private static final String VIEW_COUNT_KEY = "VIEW_COUNT_";
     private static final long VIEW_COUNT_INTERVAL = 1000; // 1초
     private final NotificationService notificationService;
+    private final StudyMemberRepository studyMemberRepository;
 
     @Transactional
     public StudyGroupDetailResponse getStudyGroupDetail(Long id) {
@@ -332,4 +334,98 @@ public class StudyGroupService {
         log.info("스터디 참여 신청 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
                 applicant.getId(), studyGroup.getLeader().getId(), studyGroup.getId());
     }
-} 
+
+    @Transactional
+    public void updateStudyMemberStatus(Long studyId, Long memberUserId, StudyMemberStatus newStatus, Long currentUserId) {
+        log.debug("멤버 상태 업데이트 서비스 시작: studyId={}, memberUserId={}, newStatus={}, currentUserId={}",
+                studyId, memberUserId, newStatus, currentUserId);
+
+        StudyGroup studyGroup = studyGroupRepository.findById(studyId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 스터디 그룹입니다. ID: " + studyId));
+
+        // 1. 요청자가 스터디장인지 확인
+        if (!studyGroup.getLeader().getId().equals(currentUserId)) {
+            log.warn("멤버 상태 변경 권한 없음: studyId={}, 요청자Id={}, 스터디장Id={}",
+                    studyId, currentUserId, studyGroup.getLeader().getId());
+            throw new IllegalStateException("스터디장만 멤버 상태를 변경할 수 있습니다.");
+        }
+
+        // 2. 대상 멤버 찾기 (studyId와 memberUserId로 정확히 찾아야 함)
+        StudyMember memberToUpdate = studyGroup.getMembers().stream()
+                .filter(member -> member.getUser().getId().equals(memberUserId) && member.getStudyGroup().getId().equals(studyId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "해당 스터디에 존재하지 않거나 잘못된 멤버입니다. 스터디 ID: " + studyId + ", 멤버 사용자 ID: " + memberUserId));
+
+        // 3. PENDING 상태의 멤버만 승인/거절 가능 (또는 정책에 따라 다를 수 있음)
+        if (memberToUpdate.getStatus() != StudyMemberStatus.PENDING) {
+            log.warn("이미 처리된 멤버 상태 변경 시도: studyId={}, memberUserId={}, currentStatus={}",
+                    studyId, memberUserId, memberToUpdate.getStatus());
+            throw new IllegalStateException("이미 처리된 멤버의 상태는 변경할 수 없습니다. 현재 상태: " + memberToUpdate.getStatus());
+        }
+
+        // 4. 정원 초과 확인 (승인 시에만)
+        if (newStatus == StudyMemberStatus.APPROVED) {
+            if (studyGroup.getCurrentMembers() >= studyGroup.getMaxMembers()) {
+                log.warn("정원 초과로 멤버 승인 불가: studyId={}, currentMembers={}, maxMembers={}",
+                        studyId, studyGroup.getCurrentMembers(), studyGroup.getMaxMembers());
+                throw new IllegalStateException("스터디 정원이 이미 가득 찼습니다.");
+            }
+        }
+
+
+        // 5. 상태 업데이트
+        StudyMemberStatus oldStatus = memberToUpdate.getStatus();
+        memberToUpdate.updateStatus(newStatus);
+
+        // 6. currentMembers 업데이트 (StudyGroup 엔티티 내 로직 재확인 필요)
+        // StudyGroup 엔티티의 addMember/removeMember 또는 getCurrentMembers()가
+        // APPROVED 상태 기준으로 currentMembers를 올바르게 계산하는지 확인.
+        // 직접 studyGroup.setCurrentMembers(studyGroup.getCurrentMembers())를 호출하거나,
+        // StudyGroup 엔티티 내에 currentMembers를 갱신하는 메소드를 만들 수 있음.
+        // 가장 간단한 방법은 StudyGroup 엔티티의 getCurrentMembers()가 항상 실시간으로 계산하도록 하는 것.
+        // 또는 상태 변경 후 명시적으로 업데이트.
+        // studyGroup.updateCurrentMembersCount(); // 예시: StudyGroup 엔티티에 이런 메소드 구현
+
+        // StudyMember 엔티티 저장 (StudyGroup의 members 컬렉션에 cascade 설정이 있다면 studyGroup 저장으로도 가능)
+        // studyMemberRepository.save(memberToUpdate); // 명시적 저장이 더 안전할 수 있음
+
+        log.info("멤버 상태 업데이트 완료: studyId={}, memberUserId={}, oldStatus={}, newStatus={}",
+                studyId, memberUserId, oldStatus, newStatus);
+
+        // 7. 알림 생성 (승인/거절 알림)
+        User applicant = memberToUpdate.getUser();
+        User leader = studyGroup.getLeader();
+        String message;
+        NotificationType notificationType;
+
+        if (newStatus == StudyMemberStatus.APPROVED) {
+            message = String.format("'%s' 스터디 참여가 승인되었습니다.", studyGroup.getTitle());
+            notificationType = NotificationType.JOIN_APPROVED; // 새로운 알림 타입 필요
+            // 승인 시 스터디장에게도 알림 (선택)
+            // notificationService.createNotification(applicant, leader, String.format("'%s'님의 '%s' 스터디 참여를 승인했습니다.", applicant.getName(), studyGroup.getTitle()), NotificationType.MEMBER_APPROVED_BY_LEADER, studyId);
+
+        } else if (newStatus == StudyMemberStatus.REJECTED) {
+            message = String.format("'%s' 스터디 참여가 거절되었습니다.", studyGroup.getTitle());
+            notificationType = NotificationType.JOIN_REJECTED; // 새로운 알림 타입 필요
+            // 거절 시 스터디장에게도 알림 (선택)
+            // notificationService.createNotification(applicant, leader, String.format("'%s'님의 '%s' 스터디 참여를 거절했습니다.", applicant.getName(), studyGroup.getTitle()), NotificationType.MEMBER_REJECTED_BY_LEADER, studyId);
+
+            // 거절된 멤버는 StudyGroup의 members 컬렉션에서 제거하는 것을 고려
+            // studyGroup.removeMember(memberToUpdate);
+        } else {
+            return; // 다른 상태 변경은 현재 로직에서 처리 안 함
+        }
+
+        notificationService.createNotification(
+                leader, // 알림 발신자 (스터디장)
+                applicant, // 알림 수신자 (신청자)
+                message,
+                notificationType,
+                studyId
+        );
+        log.info("{} 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
+                notificationType, leader.getId(), applicant.getId(), studyId);
+
+    }
+}
