@@ -80,8 +80,11 @@ const StudyDetailPage = () => {
   };
 
   useEffect(() => {
-    fetchStudyDetail();
-  }, [studyId]); // studyId 변경 시 다시 fetch
+    if (studyId) { // studyId가 유효할 때만 fetch
+      fetchStudyDetail();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studyId]); // studyId가 변경될 때마다 실행
 
   const handleDelete = async () => {
     if (!study) return;
@@ -176,6 +179,7 @@ const StudyDetailPage = () => {
               isMemberApproved={isMemberApproved}
               isMemberPending={isMemberPending}
               isAuthenticated={isLoggedIn} // 인증 여부도 전달 (버튼 텍스트 등 분기처리용)
+              fetchStudyDetail={fetchStudyDetail} // <--- 추가: fetchStudyDetail 함수 전달
           />
         </Box>
 

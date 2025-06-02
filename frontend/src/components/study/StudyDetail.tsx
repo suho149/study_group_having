@@ -61,6 +61,7 @@ interface StudyDetailProps {
   isMemberApproved: boolean;
   isMemberPending: boolean;
   isAuthenticated: boolean; // 인증 여부 추가
+  fetchStudyDetail: () => void; // <--- 추가: 데이터 새로고침 함수
 }
 
 const getStatusColor = (status: string): ChipProps['color'] => { // ChipProps['color'] 타입 사용
@@ -105,6 +106,7 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
                                                    isMemberApproved,
                                                    isMemberPending,
                                                    isAuthenticated,
+                                                   fetchStudyDetail, // <--- props로 받음
                                                  }) => {
 
   const renderActionButtons = () => {
@@ -258,7 +260,7 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
                 members={study.members}
                 isLeaderView={isLeader}
                 studyId={study.id}
-                onMemberStatusChange={onApply} // 멤버 상태 변경(예: 스터디장이 PENDING 멤버 승인/거절) 후 부모 컴포넌트에 알림 (데이터 새로고침용)
+                onMemberStatusChange={fetchStudyDetail} // 멤버 상태 변경(예: 스터디장이 PENDING 멤버 승인/거절) 후 부모 컴포넌트에 알림 (데이터 새로고침용)
                 // onApply는 현재 참여 신청 함수인데, 재활용 또는 별도 함수 필요
             />
           </Paper>
