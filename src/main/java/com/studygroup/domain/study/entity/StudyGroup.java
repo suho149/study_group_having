@@ -114,4 +114,17 @@ public class StudyGroup extends BaseTimeEntity {
     public void incrementViewCount() {
         this.viewCount++;
     }
+
+    public void update(String title, String description, int maxMembers,
+                     StudyStatus status, StudyType studyType, String location,
+                     LocalDate startDate, LocalDate endDate) {
+        this.title = title;
+        this.description = description;
+        this.maxMembers = maxMembers;
+        this.status = status;
+        this.studyType = studyType;
+        this.location = location;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
 } 

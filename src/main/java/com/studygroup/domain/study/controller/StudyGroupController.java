@@ -4,6 +4,7 @@ import com.studygroup.domain.study.dto.StudyGroupRequest;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
 import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
 import com.studygroup.domain.study.dto.InviteResponseRequest;
+import com.studygroup.domain.study.dto.StudyGroupUpdateRequest;
 import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
@@ -92,5 +93,16 @@ public class StudyGroupController {
                 id, userPrincipal.getId(), request.isAccept());
         studyGroupService.handleInviteResponse(id, userPrincipal.getId(), request.isAccept());
         return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<StudyGroupResponse> updateStudyGroup(
+            @PathVariable Long id,
+            @Valid @RequestBody StudyGroupUpdateRequest request,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.debug("스터디 그룹 수정 요청: id={}, userId={}", id, userPrincipal.getId());
+        StudyGroupResponse response = studyGroupService.updateStudyGroup(id, request, userPrincipal.getId());
+        return ResponseEntity.ok(response);
     }
 } 

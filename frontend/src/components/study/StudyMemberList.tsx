@@ -1,48 +1,36 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
-  Box,
-  Typography,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
   Avatar,
-  Button,
+  Typography,
+  Paper,
   Chip,
+  Box,
+  Divider,
 } from '@mui/material';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
-import InviteMemberModal from './InviteMemberModal';
 
-interface StudyMember {
+interface Member {
   id: number;
-  user?: {
-    id: number;
-    name: string;
-    email: string;
-    profile?: string;
-  };
+  name: string;
+  imageUrl: string;
   role: 'LEADER' | 'MEMBER';
-  status: 'PENDING' | 'ACTIVE' | 'REJECTED';
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }
 
 interface StudyMemberListProps {
-  studyId: number;
-  members: StudyMember[];
-  isLeader: boolean;
-  onMemberUpdate: () => void;
+  members: Member[];
 }
 
-const StudyMemberList: React.FC<StudyMemberListProps> = ({
-  studyId,
-  members = [],
-  isLeader,
-  onMemberUpdate,
-}) => {
-  const [inviteModalOpen, setInviteModalOpen] = useState(false);
+const StudyMemberList: React.FC<StudyMemberListProps> = ({ members }) => {
+  const approvedMembers = members.filter(member => member.status === 'APPROVED');
+  const pendingMembers = members.filter(member => member.status === 'PENDING');
 
-  const getStatusColor = (status: string): "success" | "warning" | "error" | "default" => {
+  const getMemberStatusColor = (status: string) => {
     switch (status) {
-      case 'ACTIVE':
+      case 'APPROVED':
         return 'success';
       case 'PENDING':
         return 'warning';
@@ -53,83 +41,69 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
     }
   };
 
-  const getStatusText = (status: string): string => {
-    switch (status) {
-      case 'ACTIVE':
-        return '활성';
-      case 'PENDING':
-        return '대기중';
-      case 'REJECTED':
-        return '거절됨';
-      default:
-        return status;
-    }
+  const getMemberRoleText = (role: string) => {
+    return role === 'LEADER' ? '스터디장' : '스터디원';
   };
 
-  const getNameInitial = (name?: string): string => {
-    return name ? name.charAt(0).toUpperCase() : '?';
-  };
-
-  return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6">
-          참여 멤버 ({members.filter(m => m.status === 'ACTIVE').length}명)
-        </Typography>
-        {isLeader && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<PersonAddIcon />}
-            onClick={() => setInviteModalOpen(true)}
-          >
-            멤버 초대하기
-          </Button>
-        )}
-      </Box>
-      <List>
-        {members.map((member) => (
-          <ListItem
-            key={member.id}
-            secondaryAction={
-              <Chip
-                label={getStatusText(member.status)}
-                color={getStatusColor(member.status)}
-                size="small"
-              />
-            }
-          >
+  const renderMemberList = (memberList: Member[], showStatus: boolean = false) => (
+    <List>
+      {memberList.map((member) => (
+        <React.Fragment key={member.id}>
+          <ListItem alignItems="center">
             <ListItemAvatar>
-              {member.user?.profile ? (
-                <Avatar src={member.user.profile} alt={member.user.name} />
-              ) : (
-                <Avatar>{getNameInitial(member.user?.name)}</Avatar>
-              )}
+              <Avatar 
+                src={member.imageUrl}
+                alt={member.name}
+                sx={{ width: 40, height: 40 }}
+              >
+                {member.name[0]}
+              </Avatar>
             </ListItemAvatar>
             <ListItemText
-              primary={member.user?.name || '알 수 없는 사용자'}
-              secondary={
-                <>
-                  {member.user?.email}
+              primary={
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography variant="subtitle1">
+                    {member.name}
+                  </Typography>
                   <Chip
-                    label={member.role}
+                    label={getMemberRoleText(member.role)}
                     size="small"
+                    color={member.role === 'LEADER' ? 'primary' : 'default'}
                     variant="outlined"
-                    sx={{ ml: 1 }}
                   />
-                </>
+                  {showStatus && (
+                    <Chip
+                      label={member.status === 'PENDING' ? '대기중' : '승인됨'}
+                      size="small"
+                      color={getMemberStatusColor(member.status)}
+                    />
+                  )}
+                </Box>
               }
             />
           </ListItem>
-        ))}
-      </List>
-      <InviteMemberModal
-        open={inviteModalOpen}
-        onClose={() => setInviteModalOpen(false)}
-        studyId={studyId}
-        onInviteSuccess={onMemberUpdate}
-      />
-    </Box>
+          <Divider variant="inset" component="li" />
+        </React.Fragment>
+      ))}
+    </List>
+  );
+
+  return (
+    <Paper sx={{ p: 2 }}>
+      <Typography variant="h6" gutterBottom>
+        스터디 구성원 ({approvedMembers.length}명)
+      </Typography>
+      {renderMemberList(approvedMembers)}
+
+      {pendingMembers.length > 0 && (
+        <>
+          <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+            대기 중인 멤버 ({pendingMembers.length}명)
+          </Typography>
+          {renderMemberList(pendingMembers, true)}
+        </>
+      )}
+    </Paper>
   );
 };
 

@@ -5,6 +5,7 @@ import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.study.dto.StudyGroupRequest;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
 import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
+import com.studygroup.domain.study.dto.StudyGroupUpdateRequest;
 import com.studygroup.domain.study.entity.*;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.TagRepository;
@@ -90,8 +91,8 @@ public class StudyGroupService {
                         .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
                 
                 StudyGroupTag studyGroupTag = StudyGroupTag.builder()
-                        .studyGroup(studyGroup)
                         .tag(tag)
+                        .studyGroup(studyGroup)
                         .build();
                 studyGroupTags.add(studyGroupTag);
                 studyGroup.addTag(studyGroupTag);
@@ -222,5 +223,46 @@ public class StudyGroupService {
             );
             studyGroup.removeMember(member);
         }
+    }
+
+    @Transactional
+    public StudyGroupResponse updateStudyGroup(Long groupId, StudyGroupUpdateRequest request, Long userId) {
+        StudyGroup studyGroup = studyGroupRepository.findById(groupId)
+                .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + groupId));
+
+        if (!studyGroup.getLeader().getId().equals(userId)) {
+            throw new IllegalStateException("Only the leader can update the study group");
+        }
+
+        // 기존 태그 삭제
+        studyGroup.getTags().clear();
+
+        // 새로운 태그 추가
+        if (request.getTags() != null) {
+            request.getTags().forEach(tagName -> {
+                Tag tag = tagRepository.findByName(tagName)
+                        .orElseGet(() -> tagRepository.save(Tag.builder().name(tagName).build()));
+                
+                StudyGroupTag studyGroupTag = StudyGroupTag.builder()
+                        .tag(tag)
+                        .studyGroup(studyGroup)
+                        .build();
+                studyGroup.addTag(studyGroupTag);
+            });
+        }
+
+        // 기본 정보 업데이트
+        studyGroup.update(
+            request.getTitle(),
+            request.getDescription(),
+            request.getMaxMembers(),
+            request.getStatus(),
+            request.getStudyType(),
+            request.getLocation(),
+            request.getStartDate(),
+            request.getEndDate()
+        );
+
+        return StudyGroupResponse.from(studyGroup);
     }
 } 

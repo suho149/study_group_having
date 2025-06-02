@@ -11,6 +11,7 @@ import StudyDetailPage from './pages/StudyDetailPage';
 import OAuth2RedirectHandler from './components/auth/OAuth2RedirectHandler';
 import { AuthProvider } from './contexts/AuthContext';
 import NotificationPage from './pages/NotificationPage';
+import StudyGroupEditPage from './pages/StudyGroupEditPage';
 
 const theme = createTheme({
   palette: {
@@ -62,6 +63,7 @@ function App() {
             <Route path="/studies/:id" element={<StudyDetailPage />} />
             <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
             <Route path="/notifications" element={<NotificationPage />} />
+            <Route path="/studies/:id/edit" element={<StudyGroupEditPage />} />
             {/* 추가 라우트는 여기에 */}
           </Routes>
         </Router>
