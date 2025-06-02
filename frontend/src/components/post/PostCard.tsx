@@ -31,13 +31,13 @@ const CategoryChip = styled(Chip)({
   backgroundColor: '#F0F0F0',
   color: '#666',
   fontWeight: 'bold',
-  marginBottom: '12px',
+  height: '24px',
 });
 
 const HotChip = styled(Chip)({
   backgroundColor: '#FF6B6B',
   color: '#fff',
-  marginLeft: '8px',
+  height: '24px',
 });
 
 const PostTitle = styled(Typography)({
@@ -78,7 +78,7 @@ const ViewCount = styled(Box)({
 const StatusChip = styled(Chip)(({ status }: { status: string }) => ({
   backgroundColor: status === 'RECRUITING' ? '#4CAF50' : '#FF5722',
   color: '#fff',
-  marginLeft: '8px',
+  height: '24px',
 }));
 
 const PostCard: React.FC<PostCardProps> = ({
@@ -116,7 +116,12 @@ const PostCard: React.FC<PostCardProps> = ({
   return (
     <StyledCard onClick={handleClick} sx={{ cursor: 'pointer' }}>
       <CardContent>
-        <Box display="flex" alignItems="center">
+        <Box 
+          display="flex" 
+          alignItems="center" 
+          gap={1} 
+          sx={{ mb: 2 }}
+        >
           <CategoryChip label={category} size="small" />
           <StatusChip label={getStatusLabel(status)} size="small" status={status} />
           {isHot && <HotChip label="🔥 인기" size="small" />}
