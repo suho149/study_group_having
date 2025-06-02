@@ -28,6 +28,7 @@ import GroupIcon from '@mui/icons-material/Group';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import InviteMemberModal from '../components/study/InviteMemberModal';
 
 const StyledPaper = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(4),
@@ -89,8 +90,25 @@ const StudyDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const [inviteEmails, setInviteEmails] = useState('');
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+
+  const fetchStudyDetail = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get<StudyGroupDetail>(
+        `http://localhost:8080/api/studies/${id}`
+      );
+      setStudy(response.data);
+      console.log('스터디 정보:', response.data);
+      console.log('스터디 리더 ID:', response.data.leader.id);
+      console.log('현재 사용자가 리더인가?', Number(currentUserId) === response.data.leader.id);
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching study detail:', err);
+      setError('스터디 정보를 불러오는데 실패했습니다.');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     console.log('현재 사용자 ID:', currentUserId);
@@ -99,29 +117,13 @@ const StudyDetailPage = () => {
   useEffect(() => {
     let mounted = true;
 
-    const fetchStudyDetail = async () => {
-      try {
-        setLoading(true);
-        const response = await axios.get<StudyGroupDetail>(
-          `http://localhost:8080/api/studies/${id}`
-        );
-        if (mounted) {
-          setStudy(response.data);
-          console.log('스터디 정보:', response.data);
-          console.log('스터디 리더 ID:', response.data.leader.id);
-          console.log('현재 사용자가 리더인가?', Number(currentUserId) === response.data.leader.id);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (mounted) {
-          console.error('Error fetching study detail:', err);
-          setError('스터디 정보를 불러오는데 실패했습니다.');
-          setLoading(false);
-        }
+    const fetchData = async () => {
+      if (mounted) {
+        await fetchStudyDetail();
       }
     };
 
-    fetchStudyDetail();
+    fetchData();
 
     return () => {
       mounted = false;
@@ -142,24 +144,8 @@ const StudyDetailPage = () => {
     }
   };
 
-  const handleInvite = async () => {
-    try {
-      const userIds = [1, 2, 3]; // 실제로는 이메일로 사용자를 검색하여 ID를 얻어야 함
-      await axios.post(
-        `http://localhost:8080/api/studies/${id}/invite`,
-        userIds,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        }
-      );
-      setIsInviteDialogOpen(false);
-      setInviteEmails('');
-    } catch (err) {
-      console.error('Error inviting members:', err);
-      setError('멤버 초대에 실패했습니다.');
-    }
+  const handleInviteSuccess = () => {
+    fetchStudyDetail();
   };
 
   // 현재 사용자가 스터디 그룹의 리더인지 확인
@@ -267,12 +253,13 @@ const StudyDetailPage = () => {
             )}
 
             {isLeader && (
-              <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
+              <Box sx={{ mb: 2 }}>
                 <Button
                   variant="contained"
                   color="primary"
                   fullWidth
-                  onClick={() => setIsInviteDialogOpen(true)}
+                  onClick={() => setIsInviteModalOpen(true)}
+                  sx={{ mb: 1 }}
                 >
                   멤버 초대하기
                 </Button>
@@ -290,7 +277,15 @@ const StudyDetailPage = () => {
         </Grid>
       </StyledPaper>
 
-      {/* Delete Confirmation Dialog */}
+      {/* 멤버 초대 모달 */}
+      <InviteMemberModal
+        open={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        studyId={Number(id)}
+        onInviteSuccess={handleInviteSuccess}
+      />
+
+      {/* 삭제 확인 다이얼로그 */}
       <Dialog
         open={isDeleteDialogOpen}
         onClose={() => setIsDeleteDialogOpen(false)}
@@ -305,37 +300,6 @@ const StudyDetailPage = () => {
           <Button onClick={() => setIsDeleteDialogOpen(false)}>취소</Button>
           <Button onClick={handleDelete} color="error" variant="contained">
             삭제
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Invite Members Dialog */}
-      <Dialog
-        open={isInviteDialogOpen}
-        onClose={() => setIsInviteDialogOpen(false)}
-      >
-        <DialogTitle>멤버 초대</DialogTitle>
-        <DialogContent>
-          <Typography gutterBottom>
-            초대할 사용자의 이메일을 입력하세요. 여러 명을 초대하려면 쉼표로 구분하세요.
-          </Typography>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="이메일 주소"
-            type="email"
-            fullWidth
-            multiline
-            rows={3}
-            value={inviteEmails}
-            onChange={(e) => setInviteEmails(e.target.value)}
-            placeholder="example1@email.com, example2@email.com"
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsInviteDialogOpen(false)}>취소</Button>
-          <Button onClick={handleInvite} color="primary" variant="contained">
-            초대하기
           </Button>
         </DialogActions>
       </Dialog>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Container, Box, Grid, Paper, Typography, Button } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import InviteMemberDialog from './InviteMemberDialog';
+import InviteMemberModal from './InviteMemberModal';
 
 interface StudyGroup {
   id: number;
@@ -15,7 +15,7 @@ interface StudyGroup {
 const StudyDetail: React.FC = () => {
   const { id } = useParams();
   const [studyGroup, setStudyGroup] = useState<StudyGroup | null>(null);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
 
   useEffect(() => {
@@ -33,12 +33,17 @@ const StudyDetail: React.FC = () => {
     fetchStudyGroup();
   }, [id]);
 
-  const handleInviteClick = () => {
-    setInviteDialogOpen(true);
-  };
-
-  const handleInviteClose = () => {
-    setInviteDialogOpen(false);
+  const handleInviteSuccess = () => {
+    // 스터디 그룹 정보 새로고침
+    const fetchStudyGroup = async () => {
+      try {
+        const response = await axios.get(`/api/studies/${id}`);
+        setStudyGroup(response.data);
+      } catch (error) {
+        console.error('스터디 그룹 조회 실패:', error);
+      }
+    };
+    fetchStudyGroup();
   };
 
   return (
@@ -55,7 +60,7 @@ const StudyDetail: React.FC = () => {
                   <Button
                     variant="contained"
                     color="primary"
-                    onClick={handleInviteClick}
+                    onClick={() => setIsInviteModalOpen(true)}
                   >
                     멤버 초대
                   </Button>
@@ -66,10 +71,11 @@ const StudyDetail: React.FC = () => {
           </Grid>
         </Grid>
       </Box>
-      <InviteMemberDialog
-        open={inviteDialogOpen}
-        onClose={handleInviteClose}
+      <InviteMemberModal
+        open={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
         studyId={Number(id)}
+        onInviteSuccess={handleInviteSuccess}
       />
     </Container>
   );
