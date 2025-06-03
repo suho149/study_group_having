@@ -9,6 +9,11 @@ import {
   Stack,
   IconButton,
   Button, // 추가
+  Dialog, // 추가
+  DialogActions, // 추가
+  DialogContent, // 추가
+  DialogContentText, // 추가
+  DialogTitle, // 추가
   CircularProgress, // 추가
   ChipProps, // 추가
 } from '@mui/material';
@@ -22,6 +27,9 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import HowToRegIcon from '@mui/icons-material/HowToReg'; // 참여 신청 아이콘
 import LoginIcon from '@mui/icons-material/Login'; // 로그인 필요 아이콘
 import StudyMemberList from './StudyMemberList'; // 이 컴포넌트의 members prop 타입도 확인 필요
+import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 스터디 나가기 아이콘 (재활용)
+import api from '../../services/api'; // api import 추가
+import { useAuth } from '../../contexts/AuthContext'; // currentUserId 가져오기
 
 interface StudyDetailProps {
   study: {
@@ -109,6 +117,39 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
                                                    fetchStudyDetail, // <--- props로 받음
                                                  }) => {
 
+  const { currentUserId } = useAuth(); // 현재 로그인한 사용자 ID
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = React.useState(false);
+  const [isLeaving, setIsLeaving] = React.useState(false);
+
+  const handleOpenLeaveConfirm = () => {
+    setIsLeaveConfirmOpen(true);
+  };
+
+  const handleCloseLeaveConfirm = () => {
+    setIsLeaveConfirmOpen(false);
+  };
+
+  const handleLeaveStudy = async () => {
+    if (!study || !currentUserId) return;
+    setIsLeaving(true);
+    try {
+      await api.delete(`/api/studies/${study.id}/members/leave`);
+      // 성공 시 스터디 상세 정보 다시 불러오기
+      await fetchStudyDetail();
+      // 필요하다면 Snackbar로 성공 메시지 표시
+      // if (onLeaveSuccess) onLeaveSuccess(); // 예: 페이지 이동
+      // 현재는 fetchStudyDetail로 멤버 목록이 갱신되므로,
+      // isMemberApproved 상태도 변경되어 버튼이 사라지거나 변경될 것임.
+    } catch (error: any) {
+      console.error('Error leaving study:', error);
+      // 오류 메시지 표시 (Snackbar 등)
+      alert(error.response?.data?.message || '스터디 탈퇴 중 오류가 발생했습니다.');
+    } finally {
+      setIsLeaving(false);
+      setIsLeaveConfirmOpen(false);
+    }
+  };
+
   const renderActionButtons = () => {
     if (isLeader) {
       return (
@@ -141,6 +182,35 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
               }}
           >
             로그인 후 신청
+          </Button>
+      );
+    }
+
+    // // 스터디장이 아닐 경우
+    // if (!isAuthenticated) {
+    //   return (
+    //       <Button
+    //           variant="outlined"
+    //           color="primary"
+    //           startIcon={<LoginIcon />}
+    //           onClick={() => alert('로그인이 필요한 기능입니다.')} // 실제로는 로그인 페이지 이동
+    //       >
+    //         로그인 후 신청
+    //       </Button>
+    //   );
+    // }
+
+    // 현재 사용자가 승인된 멤버이고, 스터디장이 아닌 경우 "스터디 나가기" 버튼 표시
+    if (isMemberApproved && !isLeader) {
+      return (
+          <Button
+              variant="outlined"
+              color="error"
+              startIcon={isLeaving ? <CircularProgress size={20} color="inherit" /> : <ExitToAppIcon />}
+              onClick={handleOpenLeaveConfirm}
+              disabled={isLeaving}
+          >
+            {isLeaving ? '나가는 중...' : '스터디 나가기'}
           </Button>
       );
     }
@@ -178,6 +248,7 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
   };
 
   return (
+      <> {/* Fragment 추가 */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 3, borderRadius: 2 }}>
@@ -266,6 +337,25 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
           </Paper>
         </Grid>
       </Grid>
+        {/* 스터디 나가기 확인 다이얼로그 */}
+        <Dialog
+            open={isLeaveConfirmOpen}
+            onClose={handleCloseLeaveConfirm}
+        >
+          <DialogTitle>스터디 나가기</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              정말로 '{study.title}' 스터디에서 나가시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseLeaveConfirm} disabled={isLeaving}>취소</Button>
+            <Button onClick={handleLeaveStudy} color="error" variant="contained" disabled={isLeaving}>
+              {isLeaving ? <CircularProgress size={20} color="inherit" /> : '나가기'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
   );
 };
 

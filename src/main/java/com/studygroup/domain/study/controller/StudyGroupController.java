@@ -128,4 +128,14 @@ public class StudyGroupController {
                 userPrincipal.getId());
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/{studyId}/members/leave") // 또는 /{studyId}/leave
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> leaveStudyGroup(
+            @PathVariable Long studyId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.info("스터디 탈퇴 API 요청: studyId={}, userId={}", studyId, userPrincipal.getId());
+        studyGroupService.leaveStudyGroup(studyId, userPrincipal.getId());
+        return ResponseEntity.noContent().build(); // 성공 시 204 No Content
+    }
 } 

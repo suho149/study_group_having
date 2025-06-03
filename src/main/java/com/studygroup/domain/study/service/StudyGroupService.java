@@ -428,4 +428,55 @@ public class StudyGroupService {
                 notificationType, leader.getId(), applicant.getId(), studyId);
 
     }
+
+    @Transactional
+    public void leaveStudyGroup(Long studyId, Long memberUserId) {
+        log.info("스터디 탈퇴 처리 시작: studyId={}, memberUserId={}", studyId, memberUserId);
+
+        StudyGroup studyGroup = studyGroupRepository.findById(studyId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 스터디 그룹입니다. ID: " + studyId));
+
+        User memberUser = userRepository.findById(memberUserId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자입니다. ID: " + memberUserId));
+
+        // 1. 스터디장인지 확인 (스터디장은 탈퇴 불가 - 정책에 따라 다를 수 있음)
+        if (studyGroup.getLeader().getId().equals(memberUserId)) {
+            log.warn("스터디장 탈퇴 시도: studyId={}, memberUserId={}", studyId, memberUserId);
+            throw new IllegalStateException("스터디장은 스터디에서 탈퇴할 수 없습니다. 스터디를 삭제하거나 리더를 변경해주세요.");
+        }
+
+        // 2. 해당 스터디의 멤버인지, 그리고 승인된(APPROVED) 멤버인지 확인
+        StudyMember studyMember = studyGroup.getMembers().stream()
+                .filter(m -> m.getUser().getId().equals(memberUserId) && m.getStudyGroup().getId().equals(studyId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("해당 스터디의 멤버가 아닙니다."));
+
+        if (studyMember.getStatus() != StudyMemberStatus.APPROVED) {
+            log.warn("승인되지 않은 멤버의 탈퇴 시도: studyId={}, memberUserId={}, status={}",
+                    studyId, memberUserId, studyMember.getStatus());
+            throw new IllegalStateException("승인된 멤버만 탈퇴할 수 있습니다. 현재 상태: " + studyMember.getStatus());
+        }
+
+        // 3. 멤버 제거
+        // StudyGroup 엔티티의 removeMember 메소드가 currentMembers 수를 업데이트하고,
+        // orphanRemoval=true 또는 cascade를 통해 StudyMember 엔티티도 DB에서 삭제하는지 확인합니다.
+        // 여기서는 StudyGroup의 members 컬렉션에서 제거하고, StudyMember 엔티티도 직접 삭제합니다.
+        studyGroup.removeMember(studyMember); // StudyGroup의 members 컬렉션에서 제거 및 currentMembers 업데이트
+        studyMemberRepository.delete(studyMember); // StudyMember 엔티티 DB에서 삭제
+        // studyGroupRepository.save(studyGroup); // removeMember 내부에서 currentMembers 변경 시 필요할 수 있음 (또는 StudyGroup의 @Version 등으로 감지)
+
+        log.info("스터디 멤버 탈퇴 완료: studyId={}, memberUserId={}", studyId, memberUserId);
+
+        // 4. 스터디장에게 알림 생성
+        String message = String.format("'%s'님이 '%s' 스터디에서 탈퇴했습니다.", memberUser.getName(), studyGroup.getTitle());
+        notificationService.createNotification(
+                memberUser,             // 알림 발신자 (탈퇴한 멤버)
+                studyGroup.getLeader(), // 알림 수신자 (스터디장)
+                message,
+                NotificationType.MEMBER_LEFT_STUDY,
+                studyGroup.getId()      // 관련 ID (스터디 그룹 ID)
+        );
+        log.info("스터디 멤버 탈퇴 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
+                memberUser.getId(), studyGroup.getLeader().getId(), studyGroup.getId());
+    }
 }

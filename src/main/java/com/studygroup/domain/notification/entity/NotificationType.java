@@ -6,7 +6,8 @@ public enum NotificationType {
     INVITE_REJECTED("초대 거절"),
     STUDY_JOIN_REQUEST("스터디 참여 신청"),
     JOIN_APPROVED("스터디 참여 승인"),
-    JOIN_REJECTED("스터디 참여 거절");
+    JOIN_REJECTED("스터디 참여 거절"),
+    MEMBER_LEFT_STUDY("스터디 멤버 탈퇴");
 
     private final String description;
 
