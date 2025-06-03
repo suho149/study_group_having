@@ -138,4 +138,16 @@ public class StudyGroupController {
         studyGroupService.leaveStudyGroup(studyId, userPrincipal.getId());
         return ResponseEntity.noContent().build(); // 성공 시 204 No Content
     }
+
+    @DeleteMapping("/{studyId}/members/{memberUserId}") // DELETE 메소드 사용
+    @PreAuthorize("isAuthenticated()") // 요청자 인증 확인
+    public ResponseEntity<Void> removeMemberByLeader(
+            @PathVariable Long studyId,
+            @PathVariable Long memberUserId, // 강제 탈퇴시킬 멤버의 User ID
+            @CurrentUser UserPrincipal leaderUserPrincipal) {
+        log.info("스터디장에 의한 멤버 강제 탈퇴 API 요청: studyId={}, memberUserIdToRemove={}, leaderUserId={}",
+                studyId, memberUserId, leaderUserPrincipal.getId());
+        studyGroupService.removeMemberByLeader(studyId, memberUserId, leaderUserPrincipal.getId());
+        return ResponseEntity.noContent().build(); // 성공 시 204 No Content
+    }
 } 

@@ -13,10 +13,17 @@ import {
   Menu,       // 스터디장 멤버 관리용 (예시)
   MenuItem,   // 스터디장 멤버 관리용 (예시)
   CircularProgress, // API 호출 시 로딩 표시용
+  ListItemIcon as MuiListItemIcon, // 이름 충돌 방지
+  Dialog, // 확인 다이얼로그용
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle, Button,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert'; // 멤버 관리 메뉴 아이콘 (예시)
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // 승인 아이콘 (예시)
 import HighlightOffIcon from '@mui/icons-material/HighlightOff'; // 거절 아이콘 (예시)
+import PersonRemoveIcon from '@mui/icons-material/PersonRemove'; // 강제 탈퇴 아이콘
 import api from '../../services/api'; // API 서비스 import (경로 확인 필요)
 import { useAuth } from '../../contexts/AuthContext'; // currentUserId 가져오기 위함 (경로 확인 필요)
 
@@ -52,6 +59,9 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
   const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
   const [isProcessingMember, setIsProcessingMember] = React.useState(false);
 
+  // 강제 탈퇴 확인 다이얼로그 상태
+  const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = React.useState(false);
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, member: Member) => {
     setAnchorEl(event.currentTarget);
     setSelectedMember(member);
@@ -62,7 +72,18 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
     setSelectedMember(null);
   };
 
-  const handleMemberAction = async (action: 'approve' | 'reject') => {
+  const handleOpenRemoveConfirm = () => {
+    setIsRemoveConfirmOpen(true);
+    // 메뉴는 닫되, selectedMember는 유지 (다이얼로그에서 사용하기 위해)
+    setAnchorEl(null);
+  };
+
+  const handleCloseRemoveConfirm = () => {
+    setIsRemoveConfirmOpen(false);
+    setSelectedMember(null); // 다이얼로그 닫을 때 selectedMember 초기화
+  };
+
+  const handleMemberApprovalAction = async (action: 'approve' | 'reject') => {
     if (!selectedMember || !studyId) return;
 
     setIsProcessingMember(true);
@@ -102,6 +123,29 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
     }
   };
 
+  // 멤버 강제 탈퇴 액션 핸들러
+  const handleRemoveMemberByLeader = async () => {
+    if (!selectedMember || !studyId) return;
+
+    setIsProcessingMember(true);
+    // 확인 다이얼로그는 API 호출 전에 닫거나, API 호출 성공/실패 후 닫을 수 있음
+    // 여기서는 API 호출 전에 닫고, selectedMember는 API 호출에 사용 후 초기화
+
+    try {
+      await api.delete(`/api/studies/${studyId}/members/${selectedMember.id}`);
+      if (onMemberStatusChange) {
+        await onMemberStatusChange();
+      }
+      // TODO: 성공 Snackbar ("OOO님을 내보냈습니다.")
+    } catch (error: any) {
+      console.error('Failed to remove member by leader:', error);
+      // TODO: 오류 Snackbar
+      alert(error.response?.data?.message || `${selectedMember.name}님을 내보내는 중 오류가 발생했습니다.`);
+    } finally {
+      setIsProcessingMember(false);
+      handleCloseRemoveConfirm(); // 다이얼로그 닫고 selectedMember 초기화
+    }
+  };
 
   // 스터디장을 먼저 찾고, 나머지 멤버들을 분리
   const leader = members.find(member => member.role === 'LEADER');
@@ -146,19 +190,22 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
                         alignItems="flex-start"
                         sx={{ py: 0.8, px: 0.5 }}
                         secondaryAction={
-                            isLeaderView && member.role !== 'LEADER' && member.status === 'PENDING' && (
-                                isProcessingMember && selectedMember?.id === member.id ? (
-                                    <CircularProgress size={24} />
-                                ) : (
-                                    <IconButton
-                                        edge="end"
-                                        aria-label="manage member"
-                                        onClick={(e) => handleMenuOpen(e, member)}
-                                        size="small"
-                                    >
-                                      <MoreVertIcon fontSize="small" />
-                                    </IconButton>
-                                )
+                            isLeaderView && member.id !== currentUserId && ( // 스터디장이고, 자기 자신이 아닐 때 메뉴 표시
+                                // PENDING 상태 멤버 또는 APPROVED 상태 멤버 (리더 제외)에 대해 메뉴 표시
+                                (member.status === 'PENDING' || (member.status === 'APPROVED' && member.role !== 'LEADER')) ? (
+                                    isProcessingMember && selectedMember?.id === member.id ? (
+                                        <CircularProgress size={24} />
+                                    ) : (
+                                        <IconButton
+                                            edge="end"
+                                            aria-label={`manage member ${member.name}`}
+                                            onClick={(e) => handleMenuOpen(e, member)}
+                                            size="small"
+                                        >
+                                          <MoreVertIcon fontSize="small" />
+                                        </IconButton>
+                                    )
+                                ) : null // 그 외 상태(예: REJECTED)는 메뉴 표시 안 함
                             )
                         }
                     >
@@ -221,17 +268,64 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
         <Menu
             anchorEl={anchorEl}
             open={Boolean(anchorEl) && Boolean(selectedMember)}
-            onClose={handleMenuClose}
+            onClose={() => { // 메뉴 닫을 때 selectedMember도 초기화 (다이얼로그 안 열렸을 경우)
+              setAnchorEl(null);
+              if (!isRemoveConfirmOpen) { // 강제탈퇴 다이얼로그가 열려있지 않을 때만 초기화
+                setSelectedMember(null);
+              }
+            }}
+            MenuListProps={{
+              'aria-labelledby': 'member-actions-button',
+            }}
         >
-          <MenuItem onClick={() => handleMemberAction('approve')} disabled={isProcessingMember}>
-            <CheckCircleOutlineIcon fontSize="small" sx={{ mr: 1 }} />
-            승인하기
-          </MenuItem>
-          <MenuItem onClick={() => handleMemberAction('reject')} disabled={isProcessingMember} sx={{ color: 'error.main' }}>
-            <HighlightOffIcon fontSize="small" sx={{ mr: 1 }} />
-            거절하기
-          </MenuItem>
+          {/* PENDING 상태 멤버에 대한 액션 */}
+          {selectedMember?.status === 'PENDING' && [
+            <MenuItem key="approve" onClick={() => handleMemberApprovalAction('approve')} disabled={isProcessingMember}>
+              <MuiListItemIcon>
+                <CheckCircleOutlineIcon fontSize="small" color="success" />
+              </MuiListItemIcon>
+              승인하기
+            </MenuItem>,
+            <MenuItem key="reject" onClick={() => handleMemberApprovalAction('reject')} disabled={isProcessingMember} sx={{ color: 'error.main' }}>
+              <MuiListItemIcon>
+                <HighlightOffIcon fontSize="small" color="error" />
+              </MuiListItemIcon>
+              거절하기
+            </MenuItem>
+          ]}
+          {/* APPROVED 상태 멤버 (리더 제외)에 대한 액션 */}
+          {selectedMember?.status === 'APPROVED' && selectedMember?.role !== 'LEADER' && (
+              <MenuItem onClick={handleOpenRemoveConfirm} disabled={isProcessingMember} sx={{ color: 'error.main' }}>
+                <MuiListItemIcon>
+                  <PersonRemoveIcon fontSize="small" color="error" />
+                </MuiListItemIcon>
+                내보내기
+              </MenuItem>
+          )}
         </Menu>
+
+        {/* 강제 탈퇴 확인 다이얼로그 */}
+        {selectedMember && ( // selectedMember가 있을 때만 Dialog 렌더링
+            <Dialog
+                open={isRemoveConfirmOpen}
+                onClose={handleCloseRemoveConfirm} // 사용자가 외부 클릭 등으로 닫을 때
+                aria-labelledby="remove-member-dialog-title"
+                aria-describedby="remove-member-dialog-description"
+            >
+              <DialogTitle id="remove-member-dialog-title">멤버 내보내기</DialogTitle>
+              <DialogContent>
+                <DialogContentText id="remove-member-dialog-description">
+                  정말로 '{selectedMember.name}'님을 스터디에서 내보내시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                </DialogContentText>
+              </DialogContent>
+              <DialogActions>
+                <Button onClick={handleCloseRemoveConfirm} disabled={isProcessingMember}>취소</Button>
+                <Button onClick={handleRemoveMemberByLeader} color="error" variant="contained" disabled={isProcessingMember}>
+                  {isProcessingMember ? <CircularProgress size={20} color="inherit" /> : '내보내기'}
+                </Button>
+              </DialogActions>
+            </Dialog>
+        )}
       </>
   );
 };

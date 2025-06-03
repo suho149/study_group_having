@@ -479,4 +479,72 @@ public class StudyGroupService {
         log.info("스터디 멤버 탈퇴 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
                 memberUser.getId(), studyGroup.getLeader().getId(), studyGroup.getId());
     }
+
+    @Transactional
+    public void removeMemberByLeader(Long studyId, Long memberUserIdToRemove, Long leaderUserId) {
+        log.info("스터디장에 의한 멤버 강제 탈퇴 처리 시작: studyId={}, memberUserIdToRemove={}, leaderUserId={}",
+                studyId, memberUserIdToRemove, leaderUserId);
+
+        StudyGroup studyGroup = studyGroupRepository.findById(studyId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 스터디 그룹입니다. ID: " + studyId));
+
+        User leader = userRepository.findById(leaderUserId)
+                .orElseThrow(() -> new IllegalArgumentException("스터디장 정보를 찾을 수 없습니다. ID: " + leaderUserId));
+
+        // 1. 요청자가 실제 스터디장인지 확인
+        if (!studyGroup.getLeader().getId().equals(leaderUserId)) {
+            log.warn("스터디장이 아닌 사용자의 멤버 강제 탈퇴 시도: studyId={}, 요청자Id={}, 실제스터디장Id={}",
+                    studyId, leaderUserId, studyGroup.getLeader().getId());
+            throw new IllegalStateException("스터디장만 멤버를 강제 탈퇴시킬 수 있습니다.");
+        }
+
+        // 2. 자기 자신(스터디장)을 강제 탈퇴시키려는지 확인
+        if (memberUserIdToRemove.equals(leaderUserId)) {
+            log.warn("스터디장이 자신을 강제 탈퇴시키려는 시도: studyId={}, memberUserIdToRemove={}", studyId, memberUserIdToRemove);
+            throw new IllegalStateException("스터디장은 자기 자신을 강제 탈퇴시킬 수 없습니다.");
+        }
+
+        // 3. 대상 멤버 찾기
+        StudyMember memberToRemove = studyGroup.getMembers().stream()
+                .filter(member -> member.getUser().getId().equals(memberUserIdToRemove) && member.getStudyGroup().getId().equals(studyId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "해당 스터디에 존재하지 않거나 잘못된 멤버입니다. 스터디 ID: " + studyId + ", 강제 탈퇴 대상 멤버 ID: " + memberUserIdToRemove));
+
+        User removedUser = memberToRemove.getUser(); // 알림을 위해 미리 사용자 정보 가져오기
+
+        // 4. 멤버 제거 로직 (이전에 구현한 leaveStudyGroup과 유사하게 처리)
+        // StudyGroup의 members 컬렉션에서 제거하고, StudyMember 엔티티도 DB에서 삭제.
+        // StudyGroup 엔티티의 removeMember 메소드가 currentMembers 수를 올바르게 업데이트해야 함.
+        studyGroup.removeMember(memberToRemove);
+        studyMemberRepository.delete(memberToRemove);
+        // studyGroupRepository.save(studyGroup); // currentMembers 변경 시 영속성 컨텍스트와 동기화 (필요 시)
+
+        log.info("스터디 멤버 강제 탈퇴 완료: studyId={}, removedMemberId={}, byLeaderId={}",
+                studyId, removedUser.getId(), leaderUserId);
+
+        // 5. 강제 탈퇴된 멤버에게 알림 생성 (선택 사항)
+        String messageToRemovedMember = String.format("'%s' 스터디에서 스터디장에 의해 탈퇴 처리되었습니다.", studyGroup.getTitle());
+        notificationService.createNotification(
+                leader,                   // 알림 발신자 (조치를 취한 스터디장)
+                removedUser,              // 알림 수신자 (강제 탈퇴된 멤버)
+                messageToRemovedMember,
+                NotificationType.MEMBER_REMOVED_BY_LEADER,
+                studyGroup.getId()
+        );
+        log.info("강제 탈퇴된 멤버에게 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
+                leader.getId(), removedUser.getId(), studyGroup.getId());
+
+        // 6. 스터디장에게 확인 알림 생성 (선택 사항)
+        String messageToLeader = String.format("'%s'님을 '%s' 스터디에서 내보냈습니다.", removedUser.getName(), studyGroup.getTitle());
+        notificationService.createNotification(
+                removedUser, // 시스템 또는 조치 대상이 된 유저가 sender가 될 수도 있음 (정책에 따라)
+                leader,      // 알림 수신자 (스터디장)
+                messageToLeader,
+                NotificationType.LEADER_REMOVED_MEMBER,
+                studyGroup.getId()
+        );
+        log.info("스터디장에게 멤버 내보내기 완료 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
+                removedUser.getId(), leader.getId(), studyGroup.getId());
+    }
 }
