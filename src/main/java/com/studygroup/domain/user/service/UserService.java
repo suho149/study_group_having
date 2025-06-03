@@ -1,6 +1,7 @@
 package com.studygroup.domain.user.service;
 
 import com.studygroup.domain.user.dto.UserSearchResponse;
+import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,5 +22,10 @@ public class UserService {
                 .stream()
                 .map(UserSearchResponse::from)
                 .collect(Collectors.toList());
+    }
+
+    public User getUserById(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
     }
 } 

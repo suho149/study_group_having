@@ -12,6 +12,7 @@ interface PostCardProps {
   title: string;
   date: string;
   views: number;
+  maxMembers?: number; // <--- 추가: 최대 멤버 수
   tags: string[];
   isHot?: boolean;
   status: string;
@@ -87,6 +88,7 @@ const PostCard: React.FC<PostCardProps> = ({
   title,
   date,
   views,
+  maxMembers,
   tags,
   isHot = false,
   status,
@@ -118,34 +120,45 @@ const PostCard: React.FC<PostCardProps> = ({
       <CardContent>
         <Box 
           display="flex" 
-          alignItems="center" 
+          alignItems="center"
+          justifyContent="space-between" // isHot을 오른쪽으로 보내기 위함 (선택적)
           gap={1} 
           sx={{ mb: 2 }}
         >
-          <CategoryChip label={category} size="small" />
-          <StatusChip label={getStatusLabel(status)} size="small" status={status} />
+          <Box display="flex" alignItems="center" gap={1}>
+            <CategoryChip label={category} size="small" />
+            <StatusChip label={getStatusLabel(status)} size="small" status={status} />
+          </Box>
           {isHot && <HotChip label="🔥 인기" size="small" />}
         </Box>
-        <PostTitle>{title}</PostTitle>
-        <TagContainer>
-          {tags.map((tag, index) => (
-            <Tag key={index} label={tag} size="small" />
+        <PostTitle variant="h6" noWrap> {/* h6로 변경하고, 길면 ... 처리 */}
+          {title}
+        </PostTitle>
+        <TagContainer sx={{ minHeight: 32, mb: 2 }}> {/* 태그 없을 때 높이 유지 및 마진 조정 */}
+          {tags.slice(0, 3).map((tag, index) => ( // 태그는 최대 3개까지만 표시 (예시)
+              <Tag key={index} label={`#${tag}`} size="small" /> // 태그 앞에 # 추가
           ))}
+          {tags.length > 3 && <Typography variant="caption" sx={{ ml: 0.5 }}>...</Typography>}
         </TagContainer>
         <PostFooter>
-          <Typography variant="body2">{date}</Typography>
-          <Box display="flex" alignItems="center" gap={2}>
-            <ViewCount>
-              <GroupIcon fontSize="small" />
-              <Typography variant="body2">{views}</Typography>
+          <Typography variant="caption" color="text.secondary">{date}</Typography> {/* 날짜는 caption으로 작게 */}
+          <Box display="flex" alignItems="center" gap={1.5}> {/* 아이콘 간 간격 조정 */}
+            <ViewCount title="참여 현황">
+              <GroupIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+              <Typography variant="body2" component="span" sx={{ fontWeight: 500 }}> {/* component="span"으로 변경 */}
+                {views}
+                {maxMembers !== undefined && `/${maxMembers}`} {/* maxMembers가 있으면 함께 표시 */}
+              </Typography>
             </ViewCount>
-            <ViewCount>
-              <VisibilityIcon fontSize="small" />
-              <Typography variant="body2">{viewCount}</Typography>
+            <ViewCount title="조회수">
+              <VisibilityIcon fontSize="small" sx={{ color: 'text.secondary' }}/>
+              <Typography variant="body2" component="span">{viewCount}</Typography>
             </ViewCount>
-            <IconButton size="small">
+            {/*
+            <IconButton size="small" aria-label="add to favorites">
               <FavoriteIcon fontSize="small" />
             </IconButton>
+            */}
           </Box>
         </PostFooter>
       </CardContent>

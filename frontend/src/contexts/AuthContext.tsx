@@ -31,6 +31,7 @@ const extractUserIdFromToken = (token: string): number | null => {
 export interface AuthContextType {
   isLoggedIn: boolean;
   currentUserId: number | null;
+  isLoading: boolean;
   checkAuth: () => Promise<void>; // 인증 상태 수동 갱신
   login: (token: string) => void; // 로그인 처리 (토큰만 받아도 ID 추출 가능)
   logout: () => void;
@@ -141,6 +142,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       <AuthContext.Provider value={{
         isLoggedIn,
         currentUserId,
+        isLoading,
         checkAuth,
         login,
         logout,
