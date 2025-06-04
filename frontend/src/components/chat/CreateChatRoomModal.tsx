@@ -8,6 +8,7 @@ import api from '../../services/api';
 import { UserSummaryDto } from '../../types/user'; // UserSummaryDto 타입 정의 필요
 import { StudyMember } from '../../types/study'; // StudyGroupDetail 타입 정의 필요 (멤버 목록 가져오기 위함)
 import { ChatRoomCreateRequest } from '../../types/chat'; // ChatRoomCreateRequest 타입 정의 필요
+import { useAuth } from '../../contexts/AuthContext'; // <--- useAuth import 추가
 
 interface CreateChatRoomModalProps {
     open: boolean;
@@ -24,14 +25,15 @@ const CreateChatRoomModal: React.FC<CreateChatRoomModalProps> = ({
                                                                      studyGroupMembers, // 스터디의 전체 멤버 (UserSummaryDto[] 와 유사한 형태)
                                                                      onCreateSuccess,
                                                                  }) => {
+    const { currentUserId } = useAuth(); // <--- 현재 로그인한 사용자 ID 가져오기
     const [chatRoomName, setChatRoomName] = useState('');
     const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // 스터디 멤버 중에서 APPROVED 상태인 멤버만 필터링하여 초대 대상으로 표시
+    // 스터디 멤버 중에서 APPROVED 상태이고, 현재 로그인한 사용자가 아닌 멤버만 필터링
     const availableMembersToInvite = studyGroupMembers.filter(
-        member => member.status === 'APPROVED'
+        (member) => member.status === 'APPROVED' && member.id !== currentUserId // <--- 수정: currentUserId 제외 조건 추가
     );
 
     const handleToggleMember = (userId: number) => {
