@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {useState, useEffect, useRef, useCallback, useMemo} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Container, Box, Typography, TextField, IconButton, Paper, List, ListItem,
@@ -28,6 +28,7 @@ const ChatRoomPage: React.FC = () => {
     const messagesEndRef = useRef<null | HTMLDivElement>(null); // 자동 스크롤용
     const listRef = useRef<null | HTMLUListElement>(null); // 이전 메시지 로드 시 스크롤 위치 유지용
     const [subscriptionId, setSubscriptionId] = useState<string | undefined>(undefined);
+    const [isInvitePending, setIsInvitePending] = useState(false); // 초대 수락/거절 처리 중 상태
 
 
     const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
@@ -57,7 +58,7 @@ const ChatRoomPage: React.FC = () => {
         setLoadingMessages(true);
         try {
             const response = await api.get<any>(`/api/chat/rooms/${currentRoomId}/messages`, { // 응답 타입은 Page<ChatMessageResponse>
-                params: { page, size: 20, sort: 'sentAt,desc' } // 백엔드와 동일하게 createdAt 또는 sentAt
+                params: { page, size: 20, sort: 'createdAt,desc' } // 백엔드와 동일하게 createdAt 또는 sentAt
             });
             const newMessages = response.data.content.reverse(); // 오래된 메시지부터 보이도록 순서 뒤집기
 
@@ -113,6 +114,101 @@ const ChatRoomPage: React.FC = () => {
         };
     }, [isConnected, stompClient, roomId, subscribeToRoom, unsubscribeFromRoom, subscriptionId]);
 
+    useEffect(() => {
+        const initializeChatRoom = async () => {
+            if (!roomId || !isLoggedIn || !currentUserId) return;
+            setLoadingRoomInfo(true);
+            try {
+                const roomInfoResponse = await api.get<ChatRoomDetailResponse>(`/api/chat/rooms/${roomId}`);
+                setChatRoomInfo(roomInfoResponse.data);
+
+                // 현재 사용자의 멤버십 상태 확인
+                const currentUserMembership = roomInfoResponse.data.members.find(
+                    (member) => member.id === currentUserId
+                );
+                // 백엔드 ChatRoomDetailResponse.from() 에서 members는 JOINED 상태만 반환하므로,
+                // ChatRoomMember 테이블을 직접 조회하거나, ChatRoomDetailResponse에 모든 멤버 정보를 포함해야 함.
+                // 여기서는 임시로, ChatRoomDetailResponse.members에 모든 상태의 멤버가 있다고 가정.
+                // 또는 별도의 API로 현재 유저의 ChatRoomMember 상태를 가져와야 함.
+                // 지금은 ChatService.getChatRoomDetail 에서 INVITED/JOINED 멤버만 접근 가능하므로,
+                // 이 페이지에 들어왔다는 것은 적어도 INVITED 상태 이상이라는 의미.
+                // INVITED 상태라면 수락 UI를 보여줘야 함.
+
+                // ChatRoomDetailResponse가 JOINED 멤버만 반환한다면,
+                // 사용자가 INVITED 상태인지 확인하는 별도 로직/API 필요.
+                // 임시방편: ChatService.getChatRoomDetail에서 예외 대신 null이나 특정 상태 반환 고려
+                // 또는, ChatRoomPage 진입 전에 초대 수락을 완료하도록 유도 (알림 페이지 등에서)
+
+                // fetchPreviousMessages를 호출하기 전에 사용자가 JOINED 상태인지 확인하거나,
+                // INVITED 상태라면 수락 프로세스를 먼저 진행하도록 유도.
+                // 여기서는 일단 JOINED 상태라고 가정하고 메시지 로드.
+                // 실제로는 사용자가 INVITED 상태면, 메시지 로드 전에 수락 UI를 보여줘야 함.
+
+                // 초대 수락 UI를 위한 상태 확인 (chatRoomInfo에 현재 유저의 status가 있다면)
+                // if (currentUserMembership && currentUserMembership.status === 'INVITED') {
+                //   // 초대 수락 UI 표시 로직
+                // } else if (currentUserMembership && currentUserMembership.status === 'JOINED') {
+                await fetchPreviousMessages(Number(roomId), 0, true);
+                // }
+
+            } catch (error: any) {
+                console.error("Error fetching chat room info:", error);
+                if (error.response?.status === 403 || error.response?.status === 401) {
+                    // 접근 권한 없음 또는 인증 실패
+                    // alert("채팅방에 접근할 권한이 없습니다.");
+                    // navigate('/studies'); // 또는 다른 적절한 페이지로 이동
+                }
+            } finally {
+                setLoadingRoomInfo(false);
+            }
+        };
+
+        initializeChatRoom();
+// eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [roomId, isLoggedIn, currentUserId]); // fetchPreviousMessages 제거
+
+    const handleAcceptInvite = async () => {
+        if (!roomId) return;
+        setIsInvitePending(true);
+        try {
+            await api.post(`/api/chat/rooms/${roomId}/invites/respond?accept=true`);
+            // 성공 시 채팅방 정보 및 메시지 다시 로드 또는 상태 업데이트
+            await fetchChatRoomData(); // 전체 데이터 다시 로드 (가장 간단)
+            // 또는 setChatRoomInfo를 통해 멤버 상태만 업데이트하고, fetchPreviousMessages 호출
+            // Snackbar로 성공 메시지 표시
+        } catch (error: any) {
+            console.error("Error accepting chat invite:", error);
+            alert(error.response?.data?.message || "초대 수락 중 오류가 발생했습니다.");
+        } finally {
+            setIsInvitePending(false);
+        }
+    };
+
+    const handleRejectInvite = async () => {
+        if (!roomId) return;
+        setIsInvitePending(true);
+        try {
+            await api.post(`/api/chat/rooms/${roomId}/invites/respond?accept=false`);
+            // 거절 성공 시 이전 페이지로 이동 또는 메시지 표시
+            alert("채팅방 초대를 거절했습니다.");
+            navigate(-1); // 이전 페이지로
+        } catch (error: any) {
+            console.error("Error rejecting chat invite:", error);
+            alert(error.response?.data?.message || "초대 거절 중 오류가 발생했습니다.");
+        } finally {
+            setIsInvitePending(false);
+        }
+    };
+
+    // 현재 사용자의 ChatRoomMember 정보 찾기 (렌더링 로직에서 사용)
+    const currentUserChatMembership = useMemo(() => {
+        if (!chatRoomInfo || !currentUserId) return null;
+        // ChatRoomDetailResponse에 모든 멤버 정보가 포함되어야 정확한 status 확인 가능
+        // 백엔드의 ChatRoomDetailResponse.from() 메소드가 모든 멤버를 반환하도록 수정 필요
+        // 또는, chatRoomInfo 대신 별도의 API로 현재 유저의 멤버십 정보를 가져와야 함
+        // 임시로 chatRoomInfo.members가 모든 상태의 멤버를 포함한다고 가정
+        return chatRoomInfo.members.find(member => member.id === currentUserId);
+    }, [chatRoomInfo, currentUserId]);
 
     const handleSendMessage = (e?: React.FormEvent) => {
         if (e) e.preventDefault();

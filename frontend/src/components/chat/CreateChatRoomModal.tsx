@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
     Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
-    List, ListItem, ListItemAvatar, Avatar, ListItemText, Checkbox, Typography, Box, CircularProgress
+    List, ListItem, ListItemAvatar, Avatar, ListItemText, Checkbox, Typography, Box,
+    CircularProgress, ListItemButton
 } from '@mui/material';
 import api from '../../services/api';
 import { UserSummaryDto } from '../../types/user'; // UserSummaryDto 타입 정의 필요
@@ -34,9 +35,14 @@ const CreateChatRoomModal: React.FC<CreateChatRoomModalProps> = ({
     );
 
     const handleToggleMember = (userId: number) => {
-        setSelectedMemberIds(prev =>
-            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
-        );
+        // selectedMemberIds 상태 업데이트 로직 확인
+        setSelectedMemberIds((prevSelectedIds) => {
+            if (prevSelectedIds.includes(userId)) {
+                return prevSelectedIds.filter(id => id !== userId);
+            } else {
+                return [...prevSelectedIds, userId];
+            }
+        });
     };
 
     const handleSubmit = async () => {
@@ -100,28 +106,34 @@ const CreateChatRoomModal: React.FC<CreateChatRoomModalProps> = ({
                     <Typography color="textSecondary">초대할 수 있는 스터디 멤버가 없습니다.</Typography>
                 ) : (
                     <List dense sx={{ maxHeight: 300, overflow: 'auto', border: '1px solid #eee', borderRadius:1 }}>
-                        {availableMembersToInvite.map(member => (
-                            <ListItem
-                                key={member.id}
-                                secondaryAction={
-                                    <Checkbox
-                                        edge="end"
-                                        onChange={() => handleToggleMember(member.id)}
-                                        checked={selectedMemberIds.includes(member.id)}
-                                    />
-                                }
-                                button // dense와 함께 사용 시 클릭 영역 등 고려
-                                onClick={() => handleToggleMember(member.id)}
-                                sx={{ pl: 1 }} // 왼쪽 패딩 추가
-                            >
-                                <ListItemAvatar>
-                                    <Avatar src={member.profile || undefined} alt={member.name} sx={{width:32, height:32}}>
-                                        {!member.profile && member.name[0]}
-                                    </Avatar>
-                                </ListItemAvatar>
-                                <ListItemText primary={member.name} />
-                            </ListItem>
-                        ))}
+                        {availableMembersToInvite.map((member) => {
+                            const labelId = `checkbox-list-label-${member.id}`;
+                            return (
+                                // ListItem의 button prop 대신 ListItemButton 컴포넌트 사용 또는 onClick 이벤트 전파 방지
+                                <ListItem
+                                    key={member.id}
+                                    secondaryAction={
+                                        <Checkbox
+                                            edge="end"
+                                            onChange={() => handleToggleMember(member.id)} // Checkbox 클릭 시에도 토글
+                                            checked={selectedMemberIds.includes(member.id)}
+                                            inputProps={{ 'aria-labelledby': labelId }}
+                                        />
+                                    }
+                                    disablePadding // ListItemButton 사용 시 필요할 수 있음
+                                >
+                                    {/* ListItemButton으로 감싸서 전체 영역 클릭 가능하게 */}
+                                    <ListItemButton role={undefined} onClick={() => handleToggleMember(member.id)} dense>
+                                        <ListItemAvatar>
+                                            <Avatar src={member.profile || undefined} alt={member.name} sx={{width:32, height:32}}>
+                                                {!member.profile && member.name[0]}
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText id={labelId} primary={member.name} />
+                                    </ListItemButton>
+                                </ListItem>
+                            );
+                        })}
                     </List>
                 )}
                 {error && !error.includes("이름") && (

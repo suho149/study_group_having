@@ -13,6 +13,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import NotificationPage from './pages/NotificationPage';
 import StudyGroupEditPage from './pages/StudyGroupEditPage';
 import { ChatProvider } from './contexts/ChatContext';
+import ChatRoomPage from "./pages/ChatRoomPage";
 
 const theme = createTheme({
   palette: {
@@ -54,20 +55,29 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <AuthProvider>
-        <Router>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/mypage" element={<MyPage />} />
-            <Route path="/studies/create" element={<CreateStudyPage />} />
-            <Route path="/studies/:id" element={<StudyDetailPage />} />
-            <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
-            <Route path="/notifications" element={<NotificationPage />} />
-            <Route path="/studies/:id/edit" element={<StudyGroupEditPage />} />
-            {/* 추가 라우트는 여기에 */}
-          </Routes>
-        </Router>
+        <ChatProvider>
+          <Router>
+            <Navbar />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/mypage" element={<MyPage />} />
+              {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}
+              {/* <Route path="/mypage/edit-profile" element={<EditProfilePage />} /> */}
+              <Route path="/studies/create" element={<CreateStudyPage />} />
+              <Route path="/studies/:id" element={<StudyDetailPage />} />
+              <Route path="/studies/:id/edit" element={<StudyGroupEditPage />} />
+              <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+              <Route path="/notifications" element={<NotificationPage />} />
+
+              {/* 채팅방 상세 페이지 라우트 추가 */}
+              <Route path="/chat/room/:roomId" element={<ChatRoomPage />} /> {/* <--- 이 라우트 추가 */}
+
+              {/* 추가 라우트는 여기에 */}
+              {/* 예: <Route path="*" element={<NotFoundPage />} /> */}
+            </Routes>
+          </Router>
+        </ChatProvider>
       </AuthProvider>
     </ThemeProvider>
   );
