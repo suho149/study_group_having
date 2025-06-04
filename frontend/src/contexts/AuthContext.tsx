@@ -36,6 +36,7 @@ export interface AuthContextType {
   login: (token: string) => void; // 로그인 처리 (토큰만 받아도 ID 추출 가능)
   logout: () => void;
   // setIsLoggedIn, setCurrentUserId는 내부 관리용으로 숨기거나, 필요시 노출
+  token?: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);

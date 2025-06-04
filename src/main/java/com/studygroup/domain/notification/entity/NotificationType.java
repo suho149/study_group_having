@@ -9,7 +9,8 @@ public enum NotificationType {
     JOIN_REJECTED("스터디 참여 거절"),
     MEMBER_LEFT_STUDY("스터디 멤버 탈퇴"),
     MEMBER_REMOVED_BY_LEADER("스터디 멤버 강제 탈퇴"), // 스터디장이 멤버를 내보냄 (멤버에게)
-    LEADER_REMOVED_MEMBER("스터디장 멤버 내보내기 완료"); // 스터디장이 멤버를 내보냄 (스터디장에게 확인용)
+    LEADER_REMOVED_MEMBER("스터디장 멤버 내보내기 완료"), // 스터디장이 멤버를 내보냄 (스터디장에게 확인용)
+    CHAT_INVITE("채팅방 초대");
 
     private final String description;
 

@@ -12,6 +12,7 @@ import OAuth2RedirectHandler from './components/auth/OAuth2RedirectHandler';
 import { AuthProvider } from './contexts/AuthContext';
 import NotificationPage from './pages/NotificationPage';
 import StudyGroupEditPage from './pages/StudyGroupEditPage';
+import { ChatProvider } from './contexts/ChatContext';
 
 const theme = createTheme({
   palette: {

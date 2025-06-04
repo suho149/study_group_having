@@ -30,46 +30,21 @@ import StudyMemberList from './StudyMemberList'; // 이 컴포넌트의 members 
 import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 스터디 나가기 아이콘 (재활용)
 import api from '../../services/api'; // api import 추가
 import { useAuth } from '../../contexts/AuthContext'; // currentUserId 가져오기
+import { StudyGroupDataType } from '../../types/study'; // <--- 수정
 
 interface StudyDetailProps {
-  study: {
-    id: number;
-    title: string;
-    description: string;
-    maxMembers: number;
-    currentMembers: number;
-    status: string;
-    studyType: string;
-    location: string;
-    startDate: string;
-    endDate: string;
-    tags: string[];
-    viewCount: number;
-    leader: {
-      id: number;
-      name: string;
-      imageUrl: string;
-    };
-    members: Array<{
-      id: number; // 사용자(User)의 ID
-      name: string;
-      profile: string;
-      role: 'LEADER' | 'MEMBER';
-      status: 'PENDING' | 'APPROVED' | 'REJECTED';
-    }>;
-  };
+  study: StudyGroupDataType; // <--- 수정: 타입을 StudyGroupDataType으로 변경
   isLeader: boolean;
   onInvite: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  // 참여 신청 관련 props 추가
   onApply: () => void;
   isApplying: boolean;
   canApply: boolean;
   isMemberApproved: boolean;
   isMemberPending: boolean;
-  isAuthenticated: boolean; // 인증 여부 추가
-  fetchStudyDetail: () => void; // <--- 추가: 데이터 새로고침 함수
+  isAuthenticated: boolean;
+  fetchStudyDetail: () => void;
 }
 
 const getStatusColor = (status: string): ChipProps['color'] => { // ChipProps['color'] 타입 사용
@@ -102,47 +77,35 @@ const getStatusText = (status: string) => {
   }
 };
 
-const StudyDetail: React.FC<StudyDetailProps> = ({
-                                                   study,
-                                                   isLeader,
-                                                   onInvite,
-                                                   onEdit,
-                                                   onDelete,
-                                                   onApply,
-                                                   isApplying,
-                                                   canApply,
-                                                   isMemberApproved,
-                                                   isMemberPending,
-                                                   isAuthenticated,
-                                                   fetchStudyDetail, // <--- props로 받음
-                                                 }) => {
-
-  const { currentUserId } = useAuth(); // 현재 로그인한 사용자 ID
+const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이름을 StudyDetailComponent로 변경 (선택 사항)
+                                                            study,
+                                                            isLeader,
+                                                            onInvite,
+                                                            onEdit,
+                                                            onDelete,
+                                                            onApply,
+                                                            isApplying,
+                                                            canApply,
+                                                            isMemberApproved,
+                                                            isMemberPending,
+                                                            isAuthenticated,
+                                                            fetchStudyDetail,
+                                                          }) => {
+  const { currentUserId } = useAuth();
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = React.useState(false);
   const [isLeaving, setIsLeaving] = React.useState(false);
 
-  const handleOpenLeaveConfirm = () => {
-    setIsLeaveConfirmOpen(true);
-  };
-
-  const handleCloseLeaveConfirm = () => {
-    setIsLeaveConfirmOpen(false);
-  };
+  const handleOpenLeaveConfirm = () => setIsLeaveConfirmOpen(true);
+  const handleCloseLeaveConfirm = () => setIsLeaveConfirmOpen(false);
 
   const handleLeaveStudy = async () => {
     if (!study || !currentUserId) return;
     setIsLeaving(true);
     try {
       await api.delete(`/api/studies/${study.id}/members/leave`);
-      // 성공 시 스터디 상세 정보 다시 불러오기
       await fetchStudyDetail();
-      // 필요하다면 Snackbar로 성공 메시지 표시
-      // if (onLeaveSuccess) onLeaveSuccess(); // 예: 페이지 이동
-      // 현재는 fetchStudyDetail로 멤버 목록이 갱신되므로,
-      // isMemberApproved 상태도 변경되어 버튼이 사라지거나 변경될 것임.
     } catch (error: any) {
       console.error('Error leaving study:', error);
-      // 오류 메시지 표시 (Snackbar 등)
       alert(error.response?.data?.message || '스터디 탈퇴 중 오류가 발생했습니다.');
     } finally {
       setIsLeaving(false);
@@ -359,4 +322,4 @@ const StudyDetail: React.FC<StudyDetailProps> = ({
   );
 };
 
-export default StudyDetail;
+export default StudyDetailComponent;

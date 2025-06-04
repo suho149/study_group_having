@@ -11,65 +11,114 @@ import {
   Button,
   Box,
   Snackbar, // 추가
-  Alert,    // 추가
+  Alert, CircularProgress,    // 추가
 } from '@mui/material';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import StudyDetail from '../components/study/StudyDetail';
 import InviteMemberModal from '../components/study/InviteMemberModal';
+import { List, ListItem, ListItemText, ListItemIcon, Fab, Paper, Divider as MuiDivider } from '@mui/material'; // Fab 등 추가
+import ChatIcon from '@mui/icons-material/Chat'; // 채팅 아이콘
+import AddIcon from '@mui/icons-material/Add'; // 추가 아이콘
+import CreateChatRoomModal from '../components/chat/CreateChatRoomModal'; // 모달 import
+import { ChatRoomResponse } from '../types/chat'; // 채팅방 응답 타입
+import { StudyGroupDataType, StudyMember } from '../types/study'; // StudyMember도 필요시 import
 
 // 스터디 상세 정보 타입 (백엔드 응답 DTO와 일치해야 함)
-interface StudyGroupDetail {
-  id: number;
-  title: string;
-  description: string;
-  maxMembers: number;
-  currentMembers: number; // 승인된 멤버 수
-  status: string;
-  studyType: string;
-  location: string;
-  startDate: string;
-  endDate: string;
-  tags: string[];
-  viewCount: number;
-  leader: {
-    id: number; // User ID
-    name: string;
-    imageUrl: string;
-  };
-  members: Array<{ // 이 배열의 각 요소가 MemberInStudyResponse 와 유사한 구조를 가져야 함
-    id: number; // 사용자(User)의 ID
-    name: string;
-    profile: string;
-    role: 'LEADER' | 'MEMBER';
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
-    // studyMemberId?: number; // 백엔드에서 내려준다면 사용 가능
-  }>;
-}
+// interface StudyGroupDetail {
+//   id: number;
+//   title: string;
+//   description: string;
+//   maxMembers: number;
+//   currentMembers: number; // 승인된 멤버 수
+//   status: string;
+//   studyType: string;
+//   location: string;
+//   startDate: string;
+//   endDate: string;
+//   tags: string[];
+//   viewCount: number;
+//   leader: {
+//     id: number; // User ID
+//     name: string;
+//     imageUrl: string;
+//   };
+//   members: Array<{ // 이 배열의 각 요소가 MemberInStudyResponse 와 유사한 구조를 가져야 함
+//     id: number; // 사용자(User)의 ID
+//     name: string;
+//     profile: string;
+//     role: 'LEADER' | 'MEMBER';
+//     status: 'PENDING' | 'APPROVED' | 'REJECTED';
+//     // studyMemberId?: number; // 백엔드에서 내려준다면 사용 가능
+//   }>;
+// }
 
 const StudyDetailPage = () => {
-  const { id: studyIdParam } = useParams<{ id: string }>(); // id -> studyIdParam으로 변경 (혼동 방지)
-  const studyId = Number(studyIdParam); // 숫자로 변환
+  const { id: studyIdParam } = useParams<{ id: string }>();
+  const studyId = Number(studyIdParam);
   const navigate = useNavigate();
-  const { currentUserId, isLoggedIn } = useAuth(); // isAuthenticated 추가
-  const [study, setStudy] = useState<StudyGroupDetail | null>(null);
+  const { currentUserId, isLoggedIn } = useAuth();
+
+  // 수정: study 상태 타입을 StudyGroupDataType으로 통일하고, 한 번만 선언합니다.
+  const [study, setStudy] = useState<StudyGroupDataType | null>(null); // <--- 수정
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-
-  // 참여 신청 관련 상태
   const [isApplying, setIsApplying] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
+  const [chatRooms, setChatRooms] = useState<ChatRoomResponse[]>([]);
+  const [loadingChatRooms, setLoadingChatRooms] = useState(false);
+  const [isCreateChatModalOpen, setIsCreateChatModalOpen] = useState(false);
+
+  const fetchChatRooms = async () => {
+    if (!studyId || !isLoggedIn) return; // 로그인 상태일 때만 채팅방 조회
+    setLoadingChatRooms(true);
+    try {
+      const response = await api.get<ChatRoomResponse[]>(`/api/chat/study-group/${studyId}/rooms`);
+      setChatRooms(response.data);
+    } catch (err) {
+      console.error('Error fetching chat rooms for study group:', err);
+      // 에러 처리 (예: Snackbar)
+    } finally {
+      setLoadingChatRooms(false);
+    }
+  };
+
+  useEffect(() => {
+    if (studyId && isLoggedIn) { // studyId와 로그인 상태가 유효할 때 채팅방 목록 불러오기
+      fetchChatRooms();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studyId, isLoggedIn]); // studyId 또는 로그인 상태 변경 시 다시 불러옴
+
+  // ... (기존 fetchStudyDetail, handleDelete, handleApplyStudy, handleCloseSnackbar, currentUserMemberInfo)
+
+  const handleCreateChatRoomSuccess = (newChatRoomId: number) => {
+    // 채팅방 생성 성공 후 목록 새로고침 또는 생성된 채팅방을 목록에 추가
+    fetchChatRooms();
+    // 필요하다면 생성된 채팅방으로 바로 이동하는 로직 추가
+    // navigate(`/chat/room/${newChatRoomId}`);
+    // 또는 Snackbar로 성공 메시지 표시
+    setSnackbarMessage("새로운 채팅방이 생성되었습니다!");
+    setSnackbarSeverity("success");
+    setSnackbarOpen(true);
+  };
+
+  const isStudyMember = useMemo(() => {
+    if (!study || !currentUserId) return false;
+    return study.members.some(member => member.id === Number(currentUserId) && member.status === 'APPROVED');
+  }, [study, currentUserId]);
 
   const fetchStudyDetail = async () => {
     if (!studyId) return;
     try {
       setLoading(true);
-      setError(null); // 에러 초기화
-      const response = await api.get<StudyGroupDetail>(`/api/studies/${studyId}`);
+      setError(null);
+      // API 응답 타입도 StudyGroupDataType으로 지정
+      const response = await api.get<StudyGroupDataType>(`/api/studies/${studyId}`); // <--- 수정
       setStudy(response.data);
     } catch (err: any) {
       console.error('Error fetching study detail:', err);
@@ -182,6 +231,72 @@ const StudyDetailPage = () => {
               fetchStudyDetail={fetchStudyDetail} // <--- 추가: fetchStudyDetail 함수 전달
           />
         </Box>
+
+        {/* 스터디 채팅방 목록 및 생성 버튼 (스터디 멤버에게만 보임) */}
+        {isLoggedIn && study && isStudyMember && ( // 로그인했고, 스터디 정보가 있고, 스터디 멤버일 때만
+            <Paper elevation={2} sx={{ mt: 4, p: 3, borderRadius: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" component="h3" fontWeight="bold">
+                  스터디 채팅방
+                </Typography>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<AddIcon />}
+                    onClick={() => setIsCreateChatModalOpen(true)}
+                    size="small"
+                >
+                  채팅방 만들기
+                </Button>
+              </Box>
+              {loadingChatRooms ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
+              ) : chatRooms.length > 0 ? (
+                  <List>
+                    {chatRooms.map((room) => (
+                        <React.Fragment key={room.id}>
+                          <ListItem
+                              button
+                              onClick={() => navigate(`/chat/room/${room.id}`)} // 채팅방 상세 페이지로 이동
+                              secondaryAction={
+                                <Typography variant="caption" color="text.secondary">
+                                  {room.memberCount}명 참여중
+                                  {room.lastMessageAt && ` / ${new Date(room.lastMessageAt).toLocaleTimeString('ko-KR',{hour:'2-digit', minute:'2-digit'})}`}
+                                </Typography>
+                              }
+                          >
+                            <ListItemIcon>
+                              <ChatIcon color="primary"/>
+                            </ListItemIcon>
+                            <ListItemText
+                                primary={room.name}
+                                secondary={room.lastMessageContent || "아직 메시지가 없습니다."}
+                                primaryTypographyProps={{ fontWeight: 'medium' }}
+                                secondaryTypographyProps={{ noWrap: true, sx:{maxWidth: 'calc(100% - 70px)'}}} // 긴 메시지 ... 처리
+                            />
+                          </ListItem>
+                          <MuiDivider component="li" variant="inset" sx={{ml:7}}/>
+                        </React.Fragment>
+                    ))}
+                  </List>
+              ) : (
+                  <Typography color="textSecondary" sx={{ textAlign: 'center', py: 2 }}>
+                    이 스터디에는 아직 채팅방이 없습니다.
+                  </Typography>
+              )}
+            </Paper>
+        )}
+
+        {/* 채팅방 생성 모달 */}
+        {study && ( // study 객체가 있을 때만 모달 렌더링 (study.members 접근 때문)
+            <CreateChatRoomModal
+                open={isCreateChatModalOpen}
+                onClose={() => setIsCreateChatModalOpen(false)}
+                studyGroupId={study.id}
+                studyGroupMembers={study.members} // 스터디 멤버 목록 전달
+                onCreateSuccess={handleCreateChatRoomSuccess}
+            />
+        )}
 
         {study && ( // study가 로드된 후에 InviteMemberModal 렌더링
             <InviteMemberModal
