@@ -36,68 +36,100 @@ public class ChatService {
     private final NotificationService notificationService;
     private final SimpMessageSendingOperations messagingTemplate; // STOMP 메시지 발송
 
-    // 채팅방 생성
+    @Transactional
     public ChatRoomDetailResponse createChatRoom(Long studyGroupId, ChatRoomCreateRequest request, Long creatorUserId) {
         User creator = userRepository.findById(creatorUserId)
                 .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + creatorUserId));
         StudyGroup studyGroup = studyGroupRepository.findById(studyGroupId)
                 .orElseThrow(() -> new IllegalArgumentException("스터디 그룹을 찾을 수 없습니다. ID: " + studyGroupId));
 
-        // 요청자가 스터디 그룹의 멤버인지 확인 (또는 스터디장만 생성 가능하게 할 수도 있음)
         boolean isMemberOfStudyGroup = studyGroup.getMembers().stream()
                 .anyMatch(sm -> sm.getUser().getId().equals(creatorUserId) && sm.getStatus() == com.studygroup.domain.study.entity.StudyMemberStatus.APPROVED);
         if (!isMemberOfStudyGroup) {
             throw new IllegalStateException("스터디 그룹의 멤버만 채팅방을 생성할 수 있습니다.");
         }
 
+        // 1. ChatRoom 엔티티 기본 정보 빌드 (아직 members는 비어있음)
         ChatRoom chatRoom = ChatRoom.builder()
                 .name(request.getName())
                 .studyGroup(studyGroup)
                 .build();
+
+        // 2. ChatRoom을 먼저 저장하여 ID를 할당받음
+        //    CascadeType.ALL 때문에 ChatRoomMember가 있다면 함께 저장되려 할 수 있으므로,
+        //    ChatRoomMember 추가 전에 ChatRoom만 먼저 저장하거나,
+        //    ChatRoomMember를 추가한 후 마지막에 한 번만 저장하는 방식을 선택.
+        //    여기서는 멤버 추가 후 마지막에 저장하는 방식으로 변경.
+
         // 생성자를 첫 멤버로 자동 추가 (JOINED 상태)
         ChatRoomMember creatorChatMember = ChatRoomMember.builder()
                 .user(creator)
-                .chatRoom(chatRoom)
+                // .chatRoom(chatRoom) // chatRoom 객체는 아래에서 한 번에 저장될 때 연결됨
                 .status(ChatRoomMemberStatus.JOINED)
                 .build();
-        chatRoom.addMember(creatorChatMember);
+        chatRoom.addMember(creatorChatMember); // ChatRoom 엔티티의 members 컬렉션에 추가하고, member의 chatRoom 필드 설정
 
-        // 초대된 멤버 추가 (INVITED 상태)
+        // 임시로 생성된 ChatRoom 객체를 저장하여 ID를 먼저 얻고, 그 ID를 알림에 사용합니다.
+        // 또는, 모든 멤버 설정 후 최종 저장하고, 저장된 객체의 ID를 사용합니다.
+        // 여기서는 모든 멤버 설정 후 최종 저장하는 방식을 따르겠습니다.
+
+        // 초대된 멤버 처리 및 알림 생성을 위한 임시 List (알림은 ChatRoom ID가 필요하므로 나중에 처리)
+        // List<User> usersToNotify = new ArrayList<>();
+
         for (Long invitedUserId : request.getInvitedMemberIds()) {
-            if (invitedUserId.equals(creatorUserId)) continue; // 자기 자신 초대는 스킵
+            if (invitedUserId.equals(creatorUserId)) continue;
 
             User invitedUser = userRepository.findById(invitedUserId)
                     .orElseThrow(() -> new IllegalArgumentException("초대할 사용자를 찾을 수 없습니다. ID: " + invitedUserId));
 
-            // 초대 대상이 스터디 그룹의 멤버인지 확인
             boolean isInvitedUserMemberOfStudyGroup = studyGroup.getMembers().stream()
                     .anyMatch(sm -> sm.getUser().getId().equals(invitedUserId) && sm.getStatus() == com.studygroup.domain.study.entity.StudyMemberStatus.APPROVED);
             if (!isInvitedUserMemberOfStudyGroup) {
                 log.warn("스터디 그룹 멤버가 아닌 사용자 초대 시도: studyGroupId={}, invitedUserId={}", studyGroupId, invitedUserId);
-                // 여기서 예외를 던지거나, 알림만 보내고 초대는 스킵할 수 있음 (정책에 따라)
-                // 여기서는 일단 스킵하는 것으로 가정
                 continue;
             }
 
             ChatRoomMember invitedChatMember = ChatRoomMember.builder()
                     .user(invitedUser)
-                    .chatRoom(chatRoom)
-                    .status(ChatRoomMemberStatus.INVITED) // 초기 상태는 INVITED
+                    // .chatRoom(chatRoom) // chatRoom 객체는 아래에서 한 번에 저장될 때 연결됨
+                    .status(ChatRoomMemberStatus.INVITED)
                     .build();
             chatRoom.addMember(invitedChatMember);
+            // usersToNotify.add(invitedUser); // 알림 보낼 사용자 목록에 추가 (아래에서 사용)
+        }
 
-            // 초대 알림 생성
+        // 3. 모든 멤버가 설정된 ChatRoom 엔티티를 저장 (이때 ID가 생성됨)
+        //    ChatRoom의 members 필드에 CascadeType.ALL, orphanRemoval=true가 설정되어 있으므로
+        //    chatRoom을 저장하면 ChatRoomMember도 함께 저장됩니다.
+        ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
+        log.info("채팅방 생성 완료: ID={}, 이름={}", savedChatRoom.getId(), savedChatRoom.getName());
+
+
+        // 4. 저장된 ChatRoom의 ID를 사용하여 초대 알림 생성
+        for (Long invitedUserId : request.getInvitedMemberIds()) {
+            if (invitedUserId.equals(creatorUserId)) continue;
+
+            // 초대 대상이 스터디 그룹 멤버인지 다시 확인 (위에서 이미 했지만, 안전하게)
+            User invitedUser = userRepository.findById(invitedUserId).orElse(null);
+            if (invitedUser == null) continue;
+
+            boolean isInvitedUserMemberOfStudyGroup = studyGroup.getMembers().stream()
+                    .anyMatch(sm -> sm.getUser().getId().equals(invitedUserId) && sm.getStatus() == com.studygroup.domain.study.entity.StudyMemberStatus.APPROVED);
+            if (!isInvitedUserMemberOfStudyGroup) continue;
+
+
             String message = String.format("'%s'님이 '%s' 스터디의 '%s' 채팅방으로 초대했습니다.",
-                    creator.getName(), studyGroup.getTitle(), chatRoom.getName());
+                    creator.getName(), studyGroup.getTitle(), savedChatRoom.getName()); // savedChatRoom.getName() 사용
             notificationService.createNotification(
                     creator,
                     invitedUser,
                     message,
-                    NotificationType.CHAT_INVITE, // 새로운 알림 타입 필요
-                    chatRoom.getId() // ChatRoom의 ID를 referenceId로
+                    NotificationType.CHAT_INVITE,
+                    savedChatRoom.getId() // <--- 저장 후 생성된 ID 사용
             );
+            log.info("채팅방 초대 알림 생성: receiverId={}, chatRoomId={}", invitedUser.getId(), savedChatRoom.getId());
         }
-        ChatRoom savedChatRoom = chatRoomRepository.save(chatRoom);
+
         return ChatRoomDetailResponse.from(savedChatRoom);
     }
 
@@ -228,38 +260,64 @@ public class ChatService {
     // 채팅방 초대 수락/거절
     @Transactional
     public void respondToChatInvite(Long chatRoomId, Long userId, boolean accept) {
+        log.info("채팅방 초대 응답 처리 시작: chatRoomId={}, userId={}, accept={}", chatRoomId, userId, accept); // <--- 로그 추가
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> { // <--- 1. 사용자 조회 실패 시 예외
+                    log.error("respondToChatInvite: 사용자를 찾을 수 없습니다. ID: {}", userId);
+                    return new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId);
+                });
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다."));
+                .orElseThrow(() -> { // <--- 2. 채팅방 조회 실패 시 예외
+                    log.error("respondToChatInvite: 채팅방을 찾을 수 없습니다. ID: {}", chatRoomId);
+                    return new IllegalArgumentException("채팅방을 찾을 수 없습니다. ID: " + chatRoomId);
+                });
 
         ChatRoomMember member = chatRoomMemberRepository.findByChatRoomAndUser(chatRoom, user)
-                .filter(m -> m.getStatus() == ChatRoomMemberStatus.INVITED) // INVITED 상태인 초대만 처리
-                .orElseThrow(() -> new IllegalStateException("해당 채팅방에 대한 유효한 초대가 없습니다."));
+                .filter(m -> m.getStatus() == ChatRoomMemberStatus.INVITED)
+                .orElseThrow(() -> { // <--- 3. 유효한 초대 정보 조회 실패 시 예외
+                    log.warn("respondToChatInvite: 해당 채팅방에 대한 유효한 초대가 없습니다. chatRoomId={}, userId={}", chatRoomId, userId);
+                    // 현재 사용자의 실제 멤버십 상태 확인 로그 추가
+                    chatRoomMemberRepository.findByChatRoomAndUser(chatRoom, user).ifPresent(actualMember ->
+                            log.warn("respondToChatInvite: 실제 멤버십 상태: {}", actualMember.getStatus())
+                    );
+                    return new IllegalStateException("해당 채팅방에 대한 유효한 초대가 없습니다. (이미 처리되었거나, 초대받지 않았습니다)");
+                });
+
+        log.info("초대 응답 대상 멤버: {}, 현재 상태: {}", member.getUser().getName(), member.getStatus()); // <--- 로그 추가
 
         if (accept) {
-            // 정원 확인 (선택 사항, 채팅방에도 정원 개념을 둔다면)
-            // if (chatRoom.getMembers().stream().filter(m -> m.getStatus() == ChatRoomMemberStatus.JOINED).count() >= MAX_CHAT_ROOM_MEMBERS) {
-            //     throw new IllegalStateException("채팅방 정원이 가득 찼습니다.");
-            // }
+            log.info("초대 수락 처리: chatRoomId={}, userId={}", chatRoomId, userId);
             member.setStatus(ChatRoomMemberStatus.JOINED);
-            // chatRoomMemberRepository.save(member); // 상태 변경 저장
+            // chatRoomMemberRepository.save(member); // @Transactional로 인해 변경 감지로 저장될 수 있으나, 명시적 save도 고려 가능
+
+            log.info("멤버 상태 JOINED로 변경 완료: memberId={}", member.getId());
 
             // 시스템 메시지: OO님이 입장했습니다.
             ChatMessage systemMessage = ChatMessage.builder()
-                    .chatRoom(chatRoom)
-                    .sender(user) // 시스템 메시지의 sender는 입장한 유저 또는 null(시스템)
+                    .chatRoom(chatRoom) // <--- 4. chatRoom 객체가 null이 아닌지 확인 (위에서 orElseThrow로 처리됨)
+                    .sender(user)       // <--- 5. user 객체가 null이 아닌지 확인 (위에서 orElseThrow로 처리됨)
                     .content(user.getName() + "님이 채팅방에 참여했습니다.")
                     .messageType(MessageType.ENTER)
                     .build();
-            chatMessageRepository.save(systemMessage);
-            messagingTemplate.convertAndSend("/sub/chat/room/" + chatRoomId, ChatMessageResponse.from(systemMessage));
+            chatMessageRepository.save(systemMessage); // <--- 6. 메시지 저장 시 예외 발생 가능성
+            log.info("입장 시스템 메시지 저장 완료: chatRoomId={}, senderId={}", chatRoomId, user.getId());
+
+            // messagingTemplate이 null이 아닌지 확인 (주입 문제)
+            if (messagingTemplate == null) {
+                log.error("respondToChatInvite: SimpMessageSendingOperations (messagingTemplate) is null!");
+            } else {
+                messagingTemplate.convertAndSend("/sub/chat/room/" + chatRoomId, ChatMessageResponse.from(systemMessage));
+                log.info("입장 시스템 메시지 브로드캐스트 완료: /sub/chat/room/{}", chatRoomId);
+            }
 
         } else {
-            // 거절 시 ChatRoomMember 엔티티를 삭제하거나, 상태를 REJECTED_INVITE 등으로 변경
-            chatRoomMemberRepository.delete(member); // 초대를 거절하면 멤버 정보에서 제거
-            // 또는 member.setStatus(ChatRoomMemberStatus.REJECTED_INVITE); // 별도 상태 관리
+            log.info("초대 거절 처리: chatRoomId={}, userId={}", chatRoomId, userId);
+            chatRoomMemberRepository.delete(member); // <--- 7. 멤버 삭제 시 예외 발생 가능성 (거의 없음)
+            // 또는 member.setStatus(ChatRoomMemberStatus.REJECTED_INVITE); // 상태 변경으로 처리할 수도 있음
+            log.info("멤버 정보 삭제 (초대 거절): memberId={}", member.getId());
         }
+        log.info("채팅방 초대 응답 처리 완료: chatRoomId={}, userId={}", chatRoomId, userId);
     }
 
     // 채팅방 나가기

@@ -49,8 +49,11 @@ public class ChatRoom extends BaseTimeEntity {
 
     // Helper method to add members
     public void addMember(ChatRoomMember member) {
+        if (this.members == null) { // members 리스트가 null일 경우 초기화
+            this.members = new ArrayList<>();
+        }
         this.members.add(member);
-        member.setChatRoomInternal(this); // 연관관계 편의 메소드
+        member.setChatRoomInternal(this); // ChatRoomMember 엔티티에 chatRoom 설정하는 메소드 호출
     }
 
     public void removeMember(ChatRoomMember member) {
