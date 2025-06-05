@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'; // useMemo 추가
+import React, {useState, useEffect, useMemo, useCallback} from 'react'; // useMemo 추가
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -24,40 +24,11 @@ import CreateChatRoomModal from '../components/chat/CreateChatRoomModal'; // 모
 import { ChatRoomResponse } from '../types/chat'; // 채팅방 응답 타입
 import { StudyGroupDataType, StudyMember } from '../types/study'; // StudyMember도 필요시 import
 
-// 스터디 상세 정보 타입 (백엔드 응답 DTO와 일치해야 함)
-// interface StudyGroupDetail {
-//   id: number;
-//   title: string;
-//   description: string;
-//   maxMembers: number;
-//   currentMembers: number; // 승인된 멤버 수
-//   status: string;
-//   studyType: string;
-//   location: string;
-//   startDate: string;
-//   endDate: string;
-//   tags: string[];
-//   viewCount: number;
-//   leader: {
-//     id: number; // User ID
-//     name: string;
-//     imageUrl: string;
-//   };
-//   members: Array<{ // 이 배열의 각 요소가 MemberInStudyResponse 와 유사한 구조를 가져야 함
-//     id: number; // 사용자(User)의 ID
-//     name: string;
-//     profile: string;
-//     role: 'LEADER' | 'MEMBER';
-//     status: 'PENDING' | 'APPROVED' | 'REJECTED';
-//     // studyMemberId?: number; // 백엔드에서 내려준다면 사용 가능
-//   }>;
-// }
-
 const StudyDetailPage = () => {
   const { id: studyIdParam } = useParams<{ id: string }>();
   const studyId = Number(studyIdParam);
   const navigate = useNavigate();
-  const { currentUserId, isLoggedIn } = useAuth();
+  const { currentUserId, isLoggedIn, isLoading: authLoading } = useAuth();
 
   // 수정: study 상태 타입을 StudyGroupDataType으로 통일하고, 한 번만 선언합니다.
   const [study, setStudy] = useState<StudyGroupDataType | null>(null); // <--- 수정
@@ -73,26 +44,32 @@ const StudyDetailPage = () => {
   const [loadingChatRooms, setLoadingChatRooms] = useState(false);
   const [isCreateChatModalOpen, setIsCreateChatModalOpen] = useState(false);
 
-  const fetchChatRooms = async () => {
-    if (!studyId || !isLoggedIn) return; // 로그인 상태일 때만 채팅방 조회
+  const fetchChatRooms = useCallback(async () => { // useCallback으로 감싸기
+    if (!studyId || !isLoggedIn || !currentUserId) { // currentUserId 조건 추가
+      setChatRooms([]); // 조건 미충족 시 빈 배열로 초기화
+      return;
+    }
     setLoadingChatRooms(true);
     try {
       const response = await api.get<ChatRoomResponse[]>(`/api/chat/study-group/${studyId}/rooms`);
       setChatRooms(response.data);
     } catch (err) {
       console.error('Error fetching chat rooms for study group:', err);
-      // 에러 처리 (예: Snackbar)
+      setChatRooms([]); // 에러 발생 시 빈 배열로
     } finally {
       setLoadingChatRooms(false);
     }
-  };
-
-  useEffect(() => {
-    if (studyId && isLoggedIn) { // studyId와 로그인 상태가 유효할 때 채팅방 목록 불러오기
-      fetchChatRooms();
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [studyId, isLoggedIn]); // studyId 또는 로그인 상태 변경 시 다시 불러옴
+  }, [studyId, isLoggedIn, currentUserId]); // currentUserId 의존성 추가
+
+  // 수정: 채팅방 목록은 로그인 상태, 스터디 ID, 사용자 ID가 모두 유효할 때 가져오도록 별도 useEffect로 분리
+  useEffect(() => {
+    if (isLoggedIn && studyId && currentUserId && !authLoading) { // authLoading 완료 후 실행
+      fetchChatRooms();
+    } else if (!isLoggedIn) { // 로그아웃 상태면 채팅방 목록 비움
+      setChatRooms([]);
+    }
+  }, [isLoggedIn, studyId, currentUserId, fetchChatRooms, authLoading]);
 
   // ... (기존 fetchStudyDetail, handleDelete, handleApplyStudy, handleCloseSnackbar, currentUserMemberInfo)
 
@@ -232,9 +209,10 @@ const StudyDetailPage = () => {
           />
         </Box>
 
-        {/* 스터디 채팅방 목록 및 생성 버튼 (스터디 멤버에게만 보임) */}
-        {isLoggedIn && study && isStudyMember && ( // 로그인했고, 스터디 정보가 있고, 스터디 멤버일 때만
-            <Paper elevation={2} sx={{ mt: 4, p: 3, borderRadius: 2 }}>
+        {/* 스터디 채팅방 목록 및 생성 버튼 */}
+        {/* 수정: 스터디 정보(study)가 로드되었고, 로그인했고, 현재 사용자가 스터디 멤버일 때만 표시 */}
+        {study && isLoggedIn && isStudyMember && (
+            <Paper elevation={1} sx={{ mt: 4, p: {xs: 2, md: 3}, borderRadius: 2 }}>
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6" component="h3" fontWeight="bold">
                   스터디 채팅방
