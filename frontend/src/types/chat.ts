@@ -1,5 +1,6 @@
 import { MessageType } from './apiSpecificEnums';
 import {UserSummaryDto} from "./user"; // 백엔드 Enum과 맞춤
+import { StudyMemberRole } from './study';
 
 // 채팅방 멤버 정보를 위한 타입 (백엔드 ChatRoomMemberInfoDto와 일치)
 export interface ChatRoomMemberInfo {
@@ -7,7 +8,7 @@ export interface ChatRoomMemberInfo {
     name: string;
     profileImageUrl?: string;
     status: 'INVITED' | 'JOINED' | 'LEFT' | 'BLOCKED'; // 백엔드 ChatRoomMemberStatus Enum과 일치
-    role?: 'LEADER' | 'MEMBER'; // <--- 스터디 그룹 내 역할
+    roleInStudy?: StudyMemberRole; // <--- 추가: 스터디 그룹 내 역할
 }
 
 export interface ChatRoomCreateRequest {

@@ -29,3 +29,8 @@ export interface StudyGroupDataType { // 이름을 StudyGroupDetail에서 변경
     leader: StudyLeaderInfo;
     members: StudyMember[];
 }
+
+export enum StudyMemberRole {
+    LEADER = 'LEADER',
+    MEMBER = 'MEMBER',
+}

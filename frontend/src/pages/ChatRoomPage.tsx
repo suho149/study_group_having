@@ -18,7 +18,9 @@ import MoreVertIcon from '@mui/icons-material/MoreVert'; // 메뉴 아이콘
 import PersonAddIcon from '@mui/icons-material/PersonAdd'; // 멤버 초대 아이콘
 import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 나가기 아이콘
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove'; // 멤버 내보내기 아이콘
+import CrownIcon from '@mui/icons-material/EmojiEvents'; // 왕관 아이콘 (방장 표시용)
 import InviteToChatRoomModal from '../components/chat/InviteToChatRoomModal'; // 초대 모달 import
+import { StudyMemberRole } from '../types/study'; // 스터디 멤버 역할 Enum
 
 const ChatRoomPage: React.FC = () => {
     const { roomId } = useParams<{ roomId: string }>();
@@ -286,12 +288,8 @@ const ChatRoomPage: React.FC = () => {
 
     const isCurrentUserRoomAdmin = useMemo(() => {
         if (!chatRoomInfo || !currentUserId) return false;
-        // 백엔드 ChatRoomDetailResponse에 isCurrentUserAdmin 같은 필드를 내려주는 것이 가장 좋음
-        // 임시: 스터디 그룹의 리더가 채팅방 관리자라고 가정
-        // ChatRoomDetailResponse에 studyGroupLeaderId 같은 필드가 필요하거나,
-        // 현재 사용자의 chatRoomInfo.members 내 role이 'LEADER'(스터디 리더)인지 확인
-        const studyLeader = chatRoomInfo.members.find(m => m.role === 'LEADER'); // 스터디 리더 찾기
-        return !!(studyLeader && studyLeader.id === currentUserId);
+        // 백엔드 ChatRoomDetailResponse에 studyGroupLeaderId가 내려온다고 가정
+        return currentUserId === chatRoomInfo.studyGroupLeaderId;
     }, [chatRoomInfo, currentUserId]);
 
     const handleOpenManageMembersDialog = () => {
@@ -315,12 +313,22 @@ const ChatRoomPage: React.FC = () => {
         // 지금은 ManageMembersDialog에서 직접 내보내기 버튼을 누르면 API 호출하도록 함
     };
 
-    // const confirmRemoveMember = (member: ChatRoomMemberInfo) => {
-    //     setSelectedMemberToRemove(member);
-    //     // 확인 다이얼로그를 띄우거나, 바로 다음 단계로 진행할 수 있음
-    //     // 여기서는 간단히 바로 API 호출하도록 함 (실제로는 확인 다이얼로그가 더 좋음)
-    //     handleRemoveMember();
-    // };
+    const confirmAndRemoveMember = async (member: ChatRoomMemberInfo) => {
+        if (!roomId || !currentUserId || member.id === currentUserId) return;
+        const confirmRemove = window.confirm(`정말로 '${member.name}'님을 채팅방에서 내보내시겠습니까?`);
+        if (!confirmRemove) return;
+
+        setIsProcessingChatAction(true); setPageError(null);
+        try {
+            await api.delete(`/api/chat/rooms/${roomId}/members/${member.id}`);
+            alert(`${member.name}님을 채팅방에서 내보냈습니다.`);
+            await initializeChatRoomData();
+        } catch (error: any) {
+            setPageError(error.response?.data?.message || "멤버 내보내기 중 오류 발생");
+        } finally {
+            setIsProcessingChatAction(false);
+        }
+    };
 
     // 실제 멤버를 내보내는 API 호출 함수
     const handleRemoveMember = async (memberToRemove: ChatRoomMemberInfo | null) => { // 인자로 받을 수 있도록 변경
@@ -470,6 +478,10 @@ const ChatRoomPage: React.FC = () => {
                         // 수정: showSenderInfo 조건을 isMyMessage가 아닐 때와, 연속된 메시지가 아닐 때로 변경
                         const showSenderInfo = !isMyMessage && !isContinuousMessage;
                         const messageDate = new Date(msg.sentAt);
+
+                        // 방장 아이콘 표시 (msg.sender.id가 chatRoomInfo.studyGroupLeaderId와 같은지 확인)
+                        const isSenderAdmin = msg.sender.id === chatRoomInfo?.studyGroupLeaderId;
+
                         const prevMessageDate = index > 0 ? new Date(messages[index-1].sentAt) : null;
                         const showDateDivider = index === 0 || (prevMessageDate && messageDate.toDateString() !== prevMessageDate.toDateString());
 
@@ -525,9 +537,12 @@ const ChatRoomPage: React.FC = () => {
                                         }}>
                                             {/* 수정: 상대방 메시지이고, showSenderInfo가 true일 때만 이름 표시 */}
                                             {!isMyMessage && showSenderInfo && (
-                                                <Typography variant="caption" color="text.secondary" sx={{mb:0.3, ml: '2px'}}>
-                                                    {msg.sender.name}
-                                                </Typography>
+                                                <Box sx={{display: 'flex', alignItems: 'center', mb:0.3, ml: '2px'}}>
+                                                    <Typography variant="caption" color="text.secondary">
+                                                        {msg.sender.name}
+                                                    </Typography>
+                                                    {isSenderAdmin && <CrownIcon sx={{ fontSize: '1rem', ml: 0.5, color: 'gold' }} />} {/* 방장 왕관 아이콘 */}
+                                                </Box>
                                             )}
                                             <Box sx={{display:'flex', alignItems:'flex-end', gap:0.5, flexDirection: isMyMessage ? 'row-reverse':'row'}}>
                                                 <Paper
@@ -590,28 +605,15 @@ const ChatRoomPage: React.FC = () => {
                         멤버 초대
                     </MenuItem>
                 )}
-                {isCurrentUserRoomAdmin && chatRoomInfo.members.filter(m => m.id !== currentUserId && m.status === 'JOINED').length > 0 && (
-                    // 내보낼 멤버가 있을 때만 "멤버 관리" 메뉴 표시
-                    // 실제 내보내기 기능은 이 메뉴 아이템의 onClick에서 ManageChatMembersModal을 열거나,
-                    // 또는 멤버 목록 UI (AppBar 아래 별도 영역)에서 직접 멤버를 선택하여 내보내도록 구현
-                    // 여기서는 간단히 알림만 띄움
-                    <MenuItem onClick={() => {
-                        handleMenuClose();
-                        // 별도의 멤버 관리 모달을 띄우거나,
-                        // ChatRoomPage 내부에 멤버 목록을 보여주고 선택해서 내보내는 UI를 구현해야 함.
-                        // 여기서는 임시로 ChatRoomPage의 멤버 목록에서 직접 내보낸다고 가정하고,
-                        // 실제 UI는 ChatRoomPage의 멤버 목록 표시에 추가해야 함.
-                        // 여기서는 "멤버 관리(내보내기)" 메뉴만 만들고, 실제 액션은 하단 다이얼로그로 연결
-                        alert("멤버 목록에서 직접 멤버를 선택하여 내보낼 수 있습니다. (UI 추가 필요)");
-                    }}>
-                        <MuiListItemIcon><PersonRemoveIcon fontSize="small" color="error" /></MuiListItemIcon>
-                        멤버 관리 (내보내기)
+                {isCurrentUserRoomAdmin && (
+                    <MenuItem onClick={handleOpenManageMembersDialog}>
+                        <MuiListItemIcon><PersonRemoveIcon fontSize="small" color="error" /></MuiListItemIcon> 멤버 내보내기
                     </MenuItem>
                 )}
-                {/* 모든 JOINED 멤버 (방장 포함/제외 정책에 따라)가 나갈 수 있도록 */}
+                {/* 방장이 아닌 경우에만 나가기 버튼을 보여주거나, 방장도 나갈 수 있게 하려면 조건 제거 또는 수정 */}
+                {/* 현재: 모든 JOINED 멤버가 나갈 수 있음 */}
                 <MenuItem onClick={handleOpenLeaveChatConfirm} sx={{color: 'error.main'}}>
-                    <MuiListItemIcon><ExitToAppIcon fontSize="small" color="error" /></MuiListItemIcon>
-                    채팅방 나가기
+                    <MuiListItemIcon><ExitToAppIcon fontSize="small" color="error" /></MuiListItemIcon> 채팅방 나가기
                 </MenuItem>
             </Menu>
 

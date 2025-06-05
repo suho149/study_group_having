@@ -2,6 +2,8 @@ package com.studygroup.domain.chat.dto;
 
 import com.studygroup.domain.chat.entity.ChatRoomMember;
 import com.studygroup.domain.chat.entity.ChatRoomMemberStatus;
+import com.studygroup.domain.study.entity.StudyGroup;
+import com.studygroup.domain.study.entity.StudyMemberRole;
 import com.studygroup.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
@@ -13,14 +15,22 @@ public class ChatRoomMemberInfoDto {
     private String name;
     private String profileImageUrl;
     private ChatRoomMemberStatus status;
+    private StudyMemberRole roleInStudy; // <--- 스터디 그룹 내 역할
 
-    public static ChatRoomMemberInfoDto from(ChatRoomMember chatRoomMember) {
+    public static ChatRoomMemberInfoDto from(ChatRoomMember chatRoomMember, StudyGroup studyGroup) { // studyGroup 파라미터 추가
         User user = chatRoomMember.getUser();
+        StudyMemberRole role = studyGroup.getMembers().stream()
+                .filter(sm -> sm.getUser().getId().equals(user.getId()))
+                .map(com.studygroup.domain.study.entity.StudyMember::getRole)
+                .findFirst()
+                .orElse(null); // 기본적으로는 멤버, 스터디에 없는 경우는 없어야 함
+
         return ChatRoomMemberInfoDto.builder()
-                .id(user.getId()) // userId -> id
+                .id(user.getId())
                 .name(user.getName())
                 .profileImageUrl(user.getProfile())
                 .status(chatRoomMember.getStatus())
+                .roleInStudy(role) // 역할 설정
                 .build();
     }
 }
