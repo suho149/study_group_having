@@ -169,27 +169,34 @@ public class ChatService {
     // 채팅방 상세 정보 조회 (멤버 목록 포함, 메시지는 별도 API로 페이징)
     @Transactional(readOnly = true)
     public ChatRoomDetailResponse getChatRoomDetail(Long chatRoomId, Long userId) {
+        log.debug("채팅방 상세 정보 조회 시작: chatRoomId={}, userId={}", chatRoomId, userId);
         ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
-                .orElseThrow(() -> new IllegalArgumentException("채팅방을 찾을 수 없습니다. ID: " + chatRoomId));
+                .orElseThrow(() -> {
+                    log.warn("getChatRoomDetail: 존재하지 않는 채팅방입니다. ID: {}", chatRoomId);
+                    return new IllegalArgumentException("존재하지 않는 채팅방입니다. ID: " + chatRoomId);
+                });
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId));
+                .orElseThrow(() -> {
+                    log.warn("getChatRoomDetail: 사용자를 찾을 수 없습니다. ID: {}", userId);
+                    return new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + userId);
+                });
 
-        // 사용자가 해당 채팅방의 멤버(INVITED 또는 JOINED)인지 확인
+        // 사용자가 해당 채팅방의 멤버인지 확인
         ChatRoomMember currentUserMembership = chatRoomMemberRepository.findByChatRoomAndUser(chatRoom, user)
-                .orElseThrow(() -> new IllegalStateException("해당 채팅방에 대한 멤버 정보가 없습니다."));
+                .orElseThrow(() -> { // 멤버 정보가 아예 없으면 초대도 안 된 것임
+                    log.warn("getChatRoomDetail: 사용자가 해당 채팅방의 멤버가 아닙니다. chatRoomId={}, userId={}", chatRoomId, userId);
+                    return new IllegalStateException("이 채팅방의 멤버가 아닙니다.");
+                });
 
+        // INVITED 또는 JOINED 상태가 아니면 접근 불가
         if (currentUserMembership.getStatus() != ChatRoomMemberStatus.JOINED &&
                 currentUserMembership.getStatus() != ChatRoomMemberStatus.INVITED) {
-            throw new IllegalStateException("해당 채팅방에 접근 권한이 없습니다. 현재 상태: " + currentUserMembership.getStatus());
+            log.warn("getChatRoomDetail: 사용자가 채팅방에 참여하거나 초대된 상태가 아닙니다. chatRoomId={}, userId={}, status={}",
+                    chatRoomId, userId, currentUserMembership.getStatus());
+            throw new IllegalStateException("해당 채팅방에 접근할 권한이 없습니다. 현재 상태: " + currentUserMembership.getStatus());
         }
-
-        // ChatRoomDetailResponse.from() 메소드가 모든 멤버의 정보를 포함하도록 하거나,
-        // 현재 사용자의 멤버십 정보(status 포함)를 DTO에 추가로 담아서 반환하는 것을 고려.
-        // 여기서는 ChatRoomDetailResponse.from()이 JOINED 멤버만 반환한다고 가정하고,
-        // 프론트에서 INVITED 상태 처리를 위해 별도 로직이 필요함을 인지.
-        // 더 좋은 방법은 ChatRoomDetailResponse가 현재 요청 사용자의 멤버십 상태를 포함하는 것.
-        // 예: ChatRoomDetailResponse.from(chatRoom, currentUserMembership.getStatus())
-        return ChatRoomDetailResponse.from(chatRoom); // 이 DTO가 현재 유저의 상태도 알 수 있게끔 개선 필요
+        log.debug("채팅방 상세 정보 조회 성공: chatRoomId={}, userId={}", chatRoomId, userId);
+        return ChatRoomDetailResponse.from(chatRoom); // 이 DTO는 모든 멤버 정보를 포함해야 함 (이전 답변 참고)
     }
 
     // 채팅 메시지 전송 및 저장 (STOMP 핸들러에서 호출)

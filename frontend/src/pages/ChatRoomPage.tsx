@@ -243,9 +243,25 @@ const ChatRoomPage: React.FC = () => {
 
     const handleSendMessage = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (newMessage.trim() && roomId && currentUserId) {
-            sendMessage(Number(roomId), newMessage.trim());
+        // isCurrentUserJoined 상태도 확인 (JOINED 상태인 멤버만 메시지 전송 가능하도록)
+        if (newMessage.trim() && roomId && currentUserId && isCurrentUserJoined && stompClient && stompClient.active && isConnected) {
+            sendMessage(Number(roomId), newMessage.trim()); // messageType 기본값 TALK 사용
             setNewMessage('');
+        } else {
+            console.warn('Cannot send message. Conditions not met:', {
+                message: newMessage.trim(),
+                roomId,
+                currentUserId,
+                isCurrentUserJoined, // <--- 추가된 조건
+                stompClientExists: !!stompClient,
+                isStompActive: stompClient?.active,
+                isStompConnected: isConnected,
+            });
+            if (!isConnected || !stompClient?.active) {
+                alert("채팅 서버에 연결되지 않았습니다. 잠시 후 다시 시도해주세요.");
+            } else if(!isCurrentUserJoined) {
+                alert("채팅방에 참여한 후에 메시지를 보낼 수 있습니다.");
+            }
         }
     };
 
