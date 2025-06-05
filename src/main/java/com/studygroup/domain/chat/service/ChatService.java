@@ -353,10 +353,130 @@ public class ChatService {
         chatMessageRepository.save(systemMessage);
         messagingTemplate.convertAndSend("/sub/chat/room/" + chatRoomId, ChatMessageResponse.from(systemMessage));
 
-        // 만약 채팅방에 아무도 없으면 채팅방을 삭제하는 로직 추가 가능 (선택)
-        // if (chatRoomMemberRepository.findByChatRoom(chatRoom).isEmpty()) {
-        //     chatRoomRepository.delete(chatRoom);
-        // }
+        // (선택) 방장에게 알림 (방장이 아닌 멤버가 나갔을 경우)
+        if (!chatRoom.getStudyGroup().getLeader().getId().equals(userId)) {
+            notificationService.createNotification(
+                    user, chatRoom.getStudyGroup().getLeader(),
+                    String.format("'%s'님이 '%s' 채팅방을 나갔습니다.", user.getName(), chatRoom.getName()),
+                    NotificationType.MEMBER_LEFT_STUDY, // 또는 CHAT_MEMBER_LEFT
+                    chatRoomId
+            );
+        }
     }
+
+    // 방장에 의한 멤버 강제 퇴장
+    @Transactional
+    public void removeMemberFromChatRoomByCreator(Long chatRoomId, Long memberUserIdToRemove, Long creatorUserId) {
+        log.info("채팅방 멤버 강제 퇴장 처리 시작: chatRoomId={}, memberToRemoveId={}, creatorUserId={}",
+                chatRoomId, memberUserIdToRemove, creatorUserId);
+
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다. ID: " + chatRoomId));
+        User creator = userRepository.findById(creatorUserId)
+                .orElseThrow(() -> new IllegalArgumentException("요청한 사용자를 찾을 수 없습니다. ID: " + creatorUserId));
+        User memberToRemoveUser = userRepository.findById(memberUserIdToRemove)
+                .orElseThrow(() -> new IllegalArgumentException("내보낼 멤버를 찾을 수 없습니다. ID: " + memberUserIdToRemove));
+
+        // 1. 요청자가 채팅방 생성자인지 확인 (스터디장이 아니라 채팅방 생성자 기준)
+        //    또는 스터디장이면 항상 가능하도록 정책 설정 가능. 여기서는 채팅방 생성 시 첫 멤버(리더)를 기준으로 함.
+        //    ChatRoom 엔티티에 creator 필드가 있다면 그것을 사용. 없다면 첫 번째 JOINED 멤버 등으로 유추.
+        //    여기서는 스터디 그룹의 리더가 해당 채팅방의 관리자 권한을 갖는다고 가정 (더 일반적).
+        if (!chatRoom.getStudyGroup().getLeader().getId().equals(creatorUserId)) {
+            // 또는 chatRoom.getMembers().stream().anyMatch(m -> m.getUser().getId().equals(creatorUserId) && m.getRole() == ChatRoomMemberRole.ADMIN) 등
+            log.warn("채팅방 멤버 강제 퇴장 권한 없음: chatRoomId={}, 요청자Id={}", chatRoomId, creatorUserId);
+            throw new IllegalStateException("채팅방 관리자만 멤버를 내보낼 수 있습니다.");
+        }
+
+        // 2. 자기 자신을 내보내려는지 확인
+        if (memberUserIdToRemove.equals(creatorUserId)) {
+            throw new IllegalStateException("자기 자신을 내보낼 수 없습니다.");
+        }
+
+        ChatRoomMember memberEntityToRemove = chatRoomMemberRepository.findByChatRoomAndUser(chatRoom, memberToRemoveUser)
+                .orElseThrow(() -> new IllegalArgumentException("해당 멤버는 채팅방에 존재하지 않습니다."));
+
+        // 3. 멤버 제거
+        chatRoomMemberRepository.delete(memberEntityToRemove); // ChatRoomMember에서 직접 삭제
+        // chatRoom.removeMember(memberEntityToRemove); // ChatRoom 엔티티의 컬렉션에서도 제거 (CascadeType.ALL, orphanRemoval=true면 불필요)
+        // chatRoomRepository.save(chatRoom); // removeMember가 컬렉션만 변경 시 필요
+
+        log.info("채팅방 멤버 강제 퇴장 완료: chatRoomId={}, removedMemberId={}, byCreatorId={}",
+                chatRoomId, memberUserIdToRemove, creatorUserId);
+
+        // 4. 시스템 메시지 전송
+        String systemMessageContent = String.format("%s님이 %s님을 채팅방에서 내보냈습니다.", creator.getName(), memberToRemoveUser.getName());
+        ChatMessage systemMessage = ChatMessage.builder()
+                .chatRoom(chatRoom)
+                .sender(creator) // 시스템 메시지의 sender는 조치를 취한 사람
+                .content(systemMessageContent)
+                .messageType(MessageType.LEAVE) // 또는 MEMBER_REMOVED 타입 추가
+                .build();
+        chatMessageRepository.save(systemMessage);
+        messagingTemplate.convertAndSend("/sub/chat/room/" + chatRoomId, ChatMessageResponse.from(systemMessage));
+
+        // 5. (선택) 내보내진 멤버에게 알림
+        notificationService.createNotification(
+                creator, memberToRemoveUser,
+                String.format("'%s' 채팅방에서 내보내졌습니다.", chatRoom.getName()),
+                NotificationType.CHAT_MEMBER_REMOVED, // 새로운 알림 타입
+                chatRoomId
+        );
+    }
+
+    // 채팅방 멤버 초대 (스터디 그룹 멤버 중에서)
+    @Transactional
+    public void inviteUsersToChatRoom(Long chatRoomId, List<Long> userIdsToInvite, Long inviterUserId) {
+        ChatRoom chatRoom = chatRoomRepository.findById(chatRoomId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 채팅방입니다. ID: " + chatRoomId));
+        User inviter = userRepository.findById(inviterUserId)
+                .orElseThrow(() -> new IllegalArgumentException("초대하는 사용자를 찾을 수 없습니다. ID: " + inviterUserId));
+        StudyGroup studyGroup = chatRoom.getStudyGroup();
+
+        // 1. 초대 권한 확인 (예: 채팅방 생성자 또는 스터디장)
+        if (!studyGroup.getLeader().getId().equals(inviterUserId)) {
+            // 또는 ChatRoom의 생성자(첫 멤버)인지 확인
+            throw new IllegalStateException("채팅방 멤버 초대 권한이 없습니다.");
+        }
+
+        for (Long userId : userIdsToInvite) {
+            User userToInvite = userRepository.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("초대 대상 사용자를 찾을 수 없습니다. ID: " + userId));
+
+            // 1. 스터디 그룹의 멤버인지 확인
+            boolean isStudyMember = studyGroup.getMembers().stream()
+                    .anyMatch(sm -> sm.getUser().getId().equals(userId) && sm.getStatus() == com.studygroup.domain.study.entity.StudyMemberStatus.APPROVED);
+            if (!isStudyMember) {
+                log.warn("스터디 그룹 멤버가 아닌 사용자 채팅방 초대 시도: chatRoomId={}, userIdToInvite={}", chatRoomId, userId);
+                continue; // 스터디 멤버가 아니면 스킵
+            }
+
+            // 2. 이미 채팅방 멤버(JOINED 또는 INVITED)인지 확인
+            boolean alreadyChatMember = chatRoomMemberRepository.findByChatRoomAndUser(chatRoom, userToInvite).isPresent();
+            if (alreadyChatMember) {
+                log.info("이미 채팅방 멤버이거나 초대된 사용자입니다: chatRoomId={}, userIdToInvite={}", chatRoomId, userId);
+                continue; // 이미 멤버거나 초대된 상태면 스킵
+            }
+
+            // 3. ChatRoomMember로 추가 (INVITED 상태)
+            ChatRoomMember newChatMember = ChatRoomMember.builder()
+                    .chatRoom(chatRoom)
+                    .user(userToInvite)
+                    .status(ChatRoomMemberStatus.INVITED)
+                    .build();
+            chatRoom.addMember(newChatMember); // ChatRoom 엔티티에 추가 (Cascade 저장)
+
+            // 4. 초대 알림 생성
+            String message = String.format("'%s'님이 '%s' 채팅방으로 초대했습니다.", inviter.getName(), chatRoom.getName());
+            notificationService.createNotification(
+                    inviter, userToInvite, message,
+                    NotificationType.CHAT_INVITE, // 기존 알림 타입 재활용
+                    chatRoom.getId()
+            );
+        }
+        chatRoomRepository.save(chatRoom); // 변경된 members 컬렉션 저장
+        log.info("{}명 채팅방 초대 완료: chatRoomId={}", userIdsToInvite.size(), chatRoomId);
+        // (선택) "OOO님이 XXX님 외 N명을 초대했습니다." 시스템 메시지
+    }
+
 
 }

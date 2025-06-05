@@ -96,4 +96,26 @@ public class ChatController {
         chatService.leaveChatRoom(chatRoomId, userPrincipal.getId());
         return ResponseEntity.noContent().build();
     }
+
+    // 방장에 의한 멤버 강제 퇴장
+    @DeleteMapping("/rooms/{chatRoomId}/members/{memberUserIdToRemove}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> removeMemberFromChatRoom(
+            @PathVariable Long chatRoomId,
+            @PathVariable Long memberUserIdToRemove,
+            @CurrentUser UserPrincipal userPrincipal) {
+        chatService.removeMemberFromChatRoomByCreator(chatRoomId, memberUserIdToRemove, userPrincipal.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    // 채팅방 멤버 초대
+    @PostMapping("/rooms/{chatRoomId}/invite-members")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> inviteUsersToChatRoom(
+            @PathVariable Long chatRoomId,
+            @RequestBody List<Long> userIdsToInvite, // 초대할 사용자 ID 목록
+            @CurrentUser UserPrincipal userPrincipal) {
+        chatService.inviteUsersToChatRoom(chatRoomId, userIdsToInvite, userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
 }

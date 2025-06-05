@@ -2,6 +2,7 @@ export interface StudyMember {
     id: number; // 사용자(User)의 ID
     name: string;
     profile: string; // 프로필 이미지 URL (백엔드 응답 필드명과 일치해야 함, 예: user.profile)
+    email: string;
     role: 'LEADER' | 'MEMBER';
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
 }

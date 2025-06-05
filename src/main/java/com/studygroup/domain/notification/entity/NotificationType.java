@@ -10,7 +10,9 @@ public enum NotificationType {
     MEMBER_LEFT_STUDY("스터디 멤버 탈퇴"),
     MEMBER_REMOVED_BY_LEADER("스터디 멤버 강제 탈퇴"), // 스터디장이 멤버를 내보냄 (멤버에게)
     LEADER_REMOVED_MEMBER("스터디장 멤버 내보내기 완료"), // 스터디장이 멤버를 내보냄 (스터디장에게 확인용)
-    CHAT_INVITE("채팅방 초대");
+    CHAT_INVITE("채팅방 초대"),
+    CHAT_MEMBER_REMOVED("채팅방에서 내보내짐"), // 방장에 의해 내보내진 멤버에게
+    CHAT_INVITE_AGAIN("채팅방 재초대"); // 이미 초대했거나 나갔던 멤버를 다시 초대할 경우 (선택적)
 
     private final String description;
 

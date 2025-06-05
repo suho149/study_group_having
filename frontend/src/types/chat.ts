@@ -7,6 +7,7 @@ export interface ChatRoomMemberInfo {
     name: string;
     profileImageUrl?: string;
     status: 'INVITED' | 'JOINED' | 'LEFT' | 'BLOCKED'; // 백엔드 ChatRoomMemberStatus Enum과 일치
+    role?: 'LEADER' | 'MEMBER'; // <--- 스터디 그룹 내 역할
 }
 
 export interface ChatRoomCreateRequest {
@@ -44,6 +45,7 @@ export interface ChatRoomDetailResponse {
     name: string;
     studyGroupId: number;
     studyGroupName: string;
+    studyGroupLeaderId?: number;
     createdAt: string; // ISO 문자열
     members: ChatRoomMemberInfo[]; // UserSummaryDto[] 대신 ChatRoomMemberInfo[] 사용
 }
