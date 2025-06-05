@@ -48,6 +48,9 @@ const ChatRoomPage: React.FC = () => {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isProcessingChatAction, setIsProcessingChatAction] = useState(false); // 채팅방 나가기, 멤버 내보내기 로딩
 
+    const [isManageMembersDialogOpen, setIsManageMembersDialogOpen] = useState(false);
+    const [selectedMemberToRemove, setSelectedMemberToRemove] = useState<ChatRoomMemberInfo | null>(null);
+
     const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
         messagesEndRef.current?.scrollIntoView({ behavior });
     };
@@ -202,20 +205,20 @@ const ChatRoomPage: React.FC = () => {
         setIsRemoveMemberConfirmOpen(false);
         setSelectedMemberForAction(null);
     };
-    const handleRemoveMember = async () => {
-        if (!roomId || !selectedMemberForAction || !currentUserId) return;
-        setIsProcessingChatAction(true); setPageError(null);
-        try {
-            await api.delete(`/api/chat/rooms/${roomId}/members/${selectedMemberForAction.id}`);
-            alert(`${selectedMemberForAction.name}님을 채팅방에서 내보냈습니다.`);
-            await initializeChatRoomData(); // 멤버 목록 갱신
-        } catch (error: any) {
-            setPageError(error.response?.data?.message || "멤버 내보내기 중 오류 발생");
-        } finally {
-            setIsProcessingChatAction(false);
-            handleCloseRemoveMemberConfirm();
-        }
-    };
+    // const handleRemoveMember = async () => {
+    //     if (!roomId || !selectedMemberForAction || !currentUserId) return;
+    //     setIsProcessingChatAction(true); setPageError(null);
+    //     try {
+    //         await api.delete(`/api/chat/rooms/${roomId}/members/${selectedMemberForAction.id}`);
+    //         alert(`${selectedMemberForAction.name}님을 채팅방에서 내보냈습니다.`);
+    //         await initializeChatRoomData(); // 멤버 목록 갱신
+    //     } catch (error: any) {
+    //         setPageError(error.response?.data?.message || "멤버 내보내기 중 오류 발생");
+    //     } finally {
+    //         setIsProcessingChatAction(false);
+    //         handleCloseRemoveMemberConfirm();
+    //     }
+    // };
 
     // --- 멤버 초대 ---
     const handleOpenInviteModal = () => {
@@ -290,6 +293,63 @@ const ChatRoomPage: React.FC = () => {
         const studyLeader = chatRoomInfo.members.find(m => m.role === 'LEADER'); // 스터디 리더 찾기
         return !!(studyLeader && studyLeader.id === currentUserId);
     }, [chatRoomInfo, currentUserId]);
+
+    const handleOpenManageMembersDialog = () => {
+        setIsManageMembersDialogOpen(true);
+        handleMenuClose(); // 메인 메뉴 닫기
+    };
+    const handleCloseManageMembersDialog = () => {
+        setIsManageMembersDialogOpen(false);
+        setSelectedMemberToRemove(null); // 다이얼로그 닫을 때 선택된 멤버 초기화
+    };
+
+    // 내보낼 멤버를 '선택'하는 함수 (실제 내보내기 전 단계)
+    const prepareToRemoveMember = (member: ChatRoomMemberInfo) => {
+        setSelectedMemberToRemove(member);
+        // 여기서 바로 확인 다이얼로그를 띄우거나,
+        // 또는 ManageMembersDialog 내에서 "내보내기" 버튼 클릭 시 확인 단계를 거치도록 할 수 있음
+        // 여기서는 간단히 console.log로 확인하고, 실제 내보내기는 handleRemoveMember에서
+        console.log("내보낼 멤버 선택됨:", member.name);
+        // 필요하다면 별도의 확인 다이얼로그를 여기서 열 수 있음:
+        // setIsRemoveMemberConfirmDialogOpen(true); (새로운 상태와 다이얼로그 필요)
+        // 지금은 ManageMembersDialog에서 직접 내보내기 버튼을 누르면 API 호출하도록 함
+    };
+
+    // const confirmRemoveMember = (member: ChatRoomMemberInfo) => {
+    //     setSelectedMemberToRemove(member);
+    //     // 확인 다이얼로그를 띄우거나, 바로 다음 단계로 진행할 수 있음
+    //     // 여기서는 간단히 바로 API 호출하도록 함 (실제로는 확인 다이얼로그가 더 좋음)
+    //     handleRemoveMember();
+    // };
+
+    // 실제 멤버를 내보내는 API 호출 함수
+    const handleRemoveMember = async (memberToRemove: ChatRoomMemberInfo | null) => { // 인자로 받을 수 있도록 변경
+        if (!roomId || !memberToRemove || !currentUserId) return;
+        if (memberToRemove.id === currentUserId) {
+            alert("자기 자신을 내보낼 수 없습니다.");
+            return;
+        }
+
+        // 추가: 확인 절차
+        const confirmRemove = window.confirm(`정말로 '${memberToRemove.name}'님을 채팅방에서 내보내시겠습니까?`);
+        if (!confirmRemove) {
+            return;
+        }
+
+        setIsProcessingChatAction(true);
+        setPageError(null);
+        try {
+            await api.delete(`/api/chat/rooms/${roomId}/members/${memberToRemove.id}`);
+            alert(`${memberToRemove.name}님을 채팅방에서 내보냈습니다.`);
+            await initializeChatRoomData(); // 멤버 목록 갱신
+        } catch (error: any) {
+            setPageError(error.response?.data?.message || "멤버 내보내기 중 오류 발생");
+        } finally {
+            setIsProcessingChatAction(false);
+            // setSelectedMemberToRemove(null); // ManageMembersDialog가 닫힐 때 초기화되도록
+            // setIsManageMembersDialogOpen(false); // 성공 시 다이얼로그 유지할지 닫을지 결정
+        }
+    };
 
     // --- 렌더링 로직 ---
 
@@ -557,26 +617,58 @@ const ChatRoomPage: React.FC = () => {
 
             {/* 채팅방 나가기 확인 다이얼로그 */}
             <Dialog open={isLeaveChatConfirmOpen} onClose={handleCloseLeaveChatConfirm}>
-                {/* ... (내용 동일) ... */}
+                <DialogTitle>채팅방 나가기</DialogTitle>
+                <DialogContent><DialogContentText>정말로 '{chatRoomInfo?.name}' 채팅방에서 나가시겠습니까?</DialogContentText></DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseLeaveChatConfirm} disabled={isProcessingChatAction}>취소</Button>
+                    <Button onClick={handleLeaveChatRoom} color="error" variant="contained" disabled={isProcessingChatAction}>
+                        {isProcessingChatAction ? <CircularProgress size={20} color="inherit"/> : '나가기'}
+                    </Button>
+                </DialogActions>
             </Dialog>
 
-            {/* 멤버 내보내기 확인 다이얼로그 - selectedMemberForAction이 있을 때만 렌더링 */}
-            {selectedMemberForAction && (
-                <Dialog open={isRemoveMemberConfirmOpen} onClose={handleCloseRemoveMemberConfirm}>
-                    <DialogTitle>멤버 내보내기</DialogTitle>
-                    <DialogContent>
-                        <DialogContentText>
-                            정말로 '{selectedMemberForAction.name}'님을 채팅방에서 내보내시겠습니까?
-                        </DialogContentText>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handleCloseRemoveMemberConfirm} disabled={isProcessingChatAction}>취소</Button>
-                        <Button onClick={handleRemoveMember} color="error" variant="contained" disabled={isProcessingChatAction}>
-                            {isProcessingChatAction ? <CircularProgress size={20} color="inherit"/> : '내보내기'}
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-            )}
+            {/* 멤버 관리(내보내기) 다이얼로그 */}
+            <Dialog open={isManageMembersDialogOpen} onClose={handleCloseManageMembersDialog} maxWidth="xs" fullWidth>
+                <DialogTitle>채팅방 멤버 관리 (내보내기)</DialogTitle>
+                <DialogContent dividers sx={{pt:1}}>
+                    {chatRoomInfo?.members && chatRoomInfo.members.filter(m => m.status === 'JOINED' && m.id !== currentUserId).length > 0 ? (
+                        <List dense>
+                            {chatRoomInfo.members
+                                .filter(member => member.id !== currentUserId && member.status === 'JOINED') // 자신 제외, JOINED 멤버만
+                                .map(member => (
+                                    <ListItem
+                                        key={member.id}
+                                        secondaryAction={
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                color="error"
+                                                onClick={() => handleRemoveMember(member)} // 수정: 바로 API 호출
+                                                disabled={isProcessingChatAction}
+                                                startIcon={isProcessingChatAction && selectedMemberToRemove?.id === member.id ? <CircularProgress size={16} sx={{mr:0.5}}/> : <PersonRemoveIcon fontSize="small"/>}
+                                            >
+                                                내보내기
+                                            </Button>
+                                        }
+                                        sx={{pl:0}}
+                                    >
+                                        <ListItemAvatar>
+                                            <Avatar src={member.profileImageUrl || undefined} sx={{width: 32, height: 32}}>
+                                                {!member.profileImageUrl && member.name ? member.name[0].toUpperCase() : null}
+                                            </Avatar>
+                                        </ListItemAvatar>
+                                        <ListItemText primary={member.name} secondary={member.id === chatRoomInfo.studyGroupLeaderId ? "스터디장" : "멤버"} />
+                                    </ListItem>
+                                ))}
+                        </List>
+                    ) : (
+                        <Typography color="textSecondary" textAlign="center" sx={{py:2}}>내보낼 수 있는 다른 멤버가 없습니다.</Typography>
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCloseManageMembersDialog}>닫기</Button>
+                </DialogActions>
+            </Dialog>
 
             {/* 멤버 초대 모달 */}
             {chatRoomInfo && ( // chatRoomInfo가 있어야 studyGroupId 전달 가능
