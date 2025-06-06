@@ -50,6 +50,7 @@ const InviteToChatRoomModal: React.FC<InviteToChatRoomModalProps> = ({
                     const response = await api.get<{ members: StudyMember[] }>(`/api/studies/${studyGroupId}`);
                     // 현재 채팅방 멤버는 API에서 필터링하거나, 여기서 필터링할 수 있음
                     // 여기서는 모든 스터디 멤버를 가져와서 아래 search 로직에서 필터링한다고 가정
+                    console.log("Fetched Study Members:", response.data.members); // <--- API 응답 데이터 확인용 로그
                     setStudyGroupMembers(response.data.members.filter(m => m.status === 'APPROVED'));
                 } catch (e) {
                     console.error("Failed to fetch study group members", e);
@@ -77,14 +78,17 @@ const InviteToChatRoomModal: React.FC<InviteToChatRoomModalProps> = ({
             return;
         }
         setLoadingSearch(true);
+        const lowerKeyword = keyword.toLowerCase(); // 검색어를 미리 소문자로 변환
         // studyGroupMembers 중에서 검색하고, 이미 선택된 유저 제외, 이미 채팅방 멤버인 유저 제외
         const filtered = studyGroupMembers
-            .filter(sgMember =>
-                    (sgMember.name.toLowerCase().includes(keyword.toLowerCase()) ||
-                        sgMember.email.toLowerCase().includes(keyword.toLowerCase())) &&
-                    !currentSelected.some(sel => sel.id === sgMember.id)
-                // && !currentChatMembers.some(chatMem => chatMem.id === sgMember.id) // 이 필터링은 백엔드에서 하는 것이 더 정확
-            )
+            .filter(sgMember => {
+                // 방어 코드: sgMember.name과 sgMember.email이 실제로 문자열인지 확인
+                const nameMatch = typeof sgMember.name === 'string' && sgMember.name.toLowerCase().includes(lowerKeyword);
+                const emailMatch = typeof sgMember.email === 'string' && sgMember.email.toLowerCase().includes(lowerKeyword);
+
+                return (nameMatch || emailMatch) &&
+                    !currentSelected.some(sel => sel.id === sgMember.id);
+            })
             .map(sgMember => ({ // Autocomplete 옵션 형태로 변환
                 id: sgMember.id,
                 name: sgMember.name,
