@@ -46,6 +46,7 @@ public class StudyGroupDetailResponse {
     public static class MemberInfo {
         private Long id;
         private String name;
+        private String email;
         private String profile;
         private String role;
         private String status;
@@ -76,6 +77,7 @@ public class StudyGroupDetailResponse {
                         .map(member -> MemberInfo.builder()
                                 .id(member.getUser().getId())
                                 .name(member.getUser().getName())
+                                .email(member.getUser().getEmail())
                                 .profile(member.getUser().getProfile())
                                 .role(member.getRole().name())
                                 .status(member.getStatus().name())
@@ -83,6 +85,7 @@ public class StudyGroupDetailResponse {
                         .collect(Collectors.toList()))
                 .createdAt(studyGroup.getCreatedAt())
                 .modifiedAt(studyGroup.getModifiedAt())
+
                 .viewCount(studyGroup.getViewCount())
                 .build();
     }
