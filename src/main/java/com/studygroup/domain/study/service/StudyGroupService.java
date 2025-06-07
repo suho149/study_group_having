@@ -1,6 +1,8 @@
 package com.studygroup.domain.study.service;
 
+import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
+import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.study.dto.StudyGroupRequest;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
@@ -39,6 +41,7 @@ public class StudyGroupService {
     private static final long VIEW_COUNT_INTERVAL = 1000; // 1초
     private final NotificationService notificationService;
     private final StudyMemberRepository studyMemberRepository;
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public StudyGroupDetailResponse getStudyGroupDetail(Long id) {
@@ -225,6 +228,28 @@ public class StudyGroupService {
             );
             studyGroup.removeMember(member);
         }
+
+        // --- 중요: 관련된 STUDY_INVITE 알림을 찾아 isRead = true로 변경 ---
+        // 이 로직은 사용자가 받은 스터디 초대에 응답하는 경우를 가정합니다.
+        // 알림의 receiver는 user, referenceId는 groupId, type은 STUDY_INVITE 입니다.
+        List<Notification> inviteNotifications = notificationRepository
+                .findByReceiverAndReferenceIdAndTypeAndIsReadFalse(
+                        user, // 알림을 받은 사람 (초대받은 사람)
+                        groupId, // 관련 스터디 ID
+                        NotificationType.STUDY_INVITE // 스터디 초대 알림 타입
+                );
+
+        if (!inviteNotifications.isEmpty()) {
+            for (Notification notificationToUpdate : inviteNotifications) {
+                notificationToUpdate.markAsRead(); // Notification 엔티티의 isRead를 true로 변경
+                // @Transactional로 인해 메소드 종료 시 변경 사항이 DB에 반영됨
+                log.info("STUDY_INVITE 알림 읽음 처리: notificationId={} for userId={}", notificationToUpdate.getId(), userId);
+            }
+        } else {
+            log.warn("읽음 처리할 STUDY_INVITE 알림을 찾지 못했습니다 (이미 읽었거나 없음): receiverId={}, studyId={}", userId, groupId);
+        }
+        // -----------------------------------------------------------------
+        log.info("스터디 초대 응답 전체 처리 완료: groupId={}, userId={}, accept={}", groupId, userId, accept);
     }
 
     @Transactional
