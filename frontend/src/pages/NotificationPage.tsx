@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Typography,
@@ -14,59 +14,38 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-
-// NotificationType에 CHAT_INVITE 추가
-type NotificationTypeStrings = 'STUDY_INVITE' | 'INVITE_ACCEPTED' | 'INVITE_REJECTED' |
-    'CHAT_INVITE' | 'JOIN_APPROVED' | 'JOIN_REJECTED' | 'MEMBER_LEFT_STUDY' |
-    'MEMBER_REMOVED_BY_LEADER' | 'LEADER_REMOVED_MEMBER' | 'STUDY_JOIN_REQUEST';
-
-interface Notification {
-  id: number;
-  message: string;
-  type: NotificationTypeStrings; // 모든 가능한 알림 타입 포함
-  senderName: string; // 백엔드 NotificationResponse에 이 필드가 있어야 함
-  referenceId: number | null; // 스터디 ID 또는 채팅방 ID
-  isRead: boolean;
-  createdAt: string; // ISO 문자열
-}
+import { Notification, NotificationTypeStrings } from '../types/notification'; // 공통 타입 사용
 
 const NotificationPage: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true); // 초기 로딩 상태
   const [processingNotificationId, setProcessingNotificationId] = useState<number | null>(null); // 처리 중인 알림 ID
+  const [processedNotifications, setProcessedNotifications] = useState<Set<number>>(new Set()); // 처리된 알림 ID들
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchNotifications();
-  }, []);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     setLoading(true);
     try {
       const response = await api.get<Notification[]>('/api/notifications');
-      // 최신 알림이 위로 오도록 정렬 (선택 사항, 백엔드에서 정렬하는 것이 더 좋음)
       setNotifications(response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
       console.error('알림 조회 실패:', error);
-      // TODO: 사용자에게 에러 메시지 표시
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   const handleNotificationAction = async (notification: Notification, accept: boolean) => {
-
-    // 이미 처리 중이거나, 해당 알림 타입이 더 이상 액션을 필요로 하지 않는 경우 (예: 이미 수락/거절됨) return
-    if (processingNotificationId === notification.id ||
-        (notification.type !== 'STUDY_INVITE' && notification.type !== 'CHAT_INVITE') || // 이미 응답한 타입
-        notification.isRead // 또는 isRead가 true면 이미 처리된 것으로 간주 (정책에 따라)
-    ) {
-      console.log("Notification action already processed, in progress, or not actionable:", notification);
+    // 이미 처리된 알림이거나 현재 처리 중인 알림이면 리턴
+    if (processedNotifications.has(notification.id) || processingNotificationId === notification.id) {
       return;
     }
 
     if (notification.referenceId === null || notification.referenceId === undefined) {
-      console.error('Notification referenceId is missing or invalid:', notification);
       alert('관련 정보를 찾을 수 없어 알림을 처리할 수 없습니다.');
       return;
     }
@@ -74,61 +53,95 @@ const NotificationPage: React.FC = () => {
     setProcessingNotificationId(notification.id);
 
     try {
+      let apiCalled = false; // API가 실제로 호출되었는지 추적
       if (notification.type === 'STUDY_INVITE') {
         await api.post(`/api/studies/${notification.referenceId}/invite/response`, { accept });
+        apiCalled = true;
       } else if (notification.type === 'CHAT_INVITE') {
         await api.post(`/api/chat/rooms/${notification.referenceId}/invites/respond?accept=${accept}`);
+        apiCalled = true;
+      } else {
+        console.warn("Unhandled actionable notification type for action:", notification.type);
+        setProcessingNotificationId(null);
+        return;
       }
 
-      // API 호출 성공 후 알림 목록을 새로고침하는 것이 가장 확실함
-      // 또는 로컬에서 해당 알림만 상태 변경 (isRead: true, type 변경 등)
-      // 여기서는 목록 새로고침으로 변경하여 최신 상태를 반영
-      await fetchNotifications(); // <--- API 성공 후 목록 새로고침
+      if (apiCalled) {
+        // 처리된 알림 ID를 Set에 추가
+        setProcessedNotifications(prev => {
+          const newSet = new Set(prev); // 기존 Set을 복사
+          newSet.add(notification.id);  // 새 값을 추가
+          return newSet;                // 새로운 Set 반환
+        });
 
-      if (accept) {
-        if (notification.type === 'CHAT_INVITE') {
-          navigate(`/chat/room/${notification.referenceId}`);
-        } else if (notification.type === 'STUDY_INVITE') {
-          navigate(`/studies/${notification.referenceId}`); // 스터디 상세 페이지로 이동 (예시)
+        // API 성공 후 로컬 상태 즉시 업데이트
+        setNotifications(prevNotifications =>
+            prevNotifications.map(n =>
+                n.id === notification.id
+                    ? { ...n, isRead: true } // isRead를 true로 설정
+                    : n
+            )
+        );
+
+        // 페이지 이동 처리
+        if (accept) {
+          if (notification.type === 'CHAT_INVITE') navigate(`/chat/room/${notification.referenceId}`);
+          else if (notification.type === 'STUDY_INVITE') navigate(`/studies/${notification.referenceId}`);
         }
       }
-      // 성공 메시지 (선택 사항)
-      // alert(`초대를 ${accept ? '수락' : '거절'}했습니다.`);
-
-    } catch (error: any) { // AxiosError 등으로 타입 구체화 가능
+    } catch (error: any) {
       console.error('알림 처리 실패:', error);
       alert(`알림 처리 중 오류가 발생했습니다: ${error.response?.data?.message || error.message}`);
+
+      // 에러 발생 시에도 처리된 것으로 마킹하여 중복 요청 방지
+      setProcessedNotifications(prev => {
+        const newSet = new Set(prev); // 기존 Set을 복사
+        newSet.add(notification.id);  // 새 값을 추가
+        return newSet;                // 새로운 Set 반환
+      });
+      setNotifications(prevNotifications =>
+          prevNotifications.map(n =>
+              n.id === notification.id
+                  ? { ...n, isRead: true } // 에러가 발생해도 isRead를 true로 설정
+                  : n
+          )
+      );
     } finally {
       setProcessingNotificationId(null);
     }
   };
 
   const getNotificationActions = (notification: Notification) => {
-    // STUDT_INVITE 또는 CHAT_INVITE 타입이고, 아직 처리 중이 아닐 때만 버튼 표시
-    // isRead 조건은 fetchNotifications() 후 서버 상태를 따르도록 함
-    // (만약 백엔드에서 초대 응답 시 isRead를 true로 바꾼다면, isRead 조건만으로도 충분)
-    if ((notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') && !notification.isRead) {
+    // isRead가 true이거나 이미 처리된 알림이면 버튼 숨김
+    if (notification.isRead || processedNotifications.has(notification.id)) {
+      return null;
+    }
+
+    // 현재 처리 중인 알림이면 버튼 비활성화 상태로 표시
+    const isProcessing = processingNotificationId === notification.id;
+
+    if (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') {
       return (
-          <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+          <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
             <Button
                 variant="contained"
                 color="primary"
                 size="small"
                 onClick={() => handleNotificationAction(notification, true)}
-                disabled={processingNotificationId === notification.id} // 처리 중 비활성화
+                disabled={isProcessing}
+                sx={{minWidth: 60}}
             >
-              {processingNotificationId === notification.id && <CircularProgress size={16} color="inherit" sx={{mr:0.5}} />}
-              수락
+              {isProcessing ? <CircularProgress size={16} color="inherit" /> : '수락'}
             </Button>
             <Button
                 variant="outlined"
                 color="secondary"
                 size="small"
                 onClick={() => handleNotificationAction(notification, false)}
-                disabled={processingNotificationId === notification.id} // 처리 중 비활성화
+                disabled={isProcessing}
+                sx={{minWidth: 60}}
             >
-              {processingNotificationId === notification.id && <CircularProgress size={16} color="inherit" sx={{mr:0.5}} />}
-              거절
+              {isProcessing ? <CircularProgress size={16} color="inherit" /> : '거절'}
             </Button>
           </Box>
       );
@@ -137,36 +150,41 @@ const NotificationPage: React.FC = () => {
   };
 
   const getStatusChip = (notification: Notification) => {
-    // 서버에서 받은 type과 isRead를 기준으로 Chip 표시
-    if (notification.type === 'INVITE_ACCEPTED' || (notification.type === 'STUDY_INVITE' && notification.isRead /* 백엔드에서 수락시 isRead 변경 가정 */)) {
-      return <Chip label="수락됨" size="small" color="success" />;
+    // 처리된 알림이거나 isRead가 true이고, 원래 초대 타입이었던 알림
+    if ((notification.isRead || processedNotifications.has(notification.id)) && (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE')) {
+      return <Chip label="응답완료" size="small" color="default" variant="outlined" />;
     }
-    if (notification.type === 'INVITE_REJECTED' || (notification.type === 'STUDY_INVITE' && notification.isRead /* 백엔드에서 거절시 isRead 변경 가정 */)) {
-      return <Chip label="거절됨" size="small" color="error" />;
+
+    // 아직 읽지 않은(처리하지 않은) 알림 또는 다른 타입의 알림
+    switch (notification.type) {
+      case 'STUDY_INVITE': // isRead가 false이고 처리되지 않았을 때만 이리로 옴
+        return <Chip label="새 스터디 초대" size="small" color="info" />;
+      case 'CHAT_INVITE': // isRead가 false이고 처리되지 않았을 때만 이리로 옴
+        return <Chip label="새 채팅 초대" size="small" color="info" />;
+      case 'INVITE_ACCEPTED':
+      case 'JOIN_APPROVED':
+        return <Chip label={notification.isRead ? "확인됨" : "수락됨"} size="small" color="success" />;
+      case 'INVITE_REJECTED':
+      case 'JOIN_REJECTED':
+        return <Chip label={notification.isRead ? "확인됨" : "거절됨"} size="small" color="error" />;
+      default:
+        return notification.isRead ?
+            <Chip label="읽음" size="small" color="default" variant="outlined" /> :
+            <Chip label="새 알림" size="small" color="primary" />;
     }
-    if (notification.type === 'CHAT_INVITE') {
-      return notification.isRead ?
-          <Chip label="초대 확인됨" size="small" color="default" /> : // 또는 "처리됨"
-          <Chip label="새 채팅 초대" size="small" color="info" />;
-    }
-    // ... 다른 알림 타입에 대한 Chip ...
-    return notification.isRead ?
-        <Chip label="읽음" size="small" color="default" /> :
-        <Chip label="새 알림" size="small" color="primary" />;
   };
 
-  // if (loading && notifications.length === 0) {
   if (loading) { // 초기 로딩
     return (
-      <Container maxWidth="md" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
-        <CircularProgress />
-      </Container>
+        <Container maxWidth="md" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress />
+        </Container>
     );
   }
 
   return (
       <Container maxWidth="md" sx={{ mt: 4 }}>
-        {/* ... (페이지 타이틀) ... */}
+        <Typography variant="h4" component="h1" gutterBottom>알림</Typography>
         <Paper elevation={1} sx={{borderRadius: 2}}>
           <List sx={{p:0}}>
             {notifications.length === 0 ? (
@@ -179,15 +197,10 @@ const NotificationPage: React.FC = () => {
                       <ListItem
                           alignItems="flex-start"
                           sx={{
-                            py: 1.5, // 패딩 조정
+                            py: 1.5, px:2,
+                            // 읽지 않은 초대 알림만 배경색 강조
                             backgroundColor: !notification.isRead && (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') ? 'action.hover' : 'inherit',
-                            '&:hover': {
-                              backgroundColor: !notification.isRead && (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') ? 'action.selected' : 'action.hover',
-                            }
                           }}
-                          // 알림 클릭 시 상세 페이지로 이동하거나 읽음 처리 (선택 사항)
-                          // button={!notification.isRead}
-                          // onClick={!notification.isRead ? () => markAsReadAndNavigate(notification) : undefined}
                       >
                         <Box sx={{ width: '100%' }}>
                           <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -213,4 +226,4 @@ const NotificationPage: React.FC = () => {
   );
 };
 
-export default NotificationPage; 
+export default NotificationPage;

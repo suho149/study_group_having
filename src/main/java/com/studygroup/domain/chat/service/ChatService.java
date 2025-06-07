@@ -5,7 +5,9 @@ import com.studygroup.domain.chat.entity.*;
 import com.studygroup.domain.chat.repository.ChatMessageRepository;
 import com.studygroup.domain.chat.repository.ChatRoomMemberRepository;
 import com.studygroup.domain.chat.repository.ChatRoomRepository;
+import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
+import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.study.entity.StudyGroup;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
@@ -35,6 +37,7 @@ public class ChatService {
     private final StudyGroupRepository studyGroupRepository;
     private final NotificationService notificationService;
     private final SimpMessageSendingOperations messagingTemplate; // STOMP 메시지 발송
+    private final NotificationRepository notificationRepository;
 
     @Transactional
     public ChatRoomDetailResponse createChatRoom(Long studyGroupId, ChatRoomCreateRequest request, Long creatorUserId) {
@@ -324,6 +327,22 @@ public class ChatService {
             // 또는 member.setStatus(ChatRoomMemberStatus.REJECTED_INVITE); // 상태 변경으로 처리할 수도 있음
             log.info("멤버 정보 삭제 (초대 거절): memberId={}", member.getId());
         }
+
+        // 관련된 CHAT_INVITE 알림을 찾아 isRead = true로 변경
+        List<Notification> chatInviteNotifications = notificationRepository
+                .findByReceiverAndReferenceIdAndTypeAndIsReadFalse(user, chatRoomId, NotificationType.CHAT_INVITE);
+
+        if (!chatInviteNotifications.isEmpty()) {
+            for (Notification notification : chatInviteNotifications) {
+                notification.markAsRead(); // Notification 엔티티의 markAsRead() 호출
+                // notificationRepository.save(notification); // 변경 감지로 저장될 수 있음, 또는 명시적 저장
+                log.info("CHAT_INVITE 알림 읽음 처리: notificationId={}", notification.getId());
+            }
+        } else {
+            log.warn("읽음 처리할 CHAT_INVITE 알림을 찾지 못했습니다: receiverId={}, chatRoomId={}", userId, chatRoomId);
+        }
+        // -----------------------------------------------------------------
+
         log.info("채팅방 초대 응답 처리 완료: chatRoomId={}, userId={}", chatRoomId, userId);
     }
 
