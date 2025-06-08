@@ -70,53 +70,96 @@ const CreateStudyPage = () => {
   const [searchKeyword, setSearchKeyword] = useState(''); // 장소 검색어
   const [searchResults, setSearchResults] = useState<any[]>([]); // 장소 검색 결과
   const [selectedPlace, setSelectedPlace] = useState<any>(null); // 선택된 장소 정보
+  const [mapApiLoaded, setMapApiLoaded] = useState(false); // 카카오맵 API 로드 완료 상태
 
   const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env 파일에서 키 가져오기
 
-  // 카카오맵 초기화 (스터디 유형이 OFFLINE일 때만)
+  // 카카오맵 API 로드 완료 감지
   useEffect(() => {
-    if (formData.studyType === 'OFFLINE' && window.kakao && window.kakao.maps && mapContainer.current && !map) {
-      window.kakao.maps.load(() => { // maps.load()를 사용하여 API 로드 완료 후 실행
-        const options = {
-          center: new window.kakao.maps.LatLng(37.566826, 126.9786567), // 초기 중심 좌표 (예: 서울시청)
+    const checkKakaoMapLoaded = () => {
+      if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
+        setMapApiLoaded(true);
+        console.log("카카오맵 API 로드 완료됨.");
+      } else {
+        console.log("카카오맵 API 로딩 중...");
+        setTimeout(checkKakaoMapLoaded, 100); // 0.1초 후 다시 확인
+      }
+    };
+    // 스터디 유형이 오프라인일 때만 API 로드 상태 확인 시작
+    if (formData.studyType === 'OFFLINE') {
+      checkKakaoMapLoaded();
+    }
+  }, [formData.studyType]); // 스터디 유형이 변경될 때마다 실행
+
+  // 카카오맵 API 로드 감지 및 명시적 로드 요청
+  useEffect(() => {
+    if (formData.studyType === 'OFFLINE' && !mapApiLoaded) {
+      const kakaoMapScriptCheck = () => {
+        if (window.kakao && window.kakao.maps) { // kakao.maps 객체까지는 존재해야 load 함수 호출 가능
+          console.log("window.kakao.maps 객체 확인됨. services 라이브러리 로드 시도...");
+          window.kakao.maps.load(() => { // services 라이브러리 로드 요청
+            if (window.kakao.maps.services) { // services까지 로드 완료 확인
+              console.log("카카오맵 API (services 포함) 로드 완료됨.");
+              setMapApiLoaded(true);
+            } else {
+              console.error("kakao.maps.load() 콜백 후에도 services 라이브러리 로드 실패.");
+              // 사용자에게 알림 또는 재시도 로직 추가 가능
+            }
+          });
+        } else {
+          console.log("카카오맵 API 기본 객체(window.kakao.maps) 로딩 중... 100ms 후 재시도.");
+          setTimeout(kakaoMapScriptCheck, 100); // API 스크립트 자체 로드를 기다림
+        }
+      };
+      kakaoMapScriptCheck();
+    }
+  }, [formData.studyType, mapApiLoaded]); // mapApiLoaded를 의존성에 넣어 true가 되면 더 이상 실행 안 함
+
+  // 카카오맵 초기화 (API 로드가 완료된 후)
+  useEffect(() => {
+    // mapApiLoaded가 true이고, mapContainer가 있으며, 아직 map 인스턴스가 없을 때만 실행
+    if (formData.studyType === 'OFFLINE' && mapApiLoaded && mapContainer.current && !map) {
+      console.log("카카오맵 API 로드 완료, 지도 초기화 시도...");
+      try {
+        const mapOption = {
+          center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
           level: 3,
         };
-        const kakaoMap = new window.kakao.maps.Map(mapContainer.current!, options);
+        const newMap = new window.kakao.maps.Map(mapContainer.current!, mapOption);
+        const newMarker = new window.kakao.maps.Marker({ position: newMap.getCenter() });
+        newMarker.setMap(newMap);
 
-        const kakaoMarker = new window.kakao.maps.Marker({
-          position: kakaoMap.getCenter()
-        });
-        kakaoMarker.setMap(kakaoMap);
-
-        // 지도 클릭 이벤트 추가: 클릭한 위치에 마커 표시 및 좌표/주소 업데이트
-        window.kakao.maps.event.addListener(kakaoMap, 'click', function(mouseEvent: any) {
+        window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
           const latlng = mouseEvent.latLng;
-          kakaoMarker.setPosition(latlng);
-          setFormData(prev => ({
-            ...prev,
-            latitude: latlng.getLat(),
-            longitude: latlng.getLng(),
-          }));
-          // 좌표로 주소 정보 가져오기 (services 라이브러리 필요)
+          newMarker.setPosition(latlng);
+          const newLat = latlng.getLat();
+          const newLng = latlng.getLng();
+          setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
+
           const geocoder = new window.kakao.maps.services.Geocoder();
-          geocoder.coord2Address(latlng.getLng(), latlng.getLat(), (result: any, status: any) => {
-            if (status === window.kakao.maps.services.Status.OK) {
+          geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
+            if (status === window.kakao.maps.services.Status.OK && result[0]) {
               const roadAddress = result[0].road_address ? result[0].road_address.address_name : result[0].address.address_name;
               setFormData(prev => ({ ...prev, location: roadAddress }));
-              setSelectedPlace({ place_name: roadAddress, x: latlng.getLng(), y: latlng.getLat() });
+              setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
+            } else {
+              console.warn("좌표를 주소로 변환하는데 실패했습니다.", status);
+              setFormData(prev => ({ ...prev, location: "주소 정보 없음" })); // 주소 변환 실패 시
+              setSelectedPlace(null);
             }
           });
         });
-        setMap(kakaoMap);
-        setMarker(kakaoMarker);
-      });
-    } else if (formData.studyType !== 'OFFLINE' && map) {
-      // 오프라인이 아닐 경우 지도 관련 상태 초기화 (선택적)
-      // setMap(null);
-      // setMarker(null);
-      // setSelectedPlace(null);
+
+        setMap(newMap);
+        setMarker(newMarker);
+        console.log("카카오맵 초기화 및 이벤트 리스너 설정 완료.");
+      } catch (e) {
+        console.error("카카오맵 초기화 중 에러:", e);
+        alert("지도 초기화 중 오류가 발생했습니다. 페이지를 새로고침하거나 다시 시도해주세요.");
+      }
     }
-  }, [formData.studyType, map]); // map 상태도 의존성에 추가
+    // mapApiLoaded가 true로 바뀐 후, mapContainer.current가 설정된 후, map이 아직 null일 때 실행
+  }, [formData.studyType, mapApiLoaded, mapContainer.current, map]); // mapContainer.current도 의존성에 추가
 
   const handleChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string> // SelectChangeEvent 타입 명시
@@ -142,16 +185,28 @@ const CreateStudyPage = () => {
 
   // 장소 검색 함수
   const handlePlaceSearch = () => {
-    if (!searchKeyword.trim() || !window.kakao || !window.kakao.maps) return;
+    if (!searchKeyword.trim()) {
+      alert("검색어를 입력해주세요.");
+      return;
+    }
+    // API 로드 여부 및 services 라이브러리 존재 확인
+    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services || !window.kakao.maps.services.Places) {
+      alert('지도 서비스가 아직 로드되지 않았거나, 장소 검색 기능을 사용할 수 없습니다. 잠시 후 다시 시도해주세요.');
+      console.error("Kakao Maps Places service is not available.");
+      return;
+    }
+    console.log("장소 검색 호출:", searchKeyword);
     const ps = new window.kakao.maps.services.Places();
-    ps.keywordSearch(searchKeyword, (data: any, status: any) => {
+    ps.keywordSearch(searchKeyword, (data: any[], status: any, pagination: any) => { // data 타입을 any[]로 명시
+      console.log("장소 검색 결과 상태:", status);
       if (status === window.kakao.maps.services.Status.OK) {
+        console.log("검색 결과:", data);
         setSearchResults(data);
       } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
         alert('검색 결과가 존재하지 않습니다.');
         setSearchResults([]);
       } else {
-        alert('장소 검색 중 오류가 발생했습니다.');
+        alert('장소 검색 중 오류가 발생했습니다. (오류 코드: ' + status + ')');
         setSearchResults([]);
       }
     });
@@ -204,34 +259,39 @@ const CreateStudyPage = () => {
       return;
     }
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
-
-      const requestData = {
-        ...formData,
+      const requestPayload = { // 변수명 변경 (formData와 구분)
+        title: formData.title,
+        description: formData.description,
+        maxMembers: parseInt(formData.maxMembers, 10), // 숫자로 변환
+        studyType: formData.studyType, // 'ONLINE', 'OFFLINE', 'HYBRID' 문자열
+        location: formData.location,
+        latitude: formData.latitude,   // null 또는 숫자
+        longitude: formData.longitude, // null 또는 숫자
         startDate: formData.startDate ? format(formData.startDate, 'yyyy-MM-dd') : null,
         endDate: formData.endDate ? format(formData.endDate, 'yyyy-MM-dd') : null,
+        tags: formData.tags,
       };
 
-      // const response: AxiosResponse = await axios.post('http://localhost:8080/api/studies', requestData, {
-      //   headers: {
-      //     'Authorization': `Bearer ${token}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      // });
-      //
-      // if (response.status === 200) {
-      //   navigate('/');
-      // }
+      console.log('Request Payload to Backend:', requestPayload); // <--- 이 로그 확인!
 
-      await api.post('/api/studies', requestData);
-
-      navigate('/'); // 성공 시 홈으로 이동
-    } catch (error) {
+      await api.post('/api/studies', requestPayload);
+      navigate('/');
+    } catch (error: any) { // AxiosError 등으로 타입 구체화 가능
       console.error('스터디 생성 실패:', error);
+      if (error.response) {
+        // 백엔드에서 내려준 유효성 검사 오류 메시지 등을 표시할 수 있음
+        console.error('Backend Error Data:', error.response.data);
+        const errorData = error.response.data;
+        let errorMessage = "스터디 생성에 실패했습니다. 입력값을 확인해주세요.";
+        if (errorData && typeof errorData.message === 'string') {
+          errorMessage = errorData.message;
+        } else if (errorData && Array.isArray(errorData.errors)) { // Spring @Valid 에러 형식
+          errorMessage = errorData.errors.map((err: any) => `${err.field}: ${err.defaultMessage}`).join('\n');
+        }
+        alert(errorMessage);
+      } else {
+        alert("스터디 생성 중 오류가 발생했습니다. 네트워크 연결을 확인해주세요.");
+      }
     }
   };
 
