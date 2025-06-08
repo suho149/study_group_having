@@ -195,16 +195,25 @@ public class StudyGroupService {
 
     @Transactional
     public void handleInviteResponse(Long groupId, Long userId, boolean accept) {
+
+        log.info("스터디 초대 응답 처리 시작: groupId={}, userId={}, accept={}", groupId, userId, accept);
         StudyGroup studyGroup = studyGroupRepository.findById(groupId)
-                .orElseThrow(() -> new IllegalArgumentException("Study group not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + groupId));
                 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
 
         StudyMember member = studyGroup.getMembers().stream()
                 .filter(m -> m.getUser().getId().equals(userId) && m.getStatus() == StudyMemberStatus.PENDING)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No pending invitation found"));
+                .orElseThrow(() -> {
+                    // 이미 처리되었을 가능성을 확인하기 위해 현재 상태 로그 추가
+                    studyGroup.getMembers().stream()
+                            .filter(m -> m.getUser().getId().equals(userId))
+                            .findFirst()
+                            .ifPresent(actualMember -> log.warn("handleInviteResponse: 유효한 PENDING 초대가 없음. 실제 멤버 상태: {}", actualMember.getStatus()));
+                    return new IllegalStateException("해당 스터디에 대한 유효한 초대(또는 참여 신청)가 없습니다. 이미 처리되었을 수 있습니다.");
+                });
 
         if (accept) {
             member.updateStatus(StudyMemberStatus.APPROVED);
@@ -218,7 +227,9 @@ public class StudyGroupService {
             );
         } else {
             member.updateStatus(StudyMemberStatus.REJECTED);
-            String message = String.format("%s님이 스터디 초대를 거절했습니다.", user.getName());
+            log.info("스터디 멤버 상태 REJECTED로 변경: userId={}, studyId={}", userId, groupId);
+
+            String message = String.format("%s님이 '%s' 스터디 초대를 거절했습니다.", user.getName(), studyGroup.getTitle());
             notificationService.createNotification(
                 user,
                 studyGroup.getLeader(),
