@@ -38,15 +38,21 @@ public class StudyGroupRequest {
 
     private Set<String> tags;
 
-    @Builder
+    private Double latitude;  // 위도 (소수점 포함 가능)
+
+    private Double longitude; // 경도 (소수점 포함 가능)
+
+    @Builder // 만약 생성자 대신 빌더를 사용한다면
     public StudyGroupRequest(String title, String description, Integer maxMembers,
-                           StudyType studyType, String location,
-                           LocalDate startDate, LocalDate endDate, Set<String> tags) {
+                             StudyType studyType, String location, Double latitude, Double longitude,
+                             LocalDate startDate, LocalDate endDate, Set<String> tags) {
         this.title = title;
         this.description = description;
         this.maxMembers = maxMembers;
         this.studyType = studyType;
         this.location = location;
+        this.latitude = latitude;   // 추가
+        this.longitude = longitude; // 추가
         this.startDate = startDate;
         this.endDate = endDate;
         this.tags = tags;
