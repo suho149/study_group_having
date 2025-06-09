@@ -20,9 +20,12 @@ public class BoardPostResponse {
     private LocalDateTime modifiedAt;
     private int viewCount;
     private int likeCount;
+    private int dislikeCount;
     private int commentCount; // 댓글 기능 추가 시
+    private boolean likedByCurrentUser;
+    private boolean dislikedByCurrentUser;
 
-    public static BoardPostResponse from(BoardPost post) {
+    public static BoardPostResponse from(BoardPost post, boolean likedByCurrentUser, boolean dislikedByCurrentUser) {
         return BoardPostResponse.builder()
                 .id(post.getId())
                 .category(post.getCategory())
@@ -34,8 +37,11 @@ public class BoardPostResponse {
                 .modifiedAt(post.getModifiedAt())
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
+                .dislikeCount(post.getDislikeCount()) // 추가
                 .commentCount(post.getComments() != null ? // comments 필드가 BoardPost 엔티티에 있다면
                         (int) post.getComments().stream().filter(c -> !c.isDeleted()).count() : 0)
+                .likedByCurrentUser(likedByCurrentUser) // 추가
+                .dislikedByCurrentUser(dislikedByCurrentUser) // 추가
                 .build();
     }
 }

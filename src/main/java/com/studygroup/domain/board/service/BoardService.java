@@ -3,8 +3,11 @@ package com.studygroup.domain.board.service;
 import com.studygroup.domain.board.dto.*;
 import com.studygroup.domain.board.entity.BoardComment;
 import com.studygroup.domain.board.entity.BoardPost;
+import com.studygroup.domain.board.entity.PostLike;
+import com.studygroup.domain.board.entity.VoteType;
 import com.studygroup.domain.board.repository.BoardCommentRepository;
 import com.studygroup.domain.board.repository.BoardPostRepository;
+import com.studygroup.domain.board.repository.PostLikeRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
@@ -15,6 +18,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -24,6 +29,7 @@ public class BoardService {
     private final BoardPostRepository boardPostRepository;
     private final UserRepository userRepository;
     private final BoardCommentRepository boardCommentRepository;
+    private final PostLikeRepository postLikeRepository;
 
     public BoardPostResponse createPost(BoardPostCreateRequest request, Long authorId) {
         User author = userRepository.findById(authorId)
@@ -39,7 +45,7 @@ public class BoardService {
 
         BoardPost savedPost = boardPostRepository.save(post);
         log.info("새 게시글 생성 완료: postId={}, authorId={}", savedPost.getId(), authorId);
-        return BoardPostResponse.from(savedPost);
+        return BoardPostResponse.from(savedPost, false, false);
     }
 
     @Transactional(readOnly = true)
@@ -79,20 +85,79 @@ public class BoardService {
         // boardPostRepository.save(post); // 변경 감지로 저장됨
 
         // 현재 사용자가 이 게시글에 좋아요를 눌렀는지 여부 (추천 기능 구현 시)
-        boolean isLikedByCurrentUser = false;
-        // if (currentUserPrincipal != null) {
-        //     User currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
-        //     if (currentUser != null) {
-        //         // isLikedByCurrentUser = postLikeRepository.existsByUserAndBoardPost(currentUser, post);
-        //     }
-        // }
+        boolean likedByCurrentUser = false;
+        boolean dislikedByCurrentUser = false;
+        if (currentUserPrincipal != null) {
+            User currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
+            if (currentUser != null) {
+                Optional<PostLike> postLikeOpt = postLikeRepository.findByUserAndBoardPost(currentUser, post);
+                if (postLikeOpt.isPresent()) {
+                    VoteType userVote = postLikeOpt.get().getVoteType();
+                    if (userVote == VoteType.LIKE) likedByCurrentUser = true;
+                    else if (userVote == VoteType.DISLIKE) dislikedByCurrentUser = true;
+                }
+            }
+        }
 
         // 댓글 수 (댓글 기능 구현 시)
-        // int commentCount = boardCommentRepository.countByBoardPost(post);
+//         int commentCount = boardCommentRepository.countByBoardPost(post);
 
         // BoardPostResponse.from() 메소드를 수정하여 필요한 모든 정보를 담도록 함
         // 여기서는 isLikedByCurrentUser와 commentCount는 아직 구현되지 않았다고 가정
-        return BoardPostResponse.from(post /*, isLikedByCurrentUser, commentCount */);
+        return BoardPostResponse.from(post, likedByCurrentUser, dislikedByCurrentUser);
+    }
+
+    @Transactional
+    public void voteForPost(Long postId, Long userId, VoteType requestedVoteType) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        BoardPost post = boardPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+
+        Optional<PostLike> existingVoteOpt = postLikeRepository.findByUserAndBoardPost(user, post);
+
+        if (existingVoteOpt.isPresent()) { // 이미 투표한 기록이 있는 경우
+            PostLike existingVote = existingVoteOpt.get();
+            if (existingVote.getVoteType() == requestedVoteType) { // 같은 타입으로 다시 클릭 -> 투표 취소
+                postLikeRepository.delete(existingVote);
+                if (requestedVoteType == VoteType.LIKE) {
+                    post.decrementLikeCount();
+                } else {
+                    post.decrementDislikeCount();
+                }
+                log.info("게시글 투표 취소: postId={}, userId={}, voteType={}", postId, userId, requestedVoteType);
+            } else { // 다른 타입으로 변경 (예: 비추천 -> 추천, 또는 추천 -> 비추천)
+                // 이전 투표 카운트 감소
+                if (existingVote.getVoteType() == VoteType.LIKE) {
+                    post.decrementLikeCount();
+                } else {
+                    post.decrementDislikeCount();
+                }
+                // 새 투표 타입으로 변경 및 카운트 증가
+                existingVote.setVoteType(requestedVoteType);
+                // postLikeRepository.save(existingVote); // 변경 감지로 저장됨
+                if (requestedVoteType == VoteType.LIKE) {
+                    post.incrementLikeCount();
+                } else {
+                    post.incrementDislikeCount();
+                }
+                log.info("게시글 투표 변경: postId={}, userId={}, oldVote={}, newVote={}", postId, userId, existingVote.getVoteType(), requestedVoteType);
+            }
+        } else { // 새로 투표하는 경우
+            PostLike newVote = PostLike.builder()
+                    .user(user)
+                    .boardPost(post)
+                    .voteType(requestedVoteType)
+                    .build();
+            postLikeRepository.save(newVote);
+            if (requestedVoteType == VoteType.LIKE) {
+                post.incrementLikeCount();
+            } else {
+                post.incrementDislikeCount();
+            }
+            log.info("게시글 투표 추가: postId={}, userId={}, voteType={}", postId, userId, requestedVoteType);
+        }
+        // boardPostRepository.save(post); // BoardPost의 likeCount, dislikeCount 변경사항 저장 (변경 감지)
     }
 
     // 댓글 생성

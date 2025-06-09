@@ -37,6 +37,8 @@ import { ko } from 'date-fns/locale';
 import VisibilityIcon from "@mui/icons-material/Visibility"; // 한국어 로케일
 import { CommentDto, CommentCreateRequestDto } from '../../types/board';
 import CommentItem from "../../components/board/CommentItem"; // CommentCreateRequestDto 추가
+import LikeDislikeButtons from '../../components/board/LikeDislikeButtons';
+import { VoteType } from '../../types/apiSpecificEnums';
 
 const BoardPostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -158,8 +160,19 @@ const BoardPostDetailPage: React.FC = () => {
         }
     };
 
-    // TODO: handleLike, handleDislike, handleCommentSubmit 함수 구현
+    const handlePostVoteSuccess = async () => {
+        // 투표 성공 후 게시글 데이터를 다시 불러와서 정확한 likeCount, dislikedCount,
+        // likedByCurrentUser, dislikedByCurrentUser를 반영 (가장 확실한 방법)
+        // 또는 LikeDislikeButtons 내부에서 이미 낙관적 업데이트를 했다면,
+        // 여기서는 추가 작업이 필요 없을 수도 있음.
+        // 하지만 서버와 완벽한 동기화를 위해선 fetchPostDetail 호출 권장.
+        if (postId) {
+            await fetchPostDetail();
+        }
+    };
 
+
+    // TODO: handleLike, handleDislike, handleCommentSubmit 함수 구현
 
     if (loading && !post) {
         return <Container sx={{display:'flex', justifyContent:'center', mt:5}}><CircularProgress /></Container>;
@@ -242,24 +255,17 @@ const BoardPostDetailPage: React.FC = () => {
                 <Divider sx={{ my: 3 }} />
                 {/* 추천/비추천/댓글 수 표시 및 액션 버튼 */}
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'text.secondary' }}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Button
-                            size="small"
-                            startIcon={post.likedByCurrentUser ? <ThumbUpAltIcon /> : <ThumbUpAltOutlinedIcon />}
-                            // onClick={handleLike}
-                            disabled={!isLoggedIn /* || isLiking */}
-                        >
-                            추천 {post.likeCount}
-                        </Button>
-                        {/* <Button
-                    size="small"
-                    startIcon={post.dislikedByCurrentUser ? <ThumbDownAltIcon /> : <ThumbDownAltOutlinedIcon />}
-                    onClick={handleDislike}
-                    disabled={!isLoggedIn || isDisliking }
-                >
-                    비추천 {post.dislikeCount || 0}
-                </Button> */}
-                    </Box>
+                    <LikeDislikeButtons
+                        targetId={post.id}
+                        initialLikeCount={post.likeCount}
+                        initialDislikeCount={post.dislikeCount}
+                        initialUserVote={
+                            post.likedByCurrentUser ? VoteType.LIKE :
+                                post.dislikedByCurrentUser ? VoteType.DISLIKE : null
+                        }
+                        onVoteSuccess={handlePostVoteSuccess}
+                        targetType="post"
+                    />
                     <Box sx={{display:'flex', alignItems:'center', gap:0.5}}>
                         <ChatBubbleOutlineOutlinedIcon sx={{fontSize:'1.1rem'}}/>
                         <Typography variant="body2">댓글 {post.commentCount || 0}</Typography>

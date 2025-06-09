@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/board") // 게시판 관련 API 기본 경로
+@RequestMapping("/api/board/posts") // 게시판 관련 API 기본 경로
 @RequiredArgsConstructor
 public class BoardController {
 
     private final BoardService boardService;
 
-    @PostMapping("/posts")
+    @PostMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BoardPostResponse> createPost(
             @Valid @RequestBody BoardPostCreateRequest request,
@@ -35,7 +35,7 @@ public class BoardController {
     }
 
     // --- 게시글 목록 조회 API 추가 ---
-    @GetMapping("/posts")
+    @GetMapping
     public ResponseEntity<Page<BoardPostSummaryResponse>> getBoardPosts(
             @RequestParam(required = false) String category, // BoardCategory Enum으로 받을 수도 있음
             @RequestParam(required = false) String keyword,
@@ -48,7 +48,7 @@ public class BoardController {
         return ResponseEntity.ok(posts);
     }
 
-    @GetMapping("/posts/{postId}")
+    @GetMapping("/{postId}")
     public ResponseEntity<BoardPostResponse> getPostDetail(
             @PathVariable Long postId,
             @CurrentUser UserPrincipal userPrincipal) { // 좋아요 여부 판단 등에 사용 가능
@@ -58,7 +58,7 @@ public class BoardController {
     }
 
     // --- 댓글 API ---
-    @PostMapping("/posts/{postId}/comments")
+    @PostMapping("/{postId}/comments")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CommentResponseDto> createComment(
             @PathVariable Long postId,
@@ -70,7 +70,7 @@ public class BoardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(createdComment);
     }
 
-    @GetMapping("/posts/{postId}/comments")
+    @GetMapping("/{postId}/comments")
     public ResponseEntity<Page<CommentResponseDto>> getCommentsByPost(
             @PathVariable Long postId,
             @PageableDefault(size = 10, sort = "createdAt,asc") Pageable pageable, // 오래된 순으로
@@ -78,6 +78,19 @@ public class BoardController {
         log.info("댓글 목록 조회 요청: postId={}, pageable={}", postId, pageable);
         Page<CommentResponseDto> comments = boardService.getCommentsByPost(postId, pageable, userPrincipal);
         return ResponseEntity.ok(comments);
+    }
+
+    // 게시글 추천/비추천/취소 통합 (POST 요청 한번으로 처리)
+    @PostMapping("/{postId}/vote")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> voteForPost(
+            @PathVariable Long postId,
+            @RequestBody VoteRequest voteRequest, // 요청 바디로 LIKE 또는 DISLIKE 받음
+            @CurrentUser UserPrincipal userPrincipal) {
+        log.info("게시글 투표 요청: postId={}, userId={}, voteType={}",
+                postId, userPrincipal.getId(), voteRequest.getVoteType());
+        boardService.voteForPost(postId, userPrincipal.getId(), voteRequest.getVoteType());
+        return ResponseEntity.ok().build();
     }
 
     // TODO: 게시글 목록, 상세, 수정, 삭제 등 API 엔드포인트 추가

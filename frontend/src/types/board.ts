@@ -1,4 +1,4 @@
-import { BoardCategory } from './apiSpecificEnums'; // 백엔드 BoardCategory Enum과 동일하게
+import { BoardCategory, VoteType } from './apiSpecificEnums'; // 백엔드 BoardCategory Enum과 동일하게
 
 // 사용자 요약 정보 (댓글 작성자 등 간략한 정보 표시에 사용)
 export interface UserSummaryDto {

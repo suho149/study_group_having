@@ -62,4 +62,22 @@ public class BoardPost extends BaseTimeEntity {
     public void incrementViewCount() {
         this.viewCount++;
     }
+
+    // --- 추천/비추천 카운트 관리 메소드 ---
+    public void incrementLikeCount() {
+        this.likeCount++;
+    }
+    public void decrementLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
+    }
+    public void incrementDislikeCount() {
+        this.dislikeCount++;
+    }
+    public void decrementDislikeCount() {
+        if (this.dislikeCount > 0) {
+            this.dislikeCount--;
+        }
+    }
 }

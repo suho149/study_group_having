@@ -14,3 +14,8 @@ export enum BoardCategory {
     INFO = "INFO",
     ETC = "ETC"
 }
+
+export enum VoteType {
+    LIKE = "LIKE",
+    DISLIKE = "DISLIKE",
+}
