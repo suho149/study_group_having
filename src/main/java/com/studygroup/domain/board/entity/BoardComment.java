@@ -71,4 +71,9 @@ public class BoardComment extends BaseTimeEntity {
         this.childrenComments.add(child);
         child.setParentComment(this);
     }
+
+    public void incrementLikeCount() { this.likeCount++; }
+    public void decrementLikeCount() { if (this.likeCount > 0) this.likeCount--; }
+    public void incrementDislikeCount() { this.dislikeCount++; }
+    public void decrementDislikeCount() { if (this.dislikeCount > 0) this.dislikeCount--; }
 }

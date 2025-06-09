@@ -28,7 +28,9 @@ public class CommentLike extends BaseTimeEntity {
     @JoinColumn(name = "board_comment_id", nullable = false)
     private BoardComment boardComment;
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private VoteType voteType; // LIKE, DISLIKE
+
 }

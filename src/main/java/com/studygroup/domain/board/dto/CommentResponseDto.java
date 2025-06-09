@@ -22,10 +22,10 @@ public class CommentResponseDto {
     private Long parentId;
     private List<CommentResponseDto> children; // 대댓글 목록 (재귀적으로)
     private boolean isDeleted;
-    // private boolean likedByCurrentUser; // 추천 기능 추가 시
-    // private boolean dislikedByCurrentUser; // 비추천 기능 추가 시
+    private boolean likedByCurrentUser; // 추천 기능 추가 시
+    private boolean dislikedByCurrentUser; // 비추천 기능 추가 시
 
-    public static CommentResponseDto from(BoardComment comment /*, boolean liked, boolean disliked */) {
+    public static CommentResponseDto from(BoardComment comment, boolean liked, boolean disliked) {
         return CommentResponseDto.builder()
                 .id(comment.getId())
                 .content(comment.isDeleted() ? "삭제된 댓글입니다." : comment.getContent())
@@ -38,12 +38,12 @@ public class CommentResponseDto {
                 .children(comment.getChildrenComments() != null ?
                         comment.getChildrenComments().stream()
                                 .filter(child -> !child.isDeleted()) // 삭제되지 않은 대댓글만
-                                .map(child -> CommentResponseDto.from(child /*, false, false */)) // 재귀 호출
+                                .map(child -> CommentResponseDto.from(child, false, false)) // 재귀 호출
                                 .collect(Collectors.toList()) :
                         List.of()) // children이 null이면 빈 리스트
                 .isDeleted(comment.isDeleted())
-                // .likedByCurrentUser(liked)
-                // .dislikedByCurrentUser(disliked)
+                .likedByCurrentUser(liked)
+                .dislikedByCurrentUser(disliked)
                 .build();
     }
 }

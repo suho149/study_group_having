@@ -22,6 +22,8 @@ import { formatDistanceToNowStrict, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { CommentDto } from '../../types/board';
 import api from '../../services/api';
+import LikeDislikeButtons from './LikeDislikeButtons';
+import { VoteType } from '../../types/apiSpecificEnums';
 
 interface CommentItemProps {
     comment: CommentDto;
@@ -71,6 +73,15 @@ const CommentItem: React.FC<CommentItemProps> = ({
             alert("댓글 삭제에 실패했습니다.");
         }
         handleMenuClose();
+    };
+
+    const handleCommentVoteSuccess = () => {
+        // 댓글 투표 성공 시, 부모(BoardPostDetailPage)에게 알려 댓글 목록을 새로고침하게 할 수 있음
+        // 또는 CommentItem이 받은 comment prop을 직접 업데이트 (더 복잡)
+        // 여기서는 onEditSuccess와 유사하게 부모에게 알리는 방식을 가정 (예: onVoteSuccess prop 추가)
+        console.log("Comment vote successful for comment ID:", comment.id);
+        onEditSuccess(); // 임시로 onEditSuccess 사용 (목록 새로고침 유도)
+                         // 또는 별도의 onVoteSuccess 콜백을 만들고 부모에서 처리
     };
 
     // TODO: handleLike, handleDislike 함수 구현 (추천/비추천 API 호출)
@@ -128,13 +139,21 @@ const CommentItem: React.FC<CommentItemProps> = ({
             )}
 
             {!isEditing && ( // 수정 중이 아닐 때만 답글/추천 버튼 표시
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, pl: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, pl: 4.5 /* 아바타 너비 + 간격 */ }}>
                     <Button size="small" startIcon={<ReplyIcon fontSize="inherit"/>} onClick={() => onReply(comment)}>
                         답글
                     </Button>
-                    {/* TODO: 추천/비추천 버튼 (LikeDislikeButton 컴포넌트 사용) */}
-                    {/* <Button size="small" startIcon={<ThumbUpAltOutlinedIcon fontSize="inherit"/>} >{comment.likeCount}</Button> */}
-                    {/* <Button size="small" startIcon={<ThumbDownAltOutlinedIcon fontSize="inherit"/>} >{comment.dislikeCount}</Button> */}
+                    <LikeDislikeButtons
+                        targetId={comment.id}
+                        initialLikeCount={comment.likeCount}
+                        initialDislikeCount={comment.dislikeCount}
+                        initialUserVote={
+                            comment.likedByCurrentUser ? VoteType.LIKE :
+                                comment.dislikedByCurrentUser ? VoteType.DISLIKE : null
+                        }
+                        onVoteSuccess={handleCommentVoteSuccess}
+                        targetType="comment"
+                    />
                 </Box>
             )}
 

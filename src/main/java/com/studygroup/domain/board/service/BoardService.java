@@ -1,12 +1,10 @@
 package com.studygroup.domain.board.service;
 
 import com.studygroup.domain.board.dto.*;
-import com.studygroup.domain.board.entity.BoardComment;
-import com.studygroup.domain.board.entity.BoardPost;
-import com.studygroup.domain.board.entity.PostLike;
-import com.studygroup.domain.board.entity.VoteType;
+import com.studygroup.domain.board.entity.*;
 import com.studygroup.domain.board.repository.BoardCommentRepository;
 import com.studygroup.domain.board.repository.BoardPostRepository;
+import com.studygroup.domain.board.repository.CommentLikeRepository;
 import com.studygroup.domain.board.repository.PostLikeRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
@@ -30,6 +28,7 @@ public class BoardService {
     private final UserRepository userRepository;
     private final BoardCommentRepository boardCommentRepository;
     private final PostLikeRepository postLikeRepository;
+    private final CommentLikeRepository commentLikeRepository;
 
     public BoardPostResponse createPost(BoardPostCreateRequest request, Long authorId) {
         User author = userRepository.findById(authorId)
@@ -190,7 +189,7 @@ public class BoardService {
 
         // TODO: 게시글 작성자 또는 부모 댓글 작성자에게 알림 생성 (NotificationService 사용)
 
-        return CommentResponseDto.from(savedComment);
+        return CommentResponseDto.from(savedComment, false, false);
     }
 
     // 특정 게시글의 댓글 목록 조회 (페이징, 최상위 댓글만 + 대댓글 포함)
@@ -206,15 +205,75 @@ public class BoardService {
         // 각 최상위 댓글에 대해 대댓글을 로드하여 DTO로 변환 (N+1 문제 발생 가능성 있음, @EntityGraph 등으로 최적화 가능)
         // User currentUser = currentUserPrincipal != null ? userRepository.findById(currentUserPrincipal.getId()).orElse(null) : null;
 
+        User currentUser = null;
+        if (currentUserPrincipal != null) {
+            currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
+        }
+        User finalCurrentUser = currentUser; // Effectively final for lambda
+
         return topLevelCommentsPage.map(comment -> {
-            // boolean liked = false; // 추천/비추천 기능 추가 시 현재 사용자의 추천 여부 판단
-            // boolean disliked = false;
-            // if(currentUser != null) {
-            //    // liked = commentLikeRepository.existsByCommentAndUserAndVoteType(comment, currentUser, VoteType.LIKE);
-            //    // disliked = commentLikeRepository.existsByCommentAndUserAndVoteType(comment, currentUser, VoteType.DISLIKE);
-            // }
-            return CommentResponseDto.from(comment /*, liked, disliked */);
+            boolean liked = false;
+            boolean disliked = false;
+            if (finalCurrentUser != null) {
+                Optional<CommentLike> commentLikeOpt = commentLikeRepository.findByUserAndBoardComment(finalCurrentUser, comment);
+                if (commentLikeOpt.isPresent()) {
+                    VoteType userVote = commentLikeOpt.get().getVoteType();
+                    if (userVote == VoteType.LIKE) liked = true;
+                    else if (userVote == VoteType.DISLIKE) disliked = true;
+                }
+            }
+            // CommentResponseDto.from 메소드가 재귀적으로 children을 처리할 때도 이 로직이 필요할 수 있음
+            // 또는 children에 대한 좋아요/싫어요는 별도 처리
+            return CommentResponseDto.from(comment, liked, disliked);
         });
+    }
+
+    @Transactional
+    public void voteForComment(Long commentId, Long userId, VoteType requestedVoteType) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        BoardComment comment = boardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
+
+        if (comment.isDeleted()){
+            throw new IllegalStateException("삭제된 댓글에는 투표할 수 없습니다.");
+        }
+        if (comment.getAuthor().getId().equals(userId)) {
+            throw new IllegalStateException("자신의 댓글에는 투표할 수 없습니다.");
+        }
+
+        Optional<CommentLike> existingVoteOpt = commentLikeRepository.findByUserAndBoardComment(user, comment);
+
+        if (existingVoteOpt.isPresent()) {
+            CommentLike existingVote = existingVoteOpt.get();
+            if (existingVote.getVoteType() == requestedVoteType) { // 같은 타입 다시 클릭 -> 취소
+                commentLikeRepository.delete(existingVote);
+                if (requestedVoteType == VoteType.LIKE) comment.decrementLikeCount();
+                else comment.decrementDislikeCount();
+                log.info("댓글 투표 취소: commentId={}, userId={}, voteType={}", commentId, userId, requestedVoteType);
+            } else { // 다른 타입으로 변경
+                if (existingVote.getVoteType() == VoteType.LIKE) comment.decrementLikeCount();
+                else comment.decrementDislikeCount();
+
+                existingVote.setVoteType(requestedVoteType); // CommentLike 엔티티에 setVoteType 추가 필요
+                // commentLikeRepository.save(existingVote); // 변경 감지
+
+                if (requestedVoteType == VoteType.LIKE) comment.incrementLikeCount();
+                else comment.incrementDislikeCount();
+                log.info("댓글 투표 변경: commentId={}, userId={}, newVote={}", commentId, userId, requestedVoteType);
+            }
+        } else { // 새로 투표
+            CommentLike newVote = CommentLike.builder()
+                    .user(user)
+                    .boardComment(comment)
+                    .voteType(requestedVoteType)
+                    .build();
+            commentLikeRepository.save(newVote);
+            if (requestedVoteType == VoteType.LIKE) comment.incrementLikeCount();
+            else comment.incrementDislikeCount();
+            log.info("댓글 투표 추가: commentId={}, userId={}, voteType={}", commentId, userId, requestedVoteType);
+        }
+        // boardCommentRepository.save(comment); // BoardComment의 like/dislikeCount 변경사항 저장 (변경 감지)
     }
 
     // TODO: 게시글 목록 조회, 상세 조회, 수정, 삭제, 추천/비추천, 댓글 관련 서비스 메소드 추가
