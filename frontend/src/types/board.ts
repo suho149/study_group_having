@@ -32,6 +32,12 @@ export interface CommentDto {
     isDeleted?: boolean; // 삭제된 댓글인지 여부
 }
 
+// 댓글 생성 요청 DTO 타입
+export interface CommentCreateRequestDto {
+    content: string;
+    parentId?: number | null; // 대댓글 작성 시 부모 댓글의 ID (선택적)
+}
+
 // 게시글 상세 정보 응답 DTO
 export interface BoardPostResponseDto {
     id: number;

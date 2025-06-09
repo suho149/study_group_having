@@ -34,7 +34,8 @@ public class BoardPostResponse {
                 .modifiedAt(post.getModifiedAt())
                 .viewCount(post.getViewCount())
                 .likeCount(post.getLikeCount())
-                // .commentCount(post.getComments() != null ? post.getComments().size() : 0) // 댓글 기능 추가 시
+                .commentCount(post.getComments() != null ? // comments 필드가 BoardPost 엔티티에 있다면
+                        (int) post.getComments().stream().filter(c -> !c.isDeleted()).count() : 0)
                 .build();
     }
 }

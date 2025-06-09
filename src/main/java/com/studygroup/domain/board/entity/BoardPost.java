@@ -5,6 +5,9 @@ import com.studygroup.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,10 +44,10 @@ public class BoardPost extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
     private int dislikeCount = 0;
 
-    // 댓글 및 첨부파일은 나중에 추가 (일단 기본 CRUD부터)
-    // @OneToMany(mappedBy = "boardPost", cascade = CascadeType.ALL, orphanRemoval = true)
-    // @Builder.Default
-    // private List<BoardComment> comments = new ArrayList<>();
+     //댓글
+     @OneToMany(mappedBy = "boardPost", cascade = CascadeType.ALL, orphanRemoval = true)
+     @Builder.Default
+     private List<BoardComment> comments = new ArrayList<>();
 
     // @OneToMany(mappedBy = "boardPost", cascade = CascadeType.ALL, orphanRemoval = true)
     // @Builder.Default

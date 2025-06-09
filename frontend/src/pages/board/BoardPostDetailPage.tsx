@@ -1,5 +1,5 @@
 // src/pages/board/BoardPostDetailPage.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {useState, useEffect, useCallback, useRef} from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
     Container,
@@ -31,10 +31,12 @@ import ThumbDownAltIcon from '@mui/icons-material/ThumbDownAlt'; // 채워진 �
 import ChatBubbleOutlineOutlinedIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { BoardPostResponseDto, CommentDto } from '../../types/board'; // 상세 DTO 및 댓글 DTO 타입 필요
+import { BoardPostResponseDto } from '../../types/board'; // 상세 DTO 및 댓글 DTO 타입 필요
 import { format, parseISO } from 'date-fns'; // 날짜 포맷용
 import { ko } from 'date-fns/locale';
 import VisibilityIcon from "@mui/icons-material/Visibility"; // 한국어 로케일
+import { CommentDto, CommentCreateRequestDto } from '../../types/board';
+import CommentItem from "../../components/board/CommentItem"; // CommentCreateRequestDto 추가
 
 const BoardPostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -45,10 +47,78 @@ const BoardPostDetailPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
 
-    // 댓글 관련 상태 (추후 구현)
-    // const [comments, setComments] = useState<CommentDto[]>([]);
-    // const [newComment, setNewComment] = useState('');
-    // const [submittingComment, setSubmittingComment] = useState(false);
+    // 댓글 관련
+    const [comments, setComments] = useState<CommentDto[]>([]);
+    const [loadingComments, setLoadingComments] = useState(false);
+    const [commentError, setCommentError] = useState<string | null>(null);
+    const [newComment, setNewComment] = useState('');
+    const [replyToComment, setReplyToComment] = useState<CommentDto | null>(null); // 대댓글 대상
+    const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+    const commentFormRef = useRef<HTMLFormElement>(null); // 댓글 작성 폼으로 스크롤하기 위함
+
+    const fetchComments = useCallback(async (currentPage = 0) => { // 페이지 파라미터 추가
+        if (!postId) return;
+        setLoadingComments(true);
+        setCommentError(null);
+        try {
+            const response = await api.get<{ content: CommentDto[], totalPages: number, number: number, last: boolean }>(
+                `/api/board/posts/${postId}/comments`,
+                { params: { page: currentPage, size: 10, sort: 'createdAt,asc' } } // 페이징 파라미터
+            );
+            // 여기서는 최상위 댓글만 가져오고, 대댓글은 CommentItem 내부에서 로드한다고 가정
+            // 또는 백엔드 DTO에서 children을 포함하여 한 번에 가져올 수도 있음
+            setComments(prev => currentPage === 0 ? response.data.content : [...prev, ...response.data.content]);
+            // setHasMoreComments(!response.data.last); // 더보기 페이징 시 필요
+        } catch (err: any) {
+            console.error("댓글 목록 조회 실패:", err);
+            setCommentError(err.response?.data?.message || "댓글을 불러오는데 실패했습니다.");
+        } finally {
+            setLoadingComments(false);
+        }
+    }, [postId]);
+
+    useEffect(() => {
+        if (post) { // 게시글 정보 로드 완료 후 댓글 로드
+            fetchComments();
+        }
+    }, [post, fetchComments]); // post가 변경되면 댓글 다시 로드
+
+    const handleCommentSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!newComment.trim() || !isLoggedIn || !currentUserId || !post) {
+            setCommentError("댓글 내용을 입력해주세요 또는 로그인이 필요합니다.");
+            return;
+        }
+        setIsSubmittingComment(true);
+        setCommentError(null);
+
+        const requestData: CommentCreateRequestDto = { // 타입 사용
+            content: newComment,
+            parentId: replyToComment ? replyToComment.id : undefined,
+        };
+
+        try {
+            await api.post(`/api/board/posts/${post.id}/comments`, requestData);
+            setNewComment('');
+            setReplyToComment(null); // 대댓글 작성 후 초기화
+            await fetchComments(); // 댓글 목록 새로고침 (가장 간단한 방법)
+            // 또는 응답으로 받은 새 댓글을 로컬 상태에 추가 (더 나은 UX)
+            // const newCommentData = response.data;
+            // setComments(prev => [...prev, newCommentData]);
+        } catch (err: any) {
+            console.error("댓글 작성 실패:", err);
+            setCommentError(err.response?.data?.message || "댓글 작성에 실패했습니다.");
+        } finally {
+            setIsSubmittingComment(false);
+        }
+    };
+
+    const handleReplyToComment = (comment: CommentDto) => {
+        setReplyToComment(comment);
+        setNewComment(`@${comment.author.name} `); // 대댓글 시 멘션 효과 (선택적)
+        commentFormRef.current?.scrollIntoView({ behavior: 'smooth' });
+        // commentFormRef.current?.querySelector('textarea')?.focus(); // textarea에 포커스
+    };
 
     const fetchPostDetail = useCallback(async () => {
         if (!postId) return;
@@ -202,6 +272,60 @@ const BoardPostDetailPage: React.FC = () => {
         <List> ... 댓글 목록 ... </List>
         {isLoggedIn && <CommentForm postId={post.id} onSubmitSuccess={fetchComments} />} */}
             </Paper>
+
+            {/* 댓글 목록 */}
+            <Paper elevation={0} sx={{ mt: 3, p: { xs: 1, sm: 2 }, borderRadius: 2, bgcolor:'transparent' }}>
+                <Typography variant="h6" gutterBottom sx={{mb:2}}>댓글</Typography>
+                {loadingComments && comments.length === 0 ? (
+                    <CircularProgress size={24} />
+                ) : comments.length > 0 ? (
+                    <List>
+                        {comments.map(comment => (
+                            <CommentItem
+                                key={comment.id}
+                                comment={comment}
+                                currentUserId={currentUserId}
+                                onReply={handleReplyToComment} // 대댓글 작성 시작 함수 전달
+                                onDeleteSuccess={fetchComments} // 댓글 삭제 성공 시 목록 새로고침
+                                onEditSuccess={fetchComments}   // 댓글 수정 성공 시 목록 새로고침
+                            />
+                        ))}
+                    </List>
+                ) : (
+                    <Typography color="textSecondary" sx={{textAlign:'center', py:2}}>작성된 댓글이 없습니다.</Typography>
+                )}
+                {/* TODO: 댓글 더보기 페이징 UI */}
+            </Paper>
+
+            {/* 댓글 작성 폼 */}
+            {isLoggedIn && (
+                <Paper component="form" ref={commentFormRef} onSubmit={handleCommentSubmit} elevation={2} sx={{ mt: 3, p: 2, borderRadius: 2 }}>
+                    <Typography variant="subtitle1" gutterBottom>
+                        {replyToComment ? `${replyToComment.author.name}님에게 답글 작성 중...` : "댓글 작성"}
+                        {replyToComment && <Button size="small" onClick={() => { setReplyToComment(null); setNewComment(''); }} sx={{ml:1}}>취소</Button>}
+                    </Typography>
+                    {commentError && <Alert severity="error" sx={{mb:1}} onClose={() => setCommentError(null)}>{commentError}</Alert>}
+                    <TextField
+                        fullWidth
+                        multiline
+                        rows={3}
+                        variant="outlined"
+                        placeholder="댓글을 입력하세요..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        required
+                    />
+                    <Button
+                        type="submit"
+                        variant="contained"
+                        color="primary"
+                        disabled={isSubmittingComment || !newComment.trim()}
+                        sx={{ mt: 2 }}
+                    >
+                        {isSubmittingComment ? <CircularProgress size={24} color="inherit" /> : '댓글 등록'}
+                    </Button>
+                </Paper>
+            )}
 
             {/* 삭제 확인 다이얼로그 */}
             <Dialog open={isConfirmDeleteDialogOpen} onClose={() => setIsConfirmDeleteDialogOpen(false)}>
