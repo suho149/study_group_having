@@ -6,3 +6,11 @@ export enum MessageType {
     IMAGE = "IMAGE",
     FILE = "FILE"
 }
+
+export enum BoardCategory {
+    FREE = "FREE",
+    QUESTION = "QUESTION",
+    DISCUSSION = "DISCUSSION",
+    INFO = "INFO",
+    ETC = "ETC"
+}
