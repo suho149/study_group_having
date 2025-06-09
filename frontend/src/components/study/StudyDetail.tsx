@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   Box,
   Grid,
@@ -31,6 +31,9 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp'; // 스터디 나가�
 import api from '../../services/api'; // api import 추가
 import { useAuth } from '../../contexts/AuthContext'; // currentUserId 가져오기
 import { StudyGroupDataType } from '../../types/study'; // <--- 수정
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import {useNavigate} from "react-router-dom";
 
 interface StudyDetailProps {
   study: StudyGroupDataType; // <--- 수정: 타입을 StudyGroupDataType으로 변경
@@ -91,12 +94,43 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
                                                             isAuthenticated,
                                                             fetchStudyDetail,
                                                           }) => {
-  const { currentUserId } = useAuth();
+  const { isLoggedIn, currentUserId } = useAuth();
   const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = React.useState(false);
   const [isLeaving, setIsLeaving] = React.useState(false);
+  const navigate = useNavigate();
+  // 좋아요 관련 상태 (부모 StudyDetailPage에서 study 객체를 통해 초기값 받음)
+  const [isLikedState, setIsLikedState] = useState(study.liked);
+  const [likeCountState, setLikeCountState] = useState(study.likeCount);
+  const [isLiking, setIsLiking] = useState(false);
 
   const handleOpenLeaveConfirm = () => setIsLeaveConfirmOpen(true);
   const handleCloseLeaveConfirm = () => setIsLeaveConfirmOpen(false);
+
+  // study prop이 변경될 때 좋아요 상태 동기화
+  useEffect(() => {
+    setIsLikedState(study.liked);
+    setLikeCountState(study.likeCount);
+  }, [study.liked, study.likeCount]);
+
+  const handleLikeToggle = async () => {
+    if (!isLoggedIn) { /* ... 로그인 유도 ... */ return; }
+    if (isLiking) return;
+    setIsLiking(true);
+    try {
+      if (isLikedState) {
+        await api.delete(`/api/studies/${study.id}/unlike`);
+        setIsLikedState(false);
+        setLikeCountState(prev => prev - 1);
+      } else {
+        await api.post(`/api/studies/${study.id}/like`);
+        setIsLikedState(true);
+        setLikeCountState(prev => prev + 1);
+      }
+      // 상세 페이지에서는 fetchStudyDetail을 호출하여 전체 study 객체를 갱신하는 것이 좋을 수 있음
+      // await fetchStudyDetail(); // 이렇게 하면 위 로컬 상태 업데이트는 불필요
+    } catch (error: any) { /* ... 에러 처리 ... */ }
+    finally { setIsLiking(false); }
+  };
 
   const handleLeaveStudy = async () => {
     if (!study || !currentUserId) return;
@@ -227,8 +261,13 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
                     sx={{ fontWeight: 500 }}
                 />
               </Box>
-              <Stack direction="row" spacing={0.5}> {/* 버튼 간 간격 조정 */}
-                {renderActionButtons()}
+              <Stack direction="row" spacing={0.5} alignItems="center"> {/* 버튼 간 간격 조정 */}
+                {/* 좋아요 버튼 */}
+                <IconButton onClick={handleLikeToggle} disabled={isLiking || !isLoggedIn} color="error" size="small">
+                  {isLiking ? <CircularProgress size={20} color="inherit"/> : (isLikedState ? <FavoriteIcon /> : <FavoriteBorderIcon />)}
+                </IconButton>
+                <Typography variant="body2" color="textSecondary" sx={{mr:1}}>{likeCountState}</Typography>
+                {renderActionButtons()} {/* 스터디장/멤버 액션 버튼 */}
               </Stack>
             </Box>
 

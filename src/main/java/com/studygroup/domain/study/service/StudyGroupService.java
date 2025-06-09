@@ -10,10 +10,12 @@ import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
 import com.studygroup.domain.study.dto.StudyGroupUpdateRequest;
 import com.studygroup.domain.study.entity.*;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
+import com.studygroup.domain.study.repository.StudyLikeRepository;
 import com.studygroup.domain.study.repository.StudyMemberRepository;
 import com.studygroup.domain.study.repository.TagRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
+import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -42,14 +44,27 @@ public class StudyGroupService {
     private final NotificationService notificationService;
     private final StudyMemberRepository studyMemberRepository;
     private final NotificationRepository notificationRepository;
+    private final StudyLikeRepository studyLikeRepository;
 
     @Transactional
-    public StudyGroupDetailResponse getStudyGroupDetail(Long id) {
+    public StudyGroupDetailResponse getStudyGroupDetail(Long id, UserPrincipal currentUserPrincipal) {
         StudyGroup studyGroup = studyGroupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + id));
         
         incrementViewCountIfNeeded(studyGroup);
-        return StudyGroupDetailResponse.from(studyGroup);
+
+        boolean isLiked = false;
+        if (currentUserPrincipal != null) {
+            User user = userRepository.findById(currentUserPrincipal.getId())
+                    .orElse(null); // 실제 User 객체 필요
+            if (user != null) {
+                isLiked = studyLikeRepository.existsByUserAndStudyGroup(user, studyGroup);
+            }
+        }
+        // StudyGroupDetailResponse.from() 메소드를 수정하여 isLiked 값을 받도록 하거나,
+        // 여기서 DTO를 직접 채우는 것이 더 나을 수 있음.
+        // 아래는 from 메소드가 isLiked를 받는다고 가정한 예시 (또는 from 메소드 내에서 처리)
+        return StudyGroupDetailResponse.from(studyGroup, isLiked); // StudyGroupDetailResponse.from 수정 필요
     }
 
     private void incrementViewCountIfNeeded(StudyGroup studyGroup) {
@@ -116,11 +131,11 @@ public class StudyGroupService {
         // 저장 및 응답 반환
         StudyGroup savedStudyGroup = studyGroupRepository.save(studyGroup);
         log.debug("스터디 그룹 생성 완료: groupId={}, userId={}", savedStudyGroup.getId(), userId);
-        return StudyGroupResponse.from(savedStudyGroup);
+        return StudyGroupResponse.from(savedStudyGroup, false);
     }
 
     @Transactional(readOnly = true)
-    public Page<StudyGroupResponse> getStudyGroups(String keyword, Pageable pageable) {
+    public Page<StudyGroupResponse> getStudyGroups(String keyword, Pageable pageable, UserPrincipal currentUserPrincipal) {
         log.debug("스터디 그룹 목록 조회: keyword={}, pageable={}", keyword, pageable);
         
         Page<StudyGroup> studyGroups;
@@ -130,8 +145,58 @@ public class StudyGroupService {
         } else {
             studyGroups = studyGroupRepository.findAll(pageable);
         }
-        
-        return studyGroups.map(StudyGroupResponse::from);
+
+        User currentUser = null;
+        if (currentUserPrincipal != null) {
+            currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
+        }
+
+        // 각 StudyGroup에 대해 현재 사용자의 좋아요 여부를 확인하여 DTO 생성
+        User finalCurrentUser = currentUser; // 람다에서 사용하기 위해 final 또는 effectively final
+        return studyGroups.map(studyGroup -> {
+            boolean isLiked = false;
+            if (finalCurrentUser != null) {
+                isLiked = studyLikeRepository.existsByUserAndStudyGroup(finalCurrentUser, studyGroup);
+            }
+            return StudyGroupResponse.from(studyGroup, isLiked); // StudyGroupResponse.from 수정 필요
+        });
+    }
+
+    @Transactional
+    public void likeStudy(Long studyId, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        StudyGroup studyGroup = studyGroupRepository.findById(studyId)
+                .orElseThrow(() -> new IllegalArgumentException("Study group not found: " + studyId));
+
+        if (studyLikeRepository.existsByUserAndStudyGroup(user, studyGroup)) {
+            throw new IllegalStateException("이미 좋아요를 누른 스터디입니다.");
+        }
+
+        StudyLike studyLike = StudyLike.builder()
+                .user(user)
+                .studyGroup(studyGroup)
+                .build();
+        studyLikeRepository.save(studyLike);
+        studyGroup.incrementLikeCount();
+        // studyGroupRepository.save(studyGroup); // 변경 감지로 저장됨 (likeCount 필드)
+        log.info("스터디 좋아요 추가: userId={}, studyId={}", userId, studyId);
+    }
+
+    @Transactional
+    public void unlikeStudy(Long studyId, Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+        StudyGroup studyGroup = studyGroupRepository.findById(studyId)
+                .orElseThrow(() -> new IllegalArgumentException("Study group not found: " + studyId));
+
+        StudyLike studyLike = studyLikeRepository.findByUserAndStudyGroup(user, studyGroup)
+                .orElseThrow(() -> new IllegalStateException("좋아요를 누르지 않은 스터디입니다."));
+
+        studyLikeRepository.delete(studyLike);
+        studyGroup.decrementLikeCount();
+        // studyGroupRepository.save(studyGroup); // 변경 감지로 저장됨
+        log.info("스터디 좋아요 취소: userId={}, studyId={}", userId, studyId);
     }
 
     @Transactional
@@ -301,7 +366,7 @@ public class StudyGroupService {
             request.getEndDate()
         );
 
-        return StudyGroupResponse.from(studyGroup);
+        return StudyGroupResponse.from(studyGroup, false);
     }
 
     @Transactional

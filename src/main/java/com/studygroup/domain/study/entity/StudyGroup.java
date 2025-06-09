@@ -60,6 +60,9 @@ public class StudyGroup extends BaseTimeEntity {
 
     private int viewCount = 0;
 
+    @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
+    private int likeCount = 0; // 좋아요 수, 기본값 0
+
     @Builder
     public StudyGroup(User leader, String title, String description, int maxMembers,
                      StudyStatus status, StudyType studyType, String location,
@@ -126,5 +129,15 @@ public class StudyGroup extends BaseTimeEntity {
         this.location = location;
         this.startDate = startDate;
         this.endDate = endDate;
+    }
+
+    public void incrementLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decrementLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
     }
 } 

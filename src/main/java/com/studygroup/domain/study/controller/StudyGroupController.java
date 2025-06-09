@@ -28,22 +28,24 @@ public class StudyGroupController {
     @GetMapping
     public ResponseEntity<Page<StudyGroupResponse>> getStudyGroups(
             @PageableDefault(size = 10) Pageable pageable,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @CurrentUser UserPrincipal userPrincipal) {
         log.debug("스터디 그룹 목록 조회 요청: keyword={}, pageable={}", keyword, pageable);
-        Page<StudyGroupResponse> response = studyGroupService.getStudyGroups(keyword, pageable);
+        Page<StudyGroupResponse> response = studyGroupService.getStudyGroups(keyword, pageable, userPrincipal);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<StudyGroupDetailResponse> getStudyGroupDetail(
             @PathVariable Long id,
-            HttpServletRequest request) {
+            HttpServletRequest request,
+            @CurrentUser UserPrincipal userPrincipal) {
         log.info("스터디 그룹 상세 조회 요청: id={}, URI={}, Method={}, ContentType={}", 
             id, 
             request.getRequestURI(),
             request.getMethod(),
             request.getContentType());
-        StudyGroupDetailResponse response = studyGroupService.getStudyGroupDetail(id);
+        StudyGroupDetailResponse response = studyGroupService.getStudyGroupDetail(id, userPrincipal);
         return ResponseEntity.ok(response);
     }
 
@@ -149,5 +151,25 @@ public class StudyGroupController {
                 studyId, memberUserId, leaderUserPrincipal.getId());
         studyGroupService.removeMemberByLeader(studyId, memberUserId, leaderUserPrincipal.getId());
         return ResponseEntity.noContent().build(); // 성공 시 204 No Content
+    }
+
+    // 스터디 좋아요 추가
+    @PostMapping("/{studyId}/like")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> likeStudy(
+            @PathVariable Long studyId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        studyGroupService.likeStudy(studyId, userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    // 스터디 좋아요 취소
+    @DeleteMapping("/{studyId}/unlike") // 또는 /like 로 하고 DELETE 메소드 사용
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> unlikeStudy(
+            @PathVariable Long studyId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        studyGroupService.unlikeStudy(studyId, userPrincipal.getId());
+        return ResponseEntity.noContent().build();
     }
 } 

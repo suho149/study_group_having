@@ -27,10 +27,27 @@ export interface StudyGroupDataType { // 이름을 StudyGroupDetail에서 변경
     tags: string[];
     viewCount: number;
     leader: StudyLeaderInfo;
+    likeCount: number;
+    liked: boolean; // 현재 사용자가 이 스터디를 좋아했는지 여부
     members: StudyMember[];
 }
 
 export enum StudyMemberRole {
     LEADER = 'LEADER',
     MEMBER = 'MEMBER',
+}
+
+// 목록 조회 시 사용될 간략한 스터디 정보 타입 (Home.tsx의 StudyGroup 인터페이스 대체 가능)
+export interface StudyGroupSummary {
+    id: number;
+    title: string;
+    studyType: 'PROJECT' | 'STUDY';
+    tags: string[];
+    createdAt: string;
+    currentMembers: number;
+    maxMembers: number;
+    status: string;
+    viewCount: number;
+    likeCount: number;
+    liked: boolean;
 }

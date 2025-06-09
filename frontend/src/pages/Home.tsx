@@ -8,7 +8,8 @@ import Banner from '../components/home/Banner';
 import PostCard from '../components/post/PostCard';
 import CreateStudyButton from '../components/study/CreateStudyButton';
 // import { checkAuthStatus } from '../services/auth'; // AuthContext 사용으로 변경
-import { useAuth } from '../contexts/AuthContext'; // 추가
+import { useAuth } from '../contexts/AuthContext';
+import {StudyGroupSummary} from "../types/study"; // 추가
 
 const StyledTabs = styled(Tabs)({
   marginBottom: '24px',
@@ -71,8 +72,8 @@ interface StudyGroup {
 
 const Home = () => {
   const [currentTab, setCurrentTab] = useState(0);
-  const { isLoggedIn, isLoading: authLoading } = useAuth(); // 수정: AuthContext 사용, authLoading 추가
-  const [studyGroups, setStudyGroups] = useState<StudyGroup[]>([]);
+  const { isLoggedIn, isLoading: authLoading, currentUserId } = useAuth(); // 수정: AuthContext 사용, authLoading 추가
+  const [studyGroups, setStudyGroups] = useState<StudyGroupSummary[]>([]);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [loadingStudies, setLoadingStudies] = useState(false); // 스터디 목록 로딩 상태 이름 변경
 
@@ -87,16 +88,13 @@ const Home = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]); // authLoading 상태가 변경될 때 (특히 true -> false 될 때) 실행
 
-  const fetchStudyGroups = async (keyword = '') => {
+  const fetchStudyGroups = async (keyword = '', studyType?: 'PROJECT' | 'STUDY') => {
+    setLoadingStudies(true);
     try {
-      setLoadingStudies(true);
-      // axios.get 대신 api 인스턴스 사용
-      const response = await api.get<{ content: StudyGroup[] }>(`/api/studies`, {
-        params: {
-          keyword: keyword || undefined,
-          page: 0, // 페이지네이션을 구현한다면 page 파라미터 추가
-          size: 10, // 예시 사이즈
-        }
+      const response = await api.get<{ content: StudyGroupSummary[] }>('/api/studies', {
+        params: { /* ... keyword, page, size, studyType ... */ }
+        // api.get 호출 시, 백엔드가 UserPrincipal을 받으므로,
+        // 현재 로그인 사용자 정보는 자동으로 전달되어 liked 여부가 계산된 응답이 옴
       });
       setStudyGroups(response.data.content);
     } catch (error) {
@@ -175,13 +173,15 @@ const Home = () => {
                         // views는 currentMembers 대신 viewCount를 사용하는 것이 적절해 보입니다.
                         // 또는 PostCard의 views prop의 의미를 명확히 해야 합니다.
                         // 여기서는 스터디 멤버 수로 가정합니다.
-                        views={study.currentMembers}
+                        currentMembers={study.currentMembers}
                         maxMembers={study.maxMembers} // 추가: 최대 멤버 수 (PostCard에서 활용 가능)
                         tags={study.tags}
                         // isHot 조건은 백엔드에서 내려주거나, 여기서 좀 더 복잡한 로직으로 결정 가능
                         isHot={study.viewCount > 100 || (study.currentMembers / study.maxMembers) > 0.8} // 예시 isHot 조건
                         status={study.status} // PostCard에서 상태에 따른 UI 변경 시 사용
                         viewCount={study.viewCount} // PostCard에서 조회수 표시 시 사용
+                        initialLikeCount={study.likeCount} // <--- 추가
+                        initialIsLiked={study.liked}     // <--- 추가
                     />
                 ))}
               </PostGrid>

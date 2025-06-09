@@ -3,6 +3,8 @@ package com.studygroup.domain.study.dto;
 import com.studygroup.domain.study.entity.StudyGroup;
 import com.studygroup.domain.study.entity.StudyStatus;
 import com.studygroup.domain.study.entity.StudyType;
+import com.studygroup.domain.study.repository.StudyLikeRepository;
+import com.studygroup.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -31,6 +33,8 @@ public class StudyGroupDetailResponse {
     private LocalDateTime createdAt;
     private LocalDateTime modifiedAt;
     private int viewCount;
+    private int likeCount;
+    private boolean liked; // 현재 사용자가 좋아요를 눌렀는지 여부
 
     @Getter
     @Builder
@@ -52,7 +56,8 @@ public class StudyGroupDetailResponse {
         private String status;
     }
 
-    public static StudyGroupDetailResponse from(StudyGroup studyGroup) {
+    public static StudyGroupDetailResponse from(StudyGroup studyGroup,  boolean isLikedByCurrentUser) {
+
         return StudyGroupDetailResponse.builder()
                 .id(studyGroup.getId())
                 .title(studyGroup.getTitle())
@@ -87,6 +92,8 @@ public class StudyGroupDetailResponse {
                 .modifiedAt(studyGroup.getModifiedAt())
 
                 .viewCount(studyGroup.getViewCount())
+                .likeCount(studyGroup.getLikeCount())
+                .liked(isLikedByCurrentUser)
                 .build();
     }
 } 

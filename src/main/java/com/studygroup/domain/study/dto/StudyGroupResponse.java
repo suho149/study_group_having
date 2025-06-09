@@ -30,8 +30,10 @@ public class StudyGroupResponse {
     private LocalDateTime createdAt;
     private LocalDateTime modifiedAt;
     private int viewCount;
+    private int likeCount;
+    private boolean liked; // 현재 사용자가 좋아요를 눌렀는지 여부
 
-    public static StudyGroupResponse from(StudyGroup studyGroup) {
+    public static StudyGroupResponse from(StudyGroup studyGroup, boolean isLiked) {
         return StudyGroupResponse.builder()
                 .id(studyGroup.getId())
                 .title(studyGroup.getTitle())
@@ -51,6 +53,8 @@ public class StudyGroupResponse {
                 .createdAt(studyGroup.getCreatedAt())
                 .modifiedAt(studyGroup.getModifiedAt())
                 .viewCount(studyGroup.getViewCount())
+                .likeCount(studyGroup.getLikeCount())
+                .liked(isLiked)
                 .build();
     }
 } 
