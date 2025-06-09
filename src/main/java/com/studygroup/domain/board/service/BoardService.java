@@ -69,5 +69,30 @@ public class BoardService {
         });
     }
 
+    @Transactional // 조회수 증가로 인해 쓰기 트랜잭션 필요
+    public BoardPostResponse getPostDetail(Long postId, UserPrincipal currentUserPrincipal) {
+        BoardPost post = boardPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+
+        post.incrementViewCount(); // 조회수 증가
+        // boardPostRepository.save(post); // 변경 감지로 저장됨
+
+        // 현재 사용자가 이 게시글에 좋아요를 눌렀는지 여부 (추천 기능 구현 시)
+        boolean isLikedByCurrentUser = false;
+        // if (currentUserPrincipal != null) {
+        //     User currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
+        //     if (currentUser != null) {
+        //         // isLikedByCurrentUser = postLikeRepository.existsByUserAndBoardPost(currentUser, post);
+        //     }
+        // }
+
+        // 댓글 수 (댓글 기능 구현 시)
+        // int commentCount = boardCommentRepository.countByBoardPost(post);
+
+        // BoardPostResponse.from() 메소드를 수정하여 필요한 모든 정보를 담도록 함
+        // 여기서는 isLikedByCurrentUser와 commentCount는 아직 구현되지 않았다고 가정
+        return BoardPostResponse.from(post /*, isLikedByCurrentUser, commentCount */);
+    }
+
     // TODO: 게시글 목록 조회, 상세 조회, 수정, 삭제, 추천/비추천, 댓글 관련 서비스 메소드 추가
 }

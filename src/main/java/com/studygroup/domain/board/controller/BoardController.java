@@ -50,5 +50,14 @@ public class BoardController {
         return ResponseEntity.ok(posts);
     }
 
+    @GetMapping("/{postId}")
+    public ResponseEntity<BoardPostResponse> getPostDetail(
+            @PathVariable Long postId,
+            @CurrentUser UserPrincipal userPrincipal) { // 좋아요 여부 판단 등에 사용 가능
+        log.info("게시글 상세 조회 요청: postId={}, userId={}", postId, userPrincipal != null ? userPrincipal.getId() : "Anonymous");
+        BoardPostResponse postDetail = boardService.getPostDetail(postId, userPrincipal);
+        return ResponseEntity.ok(postDetail);
+    }
+
     // TODO: 게시글 목록, 상세, 수정, 삭제 등 API 엔드포인트 추가
 }
