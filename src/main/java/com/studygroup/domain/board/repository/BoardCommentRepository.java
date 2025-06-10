@@ -18,4 +18,6 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
 
     // 게시글의 댓글 수 카운트 (삭제되지 않은 것만)
     long countByBoardPostAndIsDeletedFalse(BoardPost boardPost);
+
+    Page<BoardComment> findByBoardPostAndParentCommentIsNullOrderByCreatedAtAsc(BoardPost post, Pageable pageable);
 }

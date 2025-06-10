@@ -199,8 +199,11 @@ public class BoardService {
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
 
         // 최상위 댓글만 페이징으로 가져옴
+//        Page<BoardComment> topLevelCommentsPage = boardCommentRepository
+//                .findByBoardPostAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtAsc(post, pageable);
+
         Page<BoardComment> topLevelCommentsPage = boardCommentRepository
-                .findByBoardPostAndParentCommentIsNullAndIsDeletedFalseOrderByCreatedAtAsc(post, pageable);
+                .findByBoardPostAndParentCommentIsNullOrderByCreatedAtAsc(post, pageable);
 
         // 각 최상위 댓글에 대해 대댓글을 로드하여 DTO로 변환 (N+1 문제 발생 가능성 있음, @EntityGraph 등으로 최적화 가능)
         // User currentUser = currentUserPrincipal != null ? userRepository.findById(currentUserPrincipal.getId()).orElse(null) : null;
