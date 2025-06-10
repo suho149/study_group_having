@@ -62,20 +62,6 @@ const PostGrid = styled(Box)({
   },
 });
 
-interface StudyGroup {
-  id: number;
-  title: string;
-  description: string;
-  maxMembers: number;
-  currentMembers: number;
-  studyType: 'PROJECT' | 'STUDY';
-  tags: string[];
-  createdAt: string;
-  modifiedAt: string;
-  status: string;
-  viewCount: number;
-}
-
 const Home = () => {
   const [currentTab, setCurrentTab] = useState(0);
   const { isLoggedIn, isLoading: authLoading } = useAuth(); // 수정: AuthContext 사용, authLoading 추가
@@ -87,55 +73,67 @@ const Home = () => {
   const navigate = useNavigate(); // useNavigate 훅 사용
   const [boardPostList, setBoardPostList] = useState<BoardPostSummary[]>([]);    // 게시판 글 목록
 
-  // 데이터 로딩 함수
-  const fetchData = useCallback(async (tabIndex: number, keyword = '') => {
-    setLoadingData(true);
-    setStudyAndProjectList([]);
-    setBoardPostList([]);
+  const [loadingMore, setLoadingMore] = useState(false); // "더보기" 로딩
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true); // 더보기 가능 여부
+
+  // 데이터 로딩 함수 (페이징 적용)
+  const fetchData = useCallback(async (tabIndex: number, keyword: string, page: number, isNewSearch: boolean = false) => {
+    // isNewSearch가 true이면 초기 로딩, false이면 더보기 로딩
+    if (isNewSearch) {
+      setLoadingData(true);
+      setStudyAndProjectList([]); // 목록 초기화
+      setBoardPostList([]);     // 목록 초기화
+      setCurrentPage(0);        // 페이지 번호 초기화
+      setHasMore(true);         // 더보기 가능 상태로 초기화
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
       if (tabIndex <= 2) { // 전체 스터디, 프로젝트, 일반 스터디
         let studyTypeParam: 'PROJECT' | 'STUDY' | undefined = undefined;
         if (tabIndex === 1) studyTypeParam = 'PROJECT';
         if (tabIndex === 2) studyTypeParam = 'STUDY';
 
-        const params: any = { keyword: keyword || undefined, page: 0, size: 9 };
+        const params: any = { keyword: keyword || undefined, page, size: 9 };
         if (studyTypeParam) params.studyType = studyTypeParam;
 
-        // API 응답 타입을 Page<StudyGroupSummary> 등으로 명확히 할 수 있다면 더 좋음
-        const response = await api.get<{ content: StudyGroupSummary[] }>('/api/studies', { params });
+        const response = await api.get<{ content: StudyGroupSummary[], last: boolean }>('/api/studies', { params });
         if (response.data && Array.isArray(response.data.content)) {
-          setStudyAndProjectList(response.data.content); // 수정: setStudyGroups -> setStudyAndProjectList
-        } else {
-          console.error("스터디/프로젝트 목록 API 응답 형식이 예상과 다릅니다:", response.data);
+          setStudyAndProjectList(prev => isNewSearch ? response.data.content : [...prev, ...response.data.content]);
+          setHasMore(!response.data.last);
+          setCurrentPage(page);
         }
       } else if (tabIndex === 3) { // 자유 게시판
-        const params: any = { keyword: keyword || undefined, page: 0, size: 10, sort: 'createdAt,desc' };
-        // 예시: 자유 게시판은 특정 카테고리 없이 전체 또는 'FREE' 카테고리
-        // params.category = 'FREE'; // 필요하다면 카테고리 지정
-        const response = await api.get<{ content: BoardPostSummary[] }>('/api/board/posts', { params });
+        const params: any = { keyword: keyword || undefined, page, size: 10, sort: 'createdAt,desc' };
+        const response = await api.get<{ content: BoardPostSummary[], last: boolean }>('/api/board/posts', { params });
         if (response.data && Array.isArray(response.data.content)) {
-          setBoardPostList(response.data.content);
-        } else {
-          console.error("게시판 목록 API 응답 형식이 예상과 다릅니다:", response.data);
+          setBoardPostList(prev => isNewSearch ? response.data.content : [...prev, ...response.data.content]);
+          setHasMore(!response.data.last);
+          setCurrentPage(page);
         }
       }
     } catch (error) {
       console.error(`데이터 조회 실패 (탭: ${tabIndex}):`, error);
+      setHasMore(false); // 에러 발생 시 더보기 중단
     } finally {
       setLoadingData(false);
+      setLoadingMore(false);
     }
-  }, []); // 의존성 배열은 fetchData를 사용하는 useEffect에서 관리
+  }, []);
 
 
+  // 탭 또는 검색어 변경 시 첫 페이지부터 다시 로드
   useEffect(() => {
     if (!authLoading) {
-      fetchData(currentTab, searchKeyword);
+      fetchData(currentTab, searchKeyword, 0, true);
     }
-  }, [authLoading, currentTab, searchKeyword, fetchData]); // fetchData를 의존성에 추가
+  }, [authLoading, currentTab, searchKeyword, fetchData]);
 
   const handleSearch = (event: React.FormEvent) => {
     event.preventDefault();
-    fetchData(currentTab, searchKeyword); // 현재 탭 기준으로 검색
+    fetchData(currentTab, searchKeyword, 0, true); // 검색은 항상 첫 페이지부터 (isNewSearch = true)
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -143,52 +141,74 @@ const Home = () => {
     setSearchKeyword(''); // 탭 변경 시 검색어 초기화 (선택 사항)
   };
 
+  const handleLoadMore = () => {
+    if (!loadingData && !loadingMore && hasMore) {
+      fetchData(currentTab, searchKeyword, currentPage + 1, false); // 다음 페이지 로드 (isNewSearch = false)
+    }
+  };
+
   // 인증 상태 로딩 중에는 아무것도 표시하지 않거나 로딩 스피너 표시
-  if (authLoading) {
+  if (authLoading && !isLoggedIn) {
     return <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}><Typography>인증 상태 확인 중...</Typography></Container>;
   }
 
   const renderContent = () => {
+    const listToRender = currentTab <= 2 ? studyAndProjectList : boardPostList;
+    const noDataMessage = currentTab <= 2 ? "표시할 스터디/프로젝트가 없습니다." : "작성된 게시글이 없습니다.";
+
     if (loadingData) {
       return <Box sx={{display: 'flex', justifyContent: 'center', mt:4}}><CircularProgress /></Box>;
     }
 
-    if (currentTab <= 2) { // 스터디/프로젝트 탭
-      return studyAndProjectList.length > 0 ? (
-          <PostGrid>
-            {studyAndProjectList.map((study) => (
-                <PostCard
-                    key={study.id}
-                    id={study.id}
-                    category={study.studyType === 'PROJECT' ? '프로젝트' : '스터디'}
-                    title={study.title}
-                    date={new Date(study.createdAt).toLocaleDateString('ko-KR')}
-                    currentMembers={study.currentMembers}
-                    maxMembers={study.maxMembers}
-                    tags={study.tags}
-                    status={study.status}
-                    viewCount={study.viewCount}
-                    // 좋아요 관련 props는 PostCard에 맞게 전달
-                    initialLikeCount={study.likeCount || 0} // StudyGroup 타입에 likeCount, liked 추가 필요
-                    initialIsLiked={study.liked || false}   // StudyGroup 타입에 likeCount, liked 추가 필요
-                />
-            ))}
-          </PostGrid>
-      ) : <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>표시할 스터디/프로젝트가 없습니다.</Typography>;
-    }
+    return (
+        <>
+          {listToRender.length > 0 ? (
+              <>
+                {currentTab <= 2 ? (
+                    <PostGrid>
+                      {studyAndProjectList.map((study) => (
+                          <PostCard
+                              key={study.id}
+                              id={study.id}
+                              category={study.studyType === 'PROJECT' ? '프로젝트' : '스터디'} // study.studyType을 기반으로 category 생성
+                              title={study.title}
+                              date={new Date(study.createdAt).toLocaleDateString('ko-KR')} // study.createdAt을 date로 변환
+                              currentMembers={study.currentMembers} // PostCardProps에 currentMembers가 있다면 전달
+                              maxMembers={study.maxMembers}
+                              tags={study.tags}
+                              status={study.status}
+                              viewCount={study.viewCount}
+                              initialLikeCount={study.likeCount || 0} // study.likeCount를 initialLikeCount로 전달
+                              initialIsLiked={study.liked || false}   // study.liked를 initialIsLiked로 전달
+                              // PostCardProps에 없는 props (예: description, modifiedAt 등)는 전달하지 않음
+                          />
+                      ))}
+                    </PostGrid>
+                ) : (
+                    <Grid container spacing={3}>
+                      {listToRender.map(item => (
+                          <Grid item xs={12} sm={6} md={4} key={item.id}>
+                            <BoardPostItemCard {...(item as BoardPostSummary)} />
+                          </Grid>
+                      ))}
+                    </Grid>
+                )}
 
-    if (currentTab === 3) { // 자유 게시판 탭
-      return boardPostList.length > 0 ? (
-          <Grid container spacing={3}> {/* 게시판 목록은 다른 레이아웃 사용 가능 */}
-            {boardPostList.map(post => (
-                <Grid item xs={12} sm={6} md={4} key={post.id}>
-                  <BoardPostItemCard {...post} />
-                </Grid>
-            ))}
-          </Grid>
-      ) : <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>작성된 게시글이 없습니다.</Typography>;
-    }
-    return null;
+                {hasMore && (
+                    <Box sx={{ textAlign: 'center', mt: 4 }}>
+                      <Button onClick={handleLoadMore} disabled={loadingMore} variant="outlined">
+                        {loadingMore ? <CircularProgress size={20} /> : '더보기'}
+                      </Button>
+                    </Box>
+                )}
+              </>
+          ) : (
+              <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+                {searchKeyword ? `'${searchKeyword}'에 대한 검색 결과가 없습니다.` : noDataMessage}
+              </Typography>
+          )}
+        </>
+    );
   };
 
   return (
