@@ -10,7 +10,7 @@ import {
     Menu,
     MenuItem,
     ListItem,
-    ListItemText
+    ListItemText, List
 } from '@mui/material';
 import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
 import ThumbDownAltOutlinedIcon from '@mui/icons-material/ThumbDownAltOutlined';
@@ -29,17 +29,17 @@ interface CommentItemProps {
     comment: CommentDto;
     currentUserId: number | null;
     onReply: (comment: CommentDto) => void; // 대댓글 작성 시작 콜백
-    onDeleteSuccess: () => void; // 삭제 성공 시 부모에게 알림
-    onEditSuccess: () => void;   // 수정 성공 시 부모에게 알림
-    // isChild?: boolean; // 대댓글인지 여부 (스타일링용)
+    onActionSuccess: () => void; // 수정/삭제/추천 성공 시 목록 새로고침 콜백
+    isChild?: boolean; // 대댓글인지 여부 (스타일링용)
 }
 
 const CommentItem: React.FC<CommentItemProps> = ({
-                                                     comment, currentUserId, onReply, onDeleteSuccess, onEditSuccess, // isChild
+                                                     comment, currentUserId, onReply, onActionSuccess, isChild = false
                                                  }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editedContent, setEditedContent] = useState(comment.content);
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [showReplies, setShowReplies] = useState(false); // 대댓글 보기/숨기기
     const isAuthor = currentUserId === comment.author.id;
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
@@ -56,7 +56,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         try {
             await api.put(`/api/board/comments/${comment.id}`, { content: editedContent });
             setIsEditing(false);
-            onEditSuccess(); // 부모에게 알려 목록 새로고침
+            onActionSuccess(); // 부모에게 알려 목록 새로고침
         } catch (error) {
             console.error("댓글 수정 실패:", error);
             alert("댓글 수정에 실패했습니다.");
@@ -67,7 +67,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         if (!window.confirm("정말로 이 댓글을 삭제하시겠습니까?")) return;
         try {
             await api.delete(`/api/board/comments/${comment.id}`);
-            onDeleteSuccess(); // 부모에게 알려 목록 새로고침
+            onActionSuccess(); // 부모에게 알려 목록 새로고침
         } catch (error) {
             console.error("댓글 삭제 실패:", error);
             alert("댓글 삭제에 실패했습니다.");
@@ -80,7 +80,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
         // 또는 CommentItem이 받은 comment prop을 직접 업데이트 (더 복잡)
         // 여기서는 onEditSuccess와 유사하게 부모에게 알리는 방식을 가정 (예: onVoteSuccess prop 추가)
         console.log("Comment vote successful for comment ID:", comment.id);
-        onEditSuccess(); // 임시로 onEditSuccess 사용 (목록 새로고침 유도)
+        onActionSuccess(); // 임시로 onEditSuccess 사용 (목록 새로고침 유도)
                          // 또는 별도의 onVoteSuccess 콜백을 만들고 부모에서 처리
     };
 
@@ -88,14 +88,22 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
     if (comment.isDeleted) {
         return (
-            <ListItem alignItems="flex-start" sx={{ pl: /*isChild ? 4 :*/ 0, opacity: 0.7 }}>
+            <ListItem alignItems="flex-start" sx={{ pl: isChild ? 4 : 0, opacity: 0.7, borderBottom: '1px solid #f0f0f0', pb:1 }}>
                 <ListItemText secondary="삭제된 댓글입니다." />
+                {/* 삭제된 댓글이라도 대댓글은 보여주도록 처리 */}
+                {comment.children && comment.children.length > 0 && (
+                    <List sx={{ width:'100%', pt:1 }}>
+                        {comment.children.map(childComment => (
+                            <CommentItem key={childComment.id} comment={childComment} currentUserId={currentUserId} onReply={onReply} onActionSuccess={onActionSuccess} isChild />
+                        ))}
+                    </List>
+                )}
             </ListItem>
         );
     }
 
     return (
-        <ListItem alignItems="flex-start" sx={{ pl: /*isChild ? 4 :*/ 0, flexDirection: 'column', mb:1, borderBottom:'1px solid #f0f0f0', pb:1 }}>
+        <ListItem alignItems="flex-start" sx={{ pl: isChild ? 4 : 0, flexDirection: 'column', mb:1, borderBottom: isChild ? 'none' : '1px solid #f0f0f0', pb:1 }}>
             <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', mb: 0.5 }}>
                 <Avatar
                     src={comment.author.profileImageUrl || undefined}
@@ -163,14 +171,21 @@ const CommentItem: React.FC<CommentItemProps> = ({
                 <MenuItem onClick={handleDelete} sx={{color: 'error.main'}}><DeleteIcon fontSize="small" sx={{mr:1}}/> 삭제</MenuItem>
             </Menu>
 
-            {/* TODO: 대댓글 목록 렌더링 (comment.children 사용) */}
-            {/* {comment.children && comment.children.length > 0 && (
-        <List sx={{ pl: 4 }}>
-          {comment.children.map(childComment => (
-            <CommentItem key={childComment.id} comment={childComment} ... isChild />
-          ))}
-        </List>
-      )} */}
+            {/* 대댓글 목록 렌더링 */}
+            {comment.children && comment.children.length > 0 && (
+                <List sx={{ width:'100%', pt:1 }}>
+                    {comment.children.map(childComment => (
+                        <CommentItem
+                            key={childComment.id}
+                            comment={childComment}
+                            currentUserId={currentUserId}
+                            onReply={onReply}
+                            onActionSuccess={onActionSuccess}
+                            isChild // isChild prop을 true로 전달
+                        />
+                    ))}
+                </List>
+            )}
         </ListItem>
     );
 };

@@ -107,4 +107,42 @@ public class BoardController {
     }
 
     // TODO: 게시글 목록, 상세, 수정, 삭제 등 API 엔드포인트 추가
+
+    @PutMapping("/posts/{postId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<BoardPostResponse> updatePost(
+            @PathVariable Long postId,
+            @Valid @RequestBody BoardPostUpdateRequest request,
+            @CurrentUser UserPrincipal userPrincipal) {
+        BoardPostResponse updatedPost = boardService.updatePost(postId, request, userPrincipal.getId());
+        return ResponseEntity.ok(updatedPost);
+    }
+
+    @DeleteMapping("/posts/{postId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deletePost(
+            @PathVariable Long postId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        boardService.deletePost(postId, userPrincipal.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/comments/{commentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<CommentResponseDto> updateComment(
+            @PathVariable Long commentId,
+            @Valid @RequestBody CommentUpdateRequest request,
+            @CurrentUser UserPrincipal userPrincipal) {
+        CommentResponseDto updatedComment = boardService.updateComment(commentId, request, userPrincipal.getId());
+        return ResponseEntity.ok(updatedComment);
+    }
+
+    @DeleteMapping("/comments/{commentId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Long commentId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        boardService.deleteComment(commentId, userPrincipal.getId());
+        return ResponseEntity.noContent().build();
+    }
 }

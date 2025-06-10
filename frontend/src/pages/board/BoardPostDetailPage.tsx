@@ -39,6 +39,7 @@ import { CommentDto, CommentCreateRequestDto } from '../../types/board';
 import CommentItem from "../../components/board/CommentItem"; // CommentCreateRequestDto 추가
 import LikeDislikeButtons from '../../components/board/LikeDislikeButtons';
 import { VoteType } from '../../types/apiSpecificEnums';
+import CommentForm from '../../components/board/CommentForm';
 
 const BoardPostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -120,6 +121,11 @@ const BoardPostDetailPage: React.FC = () => {
         setNewComment(`@${comment.author.name} `); // 대댓글 시 멘션 효과 (선택적)
         commentFormRef.current?.scrollIntoView({ behavior: 'smooth' });
         // commentFormRef.current?.querySelector('textarea')?.focus(); // textarea에 포커스
+    };
+
+    const handleCommentCreated = () => {
+        setReplyToComment(null); // 대댓글 작성 후 상태 초기화
+        fetchComments(); // 댓글 목록 새로고침
     };
 
     const fetchPostDetail = useCallback(async () => {
@@ -281,9 +287,11 @@ const BoardPostDetailPage: React.FC = () => {
 
             {/* 댓글 목록 */}
             <Paper elevation={0} sx={{ mt: 3, p: { xs: 1, sm: 2 }, borderRadius: 2, bgcolor:'transparent' }}>
-                <Typography variant="h6" gutterBottom sx={{mb:2}}>댓글</Typography>
+                <Typography variant="h6" gutterBottom sx={{mb:2}}>
+                    댓글 {post.commentCount || comments.length}
+                </Typography>
                 {loadingComments && comments.length === 0 ? (
-                    <CircularProgress size={24} />
+                    <Box sx={{display: 'flex', justifyContent: 'center'}}><CircularProgress size={24} /></Box>
                 ) : comments.length > 0 ? (
                     <List>
                         {comments.map(comment => (
@@ -291,9 +299,9 @@ const BoardPostDetailPage: React.FC = () => {
                                 key={comment.id}
                                 comment={comment}
                                 currentUserId={currentUserId}
-                                onReply={handleReplyToComment} // 대댓글 작성 시작 함수 전달
-                                onDeleteSuccess={fetchComments} // 댓글 삭제 성공 시 목록 새로고침
-                                onEditSuccess={fetchComments}   // 댓글 수정 성공 시 목록 새로고침
+                                onReply={handleReplyToComment}
+                                // 수정/삭제/추천 등 성공 시 댓글 목록 새로고침
+                                onActionSuccess={fetchComments}
                             />
                         ))}
                     </List>
@@ -305,32 +313,13 @@ const BoardPostDetailPage: React.FC = () => {
 
             {/* 댓글 작성 폼 */}
             {isLoggedIn && (
-                <Paper component="form" ref={commentFormRef} onSubmit={handleCommentSubmit} elevation={2} sx={{ mt: 3, p: 2, borderRadius: 2 }}>
-                    <Typography variant="subtitle1" gutterBottom>
-                        {replyToComment ? `${replyToComment.author.name}님에게 답글 작성 중...` : "댓글 작성"}
-                        {replyToComment && <Button size="small" onClick={() => { setReplyToComment(null); setNewComment(''); }} sx={{ml:1}}>취소</Button>}
-                    </Typography>
-                    {commentError && <Alert severity="error" sx={{mb:1}} onClose={() => setCommentError(null)}>{commentError}</Alert>}
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={3}
-                        variant="outlined"
-                        placeholder="댓글을 입력하세요..."
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        required
-                    />
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        color="primary"
-                        disabled={isSubmittingComment || !newComment.trim()}
-                        sx={{ mt: 2 }}
-                    >
-                        {isSubmittingComment ? <CircularProgress size={24} color="inherit" /> : '댓글 등록'}
-                    </Button>
-                </Paper>
+                <CommentForm
+                    key={replyToComment ? `reply-to-${replyToComment.id}` : 'new-comment'} // 대댓글 대상 변경 시 폼을 리셋하기 위해 key 사용
+                    postId={post.id}
+                    parentComment={replyToComment} // 대댓글 대상 정보 전달
+                    onCancelReply={() => setReplyToComment(null)} // 대댓글 작성 취소 핸들러 전달
+                    onSubmitSuccess={handleCommentCreated} // 댓글 작성 성공 시 콜백 전달
+                />
             )}
 
             {/* 삭제 확인 다이얼로그 */}

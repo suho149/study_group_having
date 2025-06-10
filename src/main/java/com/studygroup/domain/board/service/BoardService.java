@@ -277,4 +277,78 @@ public class BoardService {
     }
 
     // TODO: 게시글 목록 조회, 상세 조회, 수정, 삭제, 추천/비추천, 댓글 관련 서비스 메소드 추가
+
+    // 게시글 수정
+    public BoardPostResponse updatePost(Long postId, BoardPostUpdateRequest request, Long userId) {
+        BoardPost post = boardPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+
+        // 작성자 본인인지 확인
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new IllegalStateException("게시글 수정 권한이 없습니다.");
+        }
+
+        post.update(request.getTitle(), request.getContent(), request.getCategory());
+        // boardPostRepository.save(post); // 변경 감지로 저장
+        log.info("게시글 수정 완료: postId={}", postId);
+        // 수정 후 상세 정보를 다시 반환
+        return BoardPostResponse.from(post, false, false); // 좋아요/싫어요 정보는 별도 조회 필요
+    }
+
+    // 게시글 삭제 (소프트 삭제 또는 하드 삭제)
+    public void deletePost(Long postId, Long userId) {
+        BoardPost post = boardPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+
+        if (!post.getAuthor().getId().equals(userId)) {
+            throw new IllegalStateException("게시글 삭제 권한이 없습니다.");
+        }
+
+        // 하드 삭제: 연관된 댓글, 좋아요 등도 함께 삭제됨 (Cascade 설정에 따라)
+        boardPostRepository.delete(post);
+        log.info("게시글 삭제 완료: postId={}", postId);
+        // 소프트 삭제: post.markAsDeleted(); (BoardPost 엔티티에 관련 필드 및 메소드 추가 필요)
+    }
+
+    // 댓글 수정
+    public CommentResponseDto updateComment(Long commentId, CommentUpdateRequest request, Long userId) {
+        BoardComment comment = boardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다. ID: " + commentId));
+
+        if (!comment.getAuthor().getId().equals(userId)) {
+            throw new IllegalStateException("댓글 수정 권한이 없습니다.");
+        }
+        if (comment.isDeleted()) {
+            throw new IllegalStateException("삭제된 댓글은 수정할 수 없습니다.");
+        }
+
+        comment.updateContent(request.getContent());
+        log.info("댓글 수정 완료: commentId={}", commentId);
+        return CommentResponseDto.from(comment, false, false);
+    }
+
+    // 댓글 삭제 (소프트 삭제 권장)
+    public void deleteComment(Long commentId, Long userId) {
+        BoardComment comment = boardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다. ID: " + commentId));
+
+        if (!comment.getAuthor().getId().equals(userId)) {
+            throw new IllegalStateException("댓글 삭제 권한이 없습니다.");
+        }
+
+        // 대댓글이 있는 경우, 실제 내용을 지우고 "삭제된 댓글입니다"로 표시 (소프트 삭제)
+        if (!comment.getChildrenComments().isEmpty()) {
+            comment.markAsDeleted();
+            log.info("댓글 소프트 삭제 완료 (대댓글 존재): commentId={}", commentId);
+        } else {
+            // 대댓글이 없으면 DB에서 완전히 삭제 (하드 삭제)
+            // 만약 이 댓글이 다른 댓글의 자식이라면, 부모의 childrenComments 컬렉션에서도 제거해야 함
+            BoardComment parent = comment.getParentComment();
+            if (parent != null) {
+                parent.getChildrenComments().remove(comment);
+            }
+            boardCommentRepository.delete(comment);
+            log.info("댓글 하드 삭제 완료: commentId={}", commentId);
+        }
+    }
 }
