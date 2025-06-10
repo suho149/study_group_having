@@ -59,32 +59,58 @@ const BoardPostDetailPage: React.FC = () => {
     const [isSubmittingComment, setIsSubmittingComment] = useState(false);
     const commentFormRef = useRef<HTMLFormElement>(null); // 댓글 작성 폼으로 스크롤하기 위함
 
-    const fetchComments = useCallback(async (currentPage = 0) => { // 페이지 파라미터 추가
+    // 페이징 관련 상태 추가
+    const [commentPage, setCommentPage] = useState(0); // 현재 댓글 페이지 번호
+    const [hasMoreComments, setHasMoreComments] = useState(true); // 더 불러올 댓글이 있는지
+    const [loadingMoreComments, setLoadingMoreComments] = useState(false); // 더보기 로딩 상태
+
+    // fetchComments 함수를 페이징에 맞게 수정
+    const fetchComments = useCallback(async (pageToFetch = 0, initialLoad = false) => {
         if (!postId) return;
-        setLoadingComments(true);
+        if (pageToFetch === 0 && initialLoad) { // 최초 로드 시에만 전체 로딩 표시
+            setLoadingComments(true);
+            setComments([]); // 목록 초기화
+        } else { // 더보기 로드 시
+            setLoadingMoreComments(true);
+        }
         setCommentError(null);
+
         try {
-            const response = await api.get<{ content: CommentDto[], totalPages: number, number: number, last: boolean }>(
-                `/api/board/posts/${postId}/comments`,
-                { params: { page: currentPage, size: 10, sort: 'createdAt,asc' } } // 페이징 파라미터
-            );
-            // 여기서는 최상위 댓글만 가져오고, 대댓글은 CommentItem 내부에서 로드한다고 가정
-            // 또는 백엔드 DTO에서 children을 포함하여 한 번에 가져올 수도 있음
-            setComments(prev => currentPage === 0 ? response.data.content : [...prev, ...response.data.content]);
-            // setHasMoreComments(!response.data.last); // 더보기 페이징 시 필요
+            const response = await api.get<{
+                content: CommentDto[];
+                last: boolean; // 마지막 페이지인지 여부
+            }>(`/api/board/posts/${postId}/comments`, {
+                params: {
+                    page: pageToFetch,
+                    size: 10, // 페이지 당 댓글 수
+                    sort: 'createdAt,asc',
+                }
+            });
+
+            if (response.data && Array.isArray(response.data.content)) {
+                const newComments = response.data.content;
+                setComments(prevComments =>
+                    pageToFetch === 0 ? newComments : [...prevComments, ...newComments]
+                );
+                setHasMoreComments(!response.data.last); // 마지막 페이지면 false
+                setCommentPage(pageToFetch); // 현재 페이지 번호 업데이트
+            } else {
+                setComments([]);
+            }
         } catch (err: any) {
-            console.error("댓글 목록 조회 실패:", err);
             setCommentError(err.response?.data?.message || "댓글을 불러오는데 실패했습니다.");
         } finally {
-            setLoadingComments(false);
+            if (pageToFetch === 0 && initialLoad) setLoadingComments(false);
+            setLoadingMoreComments(false);
         }
-    }, [postId]);
+    }, [postId]); // postId가 변경될 때마다 함수가 새로 생성됨
 
+    // 최초 마운트 또는 post 정보 로드 완료 시 첫 페이지 댓글 로드
     useEffect(() => {
-        if (post) { // 게시글 정보 로드 완료 후 댓글 로드
-            fetchComments();
+        if (post) {
+            fetchComments(0, true); // 첫 페이지(0)를 초기 로드
         }
-    }, [post, fetchComments]); // post가 변경되면 댓글 다시 로드
+    }, [post, fetchComments]);
 
     const handleCommentSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -209,10 +235,19 @@ const BoardPostDetailPage: React.FC = () => {
     }, [refreshPostData]);
 
 
-    // onActionSuccess 콜백도 fetchPostDetail을 호출하도록 변경 가능
+    // 댓글 작성/수정/삭제 성공 시 콜백 함수
     const handleCommentActionSuccess = () => {
-        fetchPostDetail();
-        fetchComments();
+        // 가장 간단한 방법: 첫 페이지만 다시 불러와서 최신 상태 반영
+        // (만약 새 댓글이 2페이지에 추가된다면 이 방식으로는 바로 보이지 않을 수 있음)
+        // 더 나은 방법: 새 댓글 객체를 API 응답으로 받아 comments 배열에 직접 추가
+        fetchComments(0, true);
+        fetchPostDetail(); // 게시글의 commentCount 업데이트를 위해
+    };
+
+    const handleLoadMoreComments = () => {
+        if (!loadingMoreComments && hasMoreComments) {
+            fetchComments(commentPage + 1); // 다음 페이지 로드
+        }
     };
 
 
@@ -315,12 +350,6 @@ const BoardPostDetailPage: React.FC = () => {
                         <Typography variant="body2">댓글 {post.commentCount || 0}</Typography>
                     </Box>
                 </Box>
-
-                {/* TODO: 댓글 목록 및 댓글 작성 폼 */}
-                {/* <Divider sx={{ my: 3 }} />
-        <Typography variant="h6" gutterBottom>댓글 ({post.commentCount || 0})</Typography>
-        <List> ... 댓글 목록 ... </List>
-        {isLoggedIn && <CommentForm postId={post.id} onSubmitSuccess={fetchComments} />} */}
             </Paper>
 
             {/* 댓글 목록 */}
@@ -331,22 +360,35 @@ const BoardPostDetailPage: React.FC = () => {
                 {loadingComments && comments.length === 0 ? (
                     <Box sx={{display: 'flex', justifyContent: 'center'}}><CircularProgress size={24} /></Box>
                 ) : comments.length > 0 ? (
-                    <List>
-                        {comments.map(comment => (
-                            <CommentItem
-                                key={comment.id}
-                                comment={comment}
-                                currentUserId={currentUserId}
-                                onReply={handleReplyToComment}
-                                // 수정/삭제/추천 등 성공 시 댓글 목록 새로고침
-                                onActionSuccess={fetchComments}
-                            />
-                        ))}
-                    </List>
+                    <>
+                        <List>
+                            {comments.map(comment => (
+                                <CommentItem
+                                    key={comment.id}
+                                    comment={comment}
+                                    currentUserId={currentUserId}
+                                    onReply={handleReplyToComment}
+                                    onActionSuccess={handleCommentActionSuccess} // 수정/삭제 성공 시 콜백 연결
+                                />
+                            ))}
+                        </List>
+                        {/* "댓글 더보기" 버튼 */}
+                        {hasMoreComments && (
+                            <Box sx={{ textAlign: 'center', mt: 2 }}>
+                                <Button
+                                    onClick={handleLoadMoreComments}
+                                    disabled={loadingMoreComments}
+                                    variant="outlined"
+                                >
+                                    {loadingMoreComments ? <CircularProgress size={20} /> : '댓글 더보기'}
+                                </Button>
+                            </Box>
+                        )}
+                    </>
                 ) : (
                     <Typography color="textSecondary" sx={{textAlign:'center', py:2}}>작성된 댓글이 없습니다.</Typography>
                 )}
-                {/* TODO: 댓글 더보기 페이징 UI */}
+                {commentError && <Alert severity="warning" sx={{mt:2}}>{commentError}</Alert>}
             </Paper>
 
             {/* 댓글 작성 폼 */}
@@ -356,7 +398,7 @@ const BoardPostDetailPage: React.FC = () => {
                     postId={post.id}
                     parentComment={replyToComment} // 대댓글 대상 정보 전달
                     onCancelReply={() => setReplyToComment(null)} // 대댓글 작성 취소 핸들러 전달
-                    onSubmitSuccess={handleCommentCreated} // 댓글 작성 성공 시 콜백 전달
+                    onSubmitSuccess={handleCommentActionSuccess} // 댓글 작성 성공 시 콜백 전달
                 />
             )}
 
