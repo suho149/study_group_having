@@ -127,6 +127,12 @@ public class BoardController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/posts/{postId}/view")
+    public ResponseEntity<Void> incrementPostViewCount(@PathVariable Long postId) {
+        boardService.incrementPostViewCount(postId);
+        return ResponseEntity.ok().build();
+    }
+
     @PutMapping("/comments/{commentId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CommentResponseDto> updateComment(

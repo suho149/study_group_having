@@ -75,12 +75,22 @@ public class BoardService {
         });
     }
 
+    // 조회수 증가 로직을 별도 메소드로 분리
+    @Transactional
+    public void incrementPostViewCount(Long postId) {
+        BoardPost post = boardPostRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
+        post.incrementViewCount();
+        // 변경 감지로 저장됨
+        log.info("게시글 조회수 증가: postId={}", postId);
+    }
+
     @Transactional // 조회수 증가로 인해 쓰기 트랜잭션 필요
     public BoardPostResponse getPostDetail(Long postId, UserPrincipal currentUserPrincipal) {
         BoardPost post = boardPostRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
 
-        post.incrementViewCount(); // 조회수 증가
+        //post.incrementViewCount(); // 조회수 증가
         // boardPostRepository.save(post); // 변경 감지로 저장됨
 
         // 현재 사용자가 이 게시글에 좋아요를 눌렀는지 여부 (추천 기능 구현 시)

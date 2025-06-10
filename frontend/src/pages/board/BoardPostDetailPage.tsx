@@ -125,6 +125,7 @@ const BoardPostDetailPage: React.FC = () => {
 
     const handleCommentCreated = () => {
         setReplyToComment(null); // 대댓글 작성 후 상태 초기화
+        fetchPostDetail(); // <--- 이 호출을 추가하여 post 상태를 갱신
         fetchComments(); // 댓글 목록 새로고침
     };
 
@@ -166,15 +167,52 @@ const BoardPostDetailPage: React.FC = () => {
         }
     };
 
-    const handlePostVoteSuccess = async () => {
-        // 투표 성공 후 게시글 데이터를 다시 불러와서 정확한 likeCount, dislikedCount,
-        // likedByCurrentUser, dislikedByCurrentUser를 반영 (가장 확실한 방법)
-        // 또는 LikeDislikeButtons 내부에서 이미 낙관적 업데이트를 했다면,
-        // 여기서는 추가 작업이 필요 없을 수도 있음.
-        // 하지만 서버와 완벽한 동기화를 위해선 fetchPostDetail 호출 권장.
-        if (postId) {
-            await fetchPostDetail();
+    useEffect(() => {
+        const fetchAndIncrementView = async () => {
+            if (!postId) return;
+            setLoading(true);
+            setError(null);
+            try {
+                // 조회수 증가 API를 먼저 호출 (실패해도 게시글 조회는 시도)
+                try {
+                    // 이 API는 세션/쿠키 기반 중복 방지가 백엔드에서 필요할 수 있음
+                    await api.patch(`/api/board/posts/${postId}/view`);
+                } catch (viewError) {
+                    console.warn("조회수 증가 API 호출 실패:", viewError);
+                }
+                // 게시글 상세 정보 조회
+                const response = await api.get<BoardPostResponseDto>(`/api/board/posts/${postId}`);
+                setPost(response.data);
+            } catch (err: any) {
+                setError(err.response?.data?.message || "게시글을 불러오는데 실패했습니다.");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAndIncrementView();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [postId]); // postId가 변경될 때만 실행
+
+    // 데이터를 새로고침하는 함수는 이제 조회수 증가 로직이 없음
+    const refreshPostData = useCallback(async () => {
+        if (!postId) return;
+        try {
+            const response = await api.get<BoardPostResponseDto>(`/api/board/posts/${postId}`);
+            setPost(response.data);
+        } catch (error) {
+            console.error("게시글 데이터 새로고침 실패:", error);
         }
+    }, [postId]);
+
+    const handlePostVoteSuccess = useCallback(() => {
+        refreshPostData();
+    }, [refreshPostData]);
+
+
+    // onActionSuccess 콜백도 fetchPostDetail을 호출하도록 변경 가능
+    const handleCommentActionSuccess = () => {
+        fetchPostDetail();
+        fetchComments();
     };
 
 
