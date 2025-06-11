@@ -2,10 +2,7 @@ package com.studygroup.domain.board.service;
 
 import com.studygroup.domain.board.dto.*;
 import com.studygroup.domain.board.entity.*;
-import com.studygroup.domain.board.repository.BoardCommentRepository;
-import com.studygroup.domain.board.repository.BoardPostRepository;
-import com.studygroup.domain.board.repository.CommentLikeRepository;
-import com.studygroup.domain.board.repository.PostLikeRepository;
+import com.studygroup.domain.board.repository.*;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
@@ -13,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,17 +49,11 @@ public class BoardService {
     public Page<BoardPostSummaryResponse> getBoardPosts(
             String categoryString, String keyword, Pageable pageable, UserPrincipal currentUserPrincipal) {
 
-        // TODO: BoardPostRepository에 category, keyword를 사용하여 검색하고 페이징하는 메소드 구현
-        // 예: boardPostRepository.findAllWithFilters(category, keyword, pageable);
-        // 이 메소드는 Page<BoardPost>를 반환해야 함.
-        // 여기서는 임시로 findAll 사용 (실제로는 필터링된 조회 필요)
-        Page<BoardPost> postsPage = boardPostRepository.findAll(pageable); // <--- 실제로는 필터링된 조회로 변경해야 함
+        // Specification을 사용하여 동적 쿼리 생성
+        Specification<BoardPost> spec = BoardPostSpecification.withFilter(categoryString, keyword);
 
-        // User currentUser = null;
-        // if (currentUserPrincipal != null) {
-        //     currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
-        // }
-        // User finalCurrentUser = currentUser;
+        // 수정: findAll(pageable) 대신 findAll(spec, pageable) 사용
+        Page<BoardPost> postsPage = boardPostRepository.findAll(spec, pageable);
 
         // 각 BoardPost를 BoardPostSummaryResponse로 변환
         return postsPage.map(post -> {
