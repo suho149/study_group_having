@@ -1,22 +1,21 @@
-import React, {useState, useEffect, useCallback} from 'react';
-import {Container, Box, Tabs, Tab, TextField, InputAdornment, Typography, Paper, Chip, Grid} from '@mui/material';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Container, Box, Tabs, Tab, TextField, InputAdornment, Typography, Grid, CircularProgress, Button, Divider } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import SearchIcon from '@mui/icons-material/Search';
-// import axios from 'axios'; // api 인스턴스 사용으로 변경
-import api from '../services/api'; // 수정: axios 대신 api 인스턴스 사용
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import StarIcon from '@mui/icons-material/Star';
+import api from '../services/api';
 import Banner from '../components/home/Banner';
 import PostCard from '../components/post/PostCard';
 import CreateStudyButton from '../components/study/CreateStudyButton';
-// import { checkAuthStatus } from '../services/auth'; // AuthContext 사용으로 변경
+import BoardPostItemCard from '../components/board/BoardPostItemCard';
 import { useAuth } from '../contexts/AuthContext';
-import {StudyGroupSummary} from "../types/study"; // 추가
-import { CircularProgress } from '@mui/material'; // 로딩 스피너
-import { Button } from '@mui/material'; // Button import 추가 (CreateStudyButton과 별개)
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline'; // 글쓰기 아이콘 예시
-import { useNavigate } from 'react-router-dom'; // useNavigate 추가
-import BoardPostItemCard from '../components/board/BoardPostItemCard'; // 새로 만든 카드 컴포넌트 import
-import { BoardPostSummary } from '../types/board'; // 게시판 글 요약 타입
+import { StudyGroupSummary } from "../types/study";
+import { BoardPostSummary } from '../types/board';
+import { AxiosResponse } from 'axios';
 
+// --- Styled Components (변경 없음) ---
 const StyledTabs = styled(Tabs)({
   marginBottom: '24px',
   '& .MuiTab-root': {
@@ -24,29 +23,18 @@ const StyledTabs = styled(Tabs)({
     fontSize: '16px',
     fontWeight: 'normal',
     color: '#666',
-    '&.Mui-selected': {
-      color: '#2196F3',
-      fontWeight: 'bold',
-    },
+    '&.Mui-selected': {color: '#2196F3', fontWeight: 'bold'}
   },
-  '& .MuiTabs-indicator': {
-    backgroundColor: '#2196F3',
-  },
+  '& .MuiTabs-indicator': {backgroundColor: '#2196F3'},
 });
 
 const SearchField = styled(TextField)({
   marginBottom: '24px',
   '& .MuiOutlinedInput-root': {
     borderRadius: '8px',
-    '& fieldset': {
-      borderColor: '#E0E0E0',
-    },
-    '&:hover fieldset': {
-      borderColor: '#BDBDBD',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#2196F3',
-    },
+    '& fieldset': {borderColor: '#E0E0E0'},
+    '&:hover fieldset': {borderColor: '#BDBDBD'},
+    '&.Mui-focused fieldset': {borderColor: '#2196F3'},
   },
 });
 
@@ -54,162 +42,117 @@ const PostGrid = styled(Box)({
   display: 'grid',
   gridTemplateColumns: 'repeat(1, 1fr)',
   gap: '24px',
-  '@media (min-width: 600px)': {
-    gridTemplateColumns: 'repeat(2, 1fr)',
-  },
-  '@media (min-width: 960px)': {
-    gridTemplateColumns: 'repeat(3, 1fr)',
-  },
+  '@media (min-width: 600px)': {gridTemplateColumns: 'repeat(2, 1fr)'},
+  '@media (min-width: 960px)': {gridTemplateColumns: 'repeat(3, 1fr)'},
 });
 
-const Home = () => {
-  const [currentTab, setCurrentTab] = useState(0);
-  const { isLoggedIn, isLoading: authLoading } = useAuth(); // 수정: AuthContext 사용, authLoading 추가
-  //const [studyGroups, setStudyGroups] = useState<StudyGroupSummary[]>([]);
-  const [studyAndProjectList, setStudyAndProjectList] = useState<StudyGroupSummary[]>([]); // 수정: studyGroups -> studyAndProjectList
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [boardPosts, setBoardPosts] = useState<BoardPostSummary[]>([]); // 자유게시판 글 목록 상태
-  const [loadingData, setLoadingData] = useState(false); // 통합 로딩 상태
-  const navigate = useNavigate(); // useNavigate 훅 사용
-  const [boardPostList, setBoardPostList] = useState<BoardPostSummary[]>([]);    // 게시판 글 목록
+const Home: React.FC = () => {
+  const [currentTab, setCurrentTab] = useState(0); // 0: 전체, 1: 프로젝트, 2: 스터디, 3: 자유 게시판
+  const {isLoggedIn, isLoading: authLoading} = useAuth();
+  const navigate = useNavigate();
 
-  const [loadingMore, setLoadingMore] = useState(false); // "더보기" 로딩
+  // --- 상태 관리 리팩토링 ---
+  const [studyAndProjectList, setStudyAndProjectList] = useState<StudyGroupSummary[]>([]);
+  const [boardPostList, setBoardPostList] = useState<BoardPostSummary[]>([]);
+  const [hotPosts, setHotPosts] = useState<BoardPostSummary[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState('');
+
+  // 로딩 및 페이징 상태
+  const [isLoading, setIsLoading] = useState(true); // 초기 로딩 및 탭/검색 변경 시
+  const [isLoadingMore, setIsLoadingMore] = useState(false); // "더보기" 로딩
   const [currentPage, setCurrentPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true); // 더보기 가능 여부
+  const [hasMore, setHasMore] = useState(true);
 
   // 데이터 로딩 함수 (페이징 적용)
-  const fetchData = useCallback(async (tabIndex: number, keyword: string, page: number, isNewSearch: boolean = false) => {
-    // isNewSearch가 true이면 초기 로딩, false이면 더보기 로딩
+  const fetchData = useCallback(async (
+      tabIndex: number,
+      keyword: string,
+      page: number,
+      isNewSearch: boolean = false
+  ) => {
     if (isNewSearch) {
-      setLoadingData(true);
-      setStudyAndProjectList([]); // 목록 초기화
-      setBoardPostList([]);     // 목록 초기화
-      setCurrentPage(0);        // 페이지 번호 초기화
-      setHasMore(true);         // 더보기 가능 상태로 초기화
+      setIsLoading(true);
     } else {
-      setLoadingMore(true);
+      setIsLoadingMore(true);
     }
 
     try {
-      if (tabIndex <= 2) { // 전체 스터디, 프로젝트, 일반 스터디
+      const params: any = { keyword: keyword || undefined, page };
+
+      if (tabIndex <= 2) {
         let studyTypeParam: 'PROJECT' | 'STUDY' | undefined = undefined;
         if (tabIndex === 1) studyTypeParam = 'PROJECT';
         if (tabIndex === 2) studyTypeParam = 'STUDY';
-
-        const params: any = { keyword: keyword || undefined, page, size: 9 };
         if (studyTypeParam) params.studyType = studyTypeParam;
-
+        params.size = 9;
         const response = await api.get<{ content: StudyGroupSummary[], last: boolean }>('/api/studies', { params });
         if (response.data && Array.isArray(response.data.content)) {
           setStudyAndProjectList(prev => isNewSearch ? response.data.content : [...prev, ...response.data.content]);
           setHasMore(!response.data.last);
-          setCurrentPage(page);
         }
-      } else if (tabIndex === 3) { // 자유 게시판
-        const params: any = { keyword: keyword || undefined, page, size: 10, sort: 'createdAt,desc' };
+      } else { // 자유 게시판 탭
+        params.size = 9;
+        params.sort = 'createdAt,desc';
         const response = await api.get<{ content: BoardPostSummary[], last: boolean }>('/api/board/posts', { params });
         if (response.data && Array.isArray(response.data.content)) {
           setBoardPostList(prev => isNewSearch ? response.data.content : [...prev, ...response.data.content]);
           setHasMore(!response.data.last);
-          setCurrentPage(page);
         }
       }
+      setCurrentPage(page);
     } catch (error) {
       console.error(`데이터 조회 실패 (탭: ${tabIndex}):`, error);
-      setHasMore(false); // 에러 발생 시 더보기 중단
+      setHasMore(false);
     } finally {
-      setLoadingData(false);
-      setLoadingMore(false);
+      setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, []);
 
+  // 핫 게시물 로드 함수
+  const fetchHotPosts = useCallback(async () => {
+    // 자유 게시판 탭이 아닐 때는 호출하지 않음
+    if (currentTab !== 3) {
+      setHotPosts([]); // 다른 탭으로 이동 시 핫 게시물 목록 비움
+      return;
+    }
+    try {
+      const response = await api.get<BoardPostSummary[]>('/api/board/posts/hot');
+      setHotPosts(response.data);
+    } catch (error) {
+      console.error("핫 게시물 조회 실패:", error);
+      setHotPosts([]); // 에러 시 비움
+    }
+  }, [currentTab]);
 
-  // 탭 또는 검색어 변경 시 첫 페이지부터 다시 로드
+  // 탭 변경 시 데이터 로드
   useEffect(() => {
     if (!authLoading) {
       fetchData(currentTab, searchKeyword, 0, true);
+      fetchHotPosts();
     }
-  }, [authLoading, currentTab, searchKeyword, fetchData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, currentTab]); // 검색어 변경 시에는 자동 호출 안 함
 
-  const handleSearch = (event: React.FormEvent) => {
+  const handleSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    fetchData(currentTab, searchKeyword, 0, true); // 검색은 항상 첫 페이지부터 (isNewSearch = true)
+    fetchData(currentTab, searchKeyword, 0, true); // 검색 시 첫 페이지부터 다시 로드
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
-    setSearchKeyword(''); // 탭 변경 시 검색어 초기화 (선택 사항)
+    setSearchKeyword(''); // 탭 변경 시 검색어 초기화
   };
 
   const handleLoadMore = () => {
-    if (!loadingData && !loadingMore && hasMore) {
-      fetchData(currentTab, searchKeyword, currentPage + 1, false); // 다음 페이지 로드 (isNewSearch = false)
+    if (!isLoading && !isLoadingMore && hasMore) {
+      fetchData(currentTab, searchKeyword, currentPage + 1, false);
     }
   };
 
-  // 인증 상태 로딩 중에는 아무것도 표시하지 않거나 로딩 스피너 표시
-  if (authLoading && !isLoggedIn) {
-    return <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}><Typography>인증 상태 확인 중...</Typography></Container>;
+  if (authLoading) {
+    return <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}><CircularProgress /></Container>;
   }
-
-  const renderContent = () => {
-    const listToRender = currentTab <= 2 ? studyAndProjectList : boardPostList;
-    const noDataMessage = currentTab <= 2 ? "표시할 스터디/프로젝트가 없습니다." : "작성된 게시글이 없습니다.";
-
-    if (loadingData) {
-      return <Box sx={{display: 'flex', justifyContent: 'center', mt:4}}><CircularProgress /></Box>;
-    }
-
-    return (
-        <>
-          {listToRender.length > 0 ? (
-              <>
-                {currentTab <= 2 ? (
-                    <PostGrid>
-                      {studyAndProjectList.map((study) => (
-                          <PostCard
-                              key={study.id}
-                              id={study.id}
-                              category={study.studyType === 'PROJECT' ? '프로젝트' : '스터디'} // study.studyType을 기반으로 category 생성
-                              title={study.title}
-                              date={new Date(study.createdAt).toLocaleDateString('ko-KR')} // study.createdAt을 date로 변환
-                              currentMembers={study.currentMembers} // PostCardProps에 currentMembers가 있다면 전달
-                              maxMembers={study.maxMembers}
-                              tags={study.tags}
-                              status={study.status}
-                              viewCount={study.viewCount}
-                              initialLikeCount={study.likeCount || 0} // study.likeCount를 initialLikeCount로 전달
-                              initialIsLiked={study.liked || false}   // study.liked를 initialIsLiked로 전달
-                              // PostCardProps에 없는 props (예: description, modifiedAt 등)는 전달하지 않음
-                          />
-                      ))}
-                    </PostGrid>
-                ) : (
-                    <Grid container spacing={3}>
-                      {listToRender.map(item => (
-                          <Grid item xs={12} sm={6} md={4} key={item.id}>
-                            <BoardPostItemCard {...(item as BoardPostSummary)} />
-                          </Grid>
-                      ))}
-                    </Grid>
-                )}
-
-                {hasMore && (
-                    <Box sx={{ textAlign: 'center', mt: 4 }}>
-                      <Button onClick={handleLoadMore} disabled={loadingMore} variant="outlined">
-                        {loadingMore ? <CircularProgress size={20} /> : '더보기'}
-                      </Button>
-                    </Box>
-                )}
-              </>
-          ) : (
-              <Typography sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
-                {searchKeyword ? `'${searchKeyword}'에 대한 검색 결과가 없습니다.` : noDataMessage}
-              </Typography>
-          )}
-        </>
-    );
-  };
 
   return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -223,47 +166,113 @@ const Home = () => {
         <Banner />
 
         <Box sx={{ mb: 4, mt: 4 }}>
-          <StyledTabs value={currentTab} onChange={handleTabChange} indicatorColor="primary" textColor="primary">
+          <StyledTabs value={currentTab} onChange={handleTabChange}>
             <Tab label="전체" />
             <Tab label="프로젝트" />
             <Tab label="스터디" />
-            <Tab label="자유 게시판" /> {/* 자유 게시판 탭 추가 */}
+            <Tab label="자유 게시판" />
           </StyledTabs>
 
-          {/* 현재 탭이 "자유 게시판"이고 로그인 상태일 때만 "글쓰기" 버튼 표시 */}
-          {currentTab === 3 && isLoggedIn && (
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <form onSubmit={handleSearchSubmit} style={{ flexGrow: 1 }}>
+              <SearchField
+                  fullWidth
+                  variant="outlined"
+                  placeholder={currentTab === 3 ? "게시글 검색..." : "스터디/프로젝트 검색..."}
+                  value={searchKeyword}
+                  onChange={(e) => setSearchKeyword(e.target.value)}
+                  InputProps={{
+                    startAdornment: ( <InputAdornment position="start"><SearchIcon color="action" /></InputAdornment> ),
+                  }}
+              />
+            </form>
+            {currentTab === 3 && isLoggedIn && (
                 <Button
                     variant="contained"
                     startIcon={<AddCircleOutlineIcon />}
-                    onClick={() => navigate('/board/create')} // 게시글 작성 페이지로 이동
+                    onClick={() => navigate('/board/create')}
+                    sx={{ ml: 2, flexShrink: 0, height: '56px' }}
                 >
                   새 글 작성
                 </Button>
+            )}
+          </Box>
+
+          {/* --- 핫 게시물 섹션 --- */}
+          {currentTab === 3 && hotPosts.length > 0 && (
+              <Box mb={5}>
+                <Typography variant="h5" component="h3" gutterBottom sx={{ display: 'flex', alignItems: 'center', fontWeight: 'bold' }}>
+                  <StarIcon sx={{ color: 'gold', mr: 1, fontSize: '1.75rem' }} /> 핫 게시물
+                </Typography>
+                <Grid container spacing={3}>
+                  {hotPosts.map(post => (
+                      <Grid item xs={12} sm={6} md={4} key={`hot-${post.id}`}>
+                        <BoardPostItemCard {...post} />
+                      </Grid>
+                  ))}
+                </Grid>
+                <Divider sx={{ my: 4 }} />
               </Box>
           )}
 
-          <form onSubmit={handleSearch}>
-            <SearchField
-                fullWidth
-                variant="outlined" // 추가
-                placeholder={currentTab === 3 ? "게시글 검색..." : "스터디/프로젝트 검색..."}
-                value={searchKeyword}
-                onChange={(e) => setSearchKeyword(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon color="action" />
-                      </InputAdornment>
-                  ),
-                }}
-            />
-          </form>
-
-          {renderContent()}
+          {/* --- 메인 콘텐츠 렌더링 --- */}
+          {isLoading ? (
+              <Box sx={{display: 'flex', justifyContent: 'center', mt: 8}}><CircularProgress /></Box>
+          ) : (
+              <>
+                {(currentTab <= 2 ? studyAndProjectList : boardPostList).length > 0 ? (
+                    <>
+                      <Grid container spacing={3}>
+                        {(currentTab <= 2 ? studyAndProjectList : boardPostList).map(item => (
+                            <Grid item xs={12} sm={6} md={4} key={item.id}>
+                              {currentTab <= 2 ? (
+                                  <PostCard
+                                      id={item.id}
+                                      category={(item as StudyGroupSummary).studyType === 'PROJECT' ? '프로젝트' : '스터디'}
+                                      title={item.title}
+                                      date={new Date(item.createdAt).toLocaleDateString('ko-KR')}
+                                      currentMembers={(item as StudyGroupSummary).currentMembers}
+                                      maxMembers={(item as StudyGroupSummary).maxMembers}
+                                      tags={(item as StudyGroupSummary).tags}
+                                      status={(item as StudyGroupSummary).status}
+                                      viewCount={(item as StudyGroupSummary).viewCount}
+                                      initialLikeCount={(item as StudyGroupSummary).likeCount || 0}
+                                      initialIsLiked={(item as StudyGroupSummary).liked || false}
+                                  />
+                              ) : (
+                                  <BoardPostItemCard
+                                      id={item.id}
+                                      category={(item as BoardPostSummary).category}
+                                      title={item.title}
+                                      authorName={(item as BoardPostSummary).authorName}
+                                      createdAt={item.createdAt}
+                                      viewCount={(item as BoardPostSummary).viewCount}
+                                      likeCount={(item as BoardPostSummary).likeCount}
+                                      commentCount={(item as BoardPostSummary).commentCount}
+                                  />
+                              )}
+                            </Grid>
+                        ))}
+                      </Grid>
+                      {hasMore && (
+                          <Box sx={{ textAlign: 'center', mt: 4 }}>
+                            <Button onClick={handleLoadMore} disabled={isLoadingMore} variant="outlined">
+                              {isLoadingMore ? <CircularProgress size={20} /> : '더보기'}
+                            </Button>
+                          </Box>
+                      )}
+                    </>
+                ) : (
+                    <Typography sx={{ textAlign: 'center', mt: 8, color: 'text.secondary' }}>
+                      {searchKeyword ? `'${searchKeyword}'에 대한 검색 결과가 없습니다.` :
+                          (currentTab === 3 ? "작성된 게시글이 없습니다." : "표시할 스터디/프로젝트가 없습니다.")}
+                    </Typography>
+                )}
+              </>
+          )}
         </Box>
       </Container>
   );
 };
 
-export default Home; 
+export default Home;

@@ -9,12 +9,19 @@ import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -27,6 +34,8 @@ public class BoardService {
     private final BoardCommentRepository boardCommentRepository;
     private final PostLikeRepository postLikeRepository;
     private final CommentLikeRepository commentLikeRepository;
+    private static final int MIN_LIKES_FOR_HOT_POST = 4; // 핫 게시물 최소 추천 수
+    private static final int HOT_POST_COUNT = 3;         // 가져올 핫 게시물 개수
 
     public BoardPostResponse createPost(BoardPostCreateRequest request, Long authorId) {
         User author = userRepository.findById(authorId)
@@ -355,5 +364,30 @@ public class BoardService {
             boardCommentRepository.delete(comment);
             log.info("댓글 하드 삭제 완료: commentId={}", commentId);
         }
+    }
+
+    // --- 핫 게시물 목록 조회 서비스 메소드 추가 ---
+    public List<BoardPostSummaryResponse> getHotPosts() {
+        // 이번 주 월요일 00:00:00 계산
+        LocalDateTime startOfWeek = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
+        // 지금 이 순간까지 (일요일 23:59:59 대신 현재 시간까지로)
+        LocalDateTime now = LocalDateTime.now();
+
+        // 상위 N개만 가져오기 위한 Pageable 객체 생성
+        Pageable pageable = PageRequest.of(0, HOT_POST_COUNT);
+
+        List<BoardPost> hotPosts = boardPostRepository.findHotPosts(
+                MIN_LIKES_FOR_HOT_POST,
+                startOfWeek,
+                now,
+                pageable
+        );
+
+        // DTO로 변환하여 반환
+        // BoardPostSummaryResponse.from() 메소드는 like, comment 수 등을 처리해야 함
+        // (이전 답변에서 기본 구현은 되어 있음)
+        return hotPosts.stream()
+                .map(post -> BoardPostSummaryResponse.from(post /*, isLiked 등 추가 정보 */))
+                .collect(Collectors.toList());
     }
 }

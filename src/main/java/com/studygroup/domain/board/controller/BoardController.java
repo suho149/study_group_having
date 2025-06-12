@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Slf4j
 @RestController
 @RequestMapping("/api/board") // 게시판 관련 API 기본 경로
@@ -55,6 +57,13 @@ public class BoardController {
         log.info("게시글 상세 조회 요청: postId={}, userId={}", postId, userPrincipal != null ? userPrincipal.getId() : "Anonymous");
         BoardPostResponse postDetail = boardService.getPostDetail(postId, userPrincipal);
         return ResponseEntity.ok(postDetail);
+    }
+
+    @GetMapping("/posts/hot")
+    public ResponseEntity<List<BoardPostSummaryResponse>> getHotPosts() {
+        log.info("핫 게시물 목록 조회 요청");
+        List<BoardPostSummaryResponse> hotPosts = boardService.getHotPosts();
+        return ResponseEntity.ok(hotPosts);
     }
 
     // --- 댓글 API ---
