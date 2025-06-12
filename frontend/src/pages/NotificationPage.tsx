@@ -154,8 +154,11 @@ const NotificationPage: React.FC = () => {
 
 
   const getNotificationActions = (notification: Notification) => {
+
+    console.log("isRead = ", notification.isRead)
     // isRead가 true이면 버튼을 아예 표시하지 않음
     if (notification.isRead) { // <--- isRead가 true면 바로 null 반환
+      console.log("isRead = true")
       return null;
     }
 
