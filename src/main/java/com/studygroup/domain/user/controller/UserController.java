@@ -2,6 +2,8 @@ package com.studygroup.domain.user.controller;
 
 import com.studygroup.domain.board.dto.BoardPostSummaryResponse;
 import com.studygroup.domain.board.service.BoardService;
+import com.studygroup.domain.study.dto.StudyGroupResponse;
+import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.domain.user.dto.UserActivitySummaryResponse;
 import com.studygroup.domain.user.dto.UserProfileResponse;
 import com.studygroup.domain.user.dto.UserSearchResponse;
@@ -30,6 +32,7 @@ public class UserController {
 
     private final UserService userService;
     private final BoardService boardService; // BoardService 주입 (좋아요 한 글 목록 때문에 필요)
+    private final StudyGroupService studyGroupService;
 
     @GetMapping("/search")
     @PreAuthorize("isAuthenticated()")
@@ -59,5 +62,25 @@ public class UserController {
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Page<BoardPostSummaryResponse> likedPosts = boardService.getLikedPosts(userPrincipal.getId(), pageable);
         return ResponseEntity.ok(likedPosts);
+    }
+
+    // 좋아요 한 스터디 목록 API
+    @GetMapping("/me/liked-studies")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Page<StudyGroupResponse>> getMyLikedStudies(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PageableDefault(size = 9, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<StudyGroupResponse> likedStudies = studyGroupService.getLikedStudies(userPrincipal.getId(), pageable);
+        return ResponseEntity.ok(likedStudies);
+    }
+
+    // 참여중인 스터디 목록 API
+    @GetMapping("/me/participating-studies")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Page<StudyGroupResponse>> getMyParticipatingStudies(
+            @CurrentUser UserPrincipal userPrincipal,
+            @PageableDefault(size = 9, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        Page<StudyGroupResponse> participatingStudies = studyGroupService.getParticipatingStudies(userPrincipal.getId(), pageable);
+        return ResponseEntity.ok(participatingStudies);
     }
 } 

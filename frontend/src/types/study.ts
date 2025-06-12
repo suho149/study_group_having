@@ -1,3 +1,21 @@
+/**
+ * 스터디 목록 조회 시 사용되는 요약 정보 타입.
+ * (GET /api/studies, /api/users/me/liked-studies 등)
+ */
+export interface StudyGroupResponse {
+    id: number;
+    title: string;
+    studyType: 'STUDY' | 'PROJECT'; // 백엔드 Enum에 따라 추가 가능
+    status: 'RECRUITING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    currentMembers: number;
+    maxMembers: number;
+    tags: string[];
+    createdAt: string; // ISO 8601 형식의 날짜 문자열
+    viewCount: number;
+    likeCount: number;
+    liked: boolean; // 현재 로그인한 사용자의 좋아요 여부
+}
+
 export interface StudyMember {
     id: number; // 사용자(User)의 ID
     name: string;

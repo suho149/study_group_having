@@ -648,4 +648,33 @@ public class StudyGroupService {
         log.info("스터디장에게 멤버 내보내기 완료 알림 생성: senderId={}, receiverId={}, studyGroupId={}",
                 removedUser.getId(), leader.getId(), studyGroup.getId());
     }
+
+    @Transactional(readOnly = true)
+    public Page<StudyGroupResponse> getLikedStudies(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        Page<StudyLike> likedStudiesPage = studyLikeRepository.findByUserOrderByCreatedAtDesc(user, pageable);
+
+        return likedStudiesPage.map(studyLike -> {
+            StudyGroup studyGroup = studyLike.getStudyGroup();
+            // 좋아요 한 스터디 목록이므로 isLiked는 항상 true
+            return StudyGroupResponse.from(studyGroup, true);
+        });
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StudyGroupResponse> getParticipatingStudies(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        Page<StudyMember> participatingStudiesPage = studyMemberRepository.findByUserAndStatusOrderByCreatedAtDesc(user, StudyMemberStatus.APPROVED, pageable);
+
+        return participatingStudiesPage.map(studyMember -> {
+            StudyGroup studyGroup = studyMember.getStudyGroup();
+            // 해당 스터디에 대해 현재 사용자가 좋아요를 눌렀는지 확인
+            boolean isLiked = studyLikeRepository.existsByUserAndStudyGroup(user, studyGroup);
+            return StudyGroupResponse.from(studyGroup, isLiked);
+        });
+    }
 }

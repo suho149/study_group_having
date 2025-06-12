@@ -5,6 +5,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import PersonIcon from '@mui/icons-material/Person';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import FavoriteIcon from '@mui/icons-material/Favorite';
+import BookmarksIcon from '@mui/icons-material/Bookmarks'; // 좋아요 한 스터디 아이콘
+import GroupsIcon from '@mui/icons-material/Groups'; // 참여중인 스터디 아이콘
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,7 +18,6 @@ const MyPage: React.FC = () => {
   return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <Grid container spacing={4}>
-          {/* 좌측 네비게이션 메뉴 */}
           <Grid item xs={12} md={3}>
             <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
               <List component="nav" sx={{ p: 0 }}>
@@ -27,11 +28,25 @@ const MyPage: React.FC = () => {
                   <ListItemText primary="내 프로필" />
                 </ListItem>
                 <Divider />
-                <ListItem button selected={isSelected('/mypage/likes')} onClick={() => navigate('/mypage/likes')}>
+                <ListItem button selected={isSelected('/mypage/liked-posts')} onClick={() => navigate('/mypage/liked-posts')}>
                   <ListItemIcon sx={{ minWidth: 40 }}>
-                    <FavoriteIcon color={isSelected('/mypage/likes') ? "primary" : "inherit"} />
+                    <FavoriteIcon color={isSelected('/mypage/liked-posts') ? "primary" : "inherit"} />
                   </ListItemIcon>
                   <ListItemText primary="좋아요 한 글" />
+                </ListItem>
+                <Divider />
+                <ListItem button selected={isSelected('/mypage/liked-studies')} onClick={() => navigate('/mypage/liked-studies')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <BookmarksIcon color={isSelected('/mypage/liked-studies') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="좋아요 한 스터디" />
+                </ListItem>
+                <Divider />
+                <ListItem button selected={isSelected('/mypage/participating-studies')} onClick={() => navigate('/mypage/participating-studies')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <GroupsIcon color={isSelected('/mypage/participating-studies') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="참여중인 스터디" />
                 </ListItem>
                 <Divider />
                 <ListItem button selected={location.pathname.startsWith('/notifications')} onClick={() => navigate('/notifications')}>
@@ -43,8 +58,6 @@ const MyPage: React.FC = () => {
               </List>
             </Paper>
           </Grid>
-
-          {/* 우측 컨텐츠 영역 (자식 라우트가 렌더링될 위치) */}
           <Grid item xs={12} md={9}>
             <Outlet />
           </Grid>
