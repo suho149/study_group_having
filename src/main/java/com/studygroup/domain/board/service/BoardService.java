@@ -390,4 +390,21 @@ public class BoardService {
                 .map(post -> BoardPostSummaryResponse.from(post /*, isLiked 등 추가 정보 */))
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public Page<BoardPostSummaryResponse> getLikedPosts(Long userId, Pageable pageable) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
+
+        // 사용자가 'LIKE'한 PostLike 엔티티 목록을 페이징하여 조회
+        Page<PostLike> likedPostLikes = postLikeRepository.findByUserAndVoteTypeOrderByCreatedAtDesc(user, VoteType.LIKE, pageable);
+
+        // Page<PostLike>를 Page<BoardPostSummaryResponse>로 변환
+        return likedPostLikes.map(postLike -> {
+            BoardPost post = postLike.getBoardPost();
+            // BoardPostSummaryResponse.from() 메소드를 활용하여 DTO 생성
+            // 이 DTO는 좋아요 수, 댓글 수 등을 이미 포함하고 있음
+            return BoardPostSummaryResponse.from(post);
+        });
+    }
 }

@@ -16,6 +16,8 @@ import { ChatProvider } from './contexts/ChatContext';
 import ChatRoomPage from "./pages/ChatRoomPage";
 import BoardPostCreatePage from './pages/board/BoardPostCreatePage';
 import BoardPostDetailPage from "./pages/board/BoardPostDetailPage"; // 새로 만들 페이지
+import MyProfilePage from './pages/MyProfilePage'; // 새로 만들 컴포넌트
+import LikedPostsPage from './pages/LikedPostsPage'; // 새로 만들 컴포넌트
 
 const theme = createTheme({
   palette: {
@@ -63,7 +65,10 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/mypage" element={<MyPage />} />
+              <Route path="/mypage" element={<MyPage />}>
+                <Route index element={<MyProfilePage />} /> {/* /mypage 기본 경로 */}
+                <Route path="likes" element={<LikedPostsPage />} /> {/* /mypage/likes 경로 */}
+              </Route>
               {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}
               {/* <Route path="/mypage/edit-profile" element={<EditProfilePage />} /> */}
               <Route path="/studies/create" element={<CreateStudyPage />} />

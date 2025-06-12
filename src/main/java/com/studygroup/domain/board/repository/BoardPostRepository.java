@@ -1,6 +1,7 @@
 package com.studygroup.domain.board.repository;
 
 import com.studygroup.domain.board.entity.BoardPost;
+import com.studygroup.domain.user.entity.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -25,4 +26,6 @@ public interface BoardPostRepository extends JpaRepository<BoardPost, Long>, Jpa
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate,
             Pageable pageable); // Pageable을 사용하여 상위 N개만 가져옴
+
+    long countByAuthor(User author); // 내가 작성한 게시글 수
 }
