@@ -31,10 +31,11 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String providerId = oAuth2User.getAttribute("sub"); // Google의 경우 'sub'가 providerId입니다.
 
         User user = userRepository.findByEmail(email)
-                .map(existingUser -> {
-                    existingUser.updateProfile(name, picture);
-                    return existingUser;
-                })
+                // 프로필을 수정할 때 정보가 덮어씌워 지지 않게 하기 위해서
+//                .map(existingUser -> {
+//                    existingUser.updateProfile(name, picture);
+//                    return existingUser;
+//                })
                 .orElseGet(() -> userRepository.save(User.builder()
                         .email(email)
                         .name(name)

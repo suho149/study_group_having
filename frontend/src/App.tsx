@@ -20,6 +20,7 @@ import MyProfilePage from './pages/MyProfilePage'; // 새로 만들 컴포넌트
 import LikedPostsPage from './pages/LikedPostsPage'; // 새로 만들 컴포넌트
 import LikedStudiesPage from './pages/LikedStudiesPage'; // 새로 추가
 import ParticipatingStudiesPage from './pages/ParticipatingStudiesPage'; // 새로 추가
+import EditProfilePage from './pages/EditProfilePage'; // 새로 만들 페이지 import
 
 const theme = createTheme({
   palette: {
@@ -70,6 +71,7 @@ function App() {
               <Route path="/mypage" element={<MyPage />}>
                 {/* 자식 라우트들 */}
                 <Route index element={<MyProfilePage />} /> {/* /mypage (기본 경로) */}
+                <Route path="edit-profile" element={<EditProfilePage />} /> {/* 프로필 수정 페이지 라우트 추가 */}
                 <Route path="liked-posts" element={<LikedPostsPage />} /> {/* /mypage/liked-posts */}
                 <Route path="liked-studies" element={<LikedStudiesPage />} /> {/* /mypage/liked-studies */}
                 <Route path="participating-studies" element={<ParticipatingStudiesPage />} /> {/* /mypage/participating-studies */}

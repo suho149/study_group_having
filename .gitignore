@@ -97,3 +97,6 @@ bin/
 # config local DB
 ### .env ###
 .env*
+
+# User uploaded files
+/uploads/
