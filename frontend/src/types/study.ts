@@ -69,3 +69,29 @@ export interface StudyGroupSummary {
     likeCount: number;
     liked: boolean;
 }
+
+/**
+ * 스터디 일정 정보 타입.
+ * (GET /api/studies/{id}/schedules 응답)
+ */
+export interface StudySchedule {
+    id: number;
+    title: string;
+    content: string | null;
+    startTime: string; // ISO 8601 형식
+    endTime: string;   // ISO 8601 형식
+}
+
+/**
+ * FullCalendar 라이브러리가 사용하는 이벤트 객체 형식.
+ * API 응답을 이 형식으로 변환하여 캘린더에 전달합니다.
+ */
+export interface CalendarEvent {
+    id: string; // FullCalendar는 id를 문자열로 다루는 것이 편리
+    title: string;
+    start: string;
+    end: string;
+    extendedProps: {
+        content: string | null;
+    };
+}

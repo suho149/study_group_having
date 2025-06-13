@@ -22,7 +22,8 @@ import ChatIcon from '@mui/icons-material/Chat'; // 채팅 아이콘
 import AddIcon from '@mui/icons-material/Add'; // 추가 아이콘
 import CreateChatRoomModal from '../components/chat/CreateChatRoomModal'; // 모달 import
 import { ChatRoomResponse } from '../types/chat'; // 채팅방 응답 타입
-import { StudyGroupDataType, StudyMember } from '../types/study'; // StudyMember도 필요시 import
+import { StudyGroupDataType, StudyMember } from '../types/study';
+import StudyCalendar from "../components/study/StudyCalendar"; // StudyMember도 필요시 import
 
 const StudyDetailPage = () => {
   const { id: studyIdParam } = useParams<{ id: string }>();
@@ -208,6 +209,17 @@ const StudyDetailPage = () => {
               fetchStudyDetail={fetchStudyDetail} // <--- 추가: fetchStudyDetail 함수 전달
           />
         </Box>
+
+        {/* --- 스터디 캘린더 섹션 추가 --- */}
+        {isMemberApproved && ( // 승인된 멤버에게만 캘린더가 보이도록
+            <Paper elevation={1} sx={{ mt: 4, p: {xs: 1.5, md: 3}, borderRadius: 2 }}>
+              <Typography variant="h6" component="h3" fontWeight="bold" sx={{ mb: 2 }}>
+                스터디 일정
+              </Typography>
+              <StudyCalendar studyId={study.id} isLeader={isLeader} />
+            </Paper>
+        )}
+        {/* ----------------------------- */}
 
         {/* 스터디 채팅방 목록 및 생성 버튼 */}
         {/* 수정: 스터디 정보(study)가 로드되었고, 로그인했고, 현재 사용자가 스터디 멤버일 때만 표시 */}
