@@ -43,7 +43,8 @@ public class SecurityConfig {
                                 "/auth/**",
                                 // "/oauth2/**", // <--- 이 부분을 더 세밀하게 제어하거나, oauth2Login()이 처리하도록 함
                                 "/login/**",
-                                "/oauth2/authorization/**" // 명시적으로 허용 (기본 경로)
+                                "/oauth2/authorization/**", // 명시적으로 허용 (기본 경로)
+                                "/api/notifications/subscribe" // SSE 구독 경로를 인증 예외에 추가
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/studies", "/api/studies/*").permitAll()
                         .requestMatchers("/api/**").authenticated()

@@ -5,6 +5,7 @@ import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
 import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.user.entity.User;
+import com.studygroup.global.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
+    private final SseEmitterService sseEmitterService;
 
     @Transactional
     public void createNotification(User sender, User receiver, String message, NotificationType type, Long referenceId) {
@@ -30,7 +32,16 @@ public class NotificationService {
                 .isRead(false)
                 .build();
 
-        notificationRepository.save(notification);
+        Notification savedNotification = notificationRepository.save(notification);
+
+        // --- 실시간 알림 전송 로직 추가 ---
+        // 수신자의 ID를 가져옴
+        Long receiverId = receiver.getId();
+        // NotificationResponse DTO로 변환하여 전송
+        NotificationResponse notificationDto = NotificationResponse.from(savedNotification);
+
+        // "new-notification" 이라는 이름의 이벤트로 알림 데이터 전송
+        sseEmitterService.sendToClient(receiverId, "new-notification", notificationDto);
     }
 
     public List<NotificationResponse> getNotifications(User user) {

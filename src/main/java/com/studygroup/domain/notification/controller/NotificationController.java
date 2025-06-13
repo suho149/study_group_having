@@ -4,10 +4,13 @@ import com.studygroup.domain.notification.dto.NotificationResponse;
 import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
+import com.studygroup.global.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -17,6 +20,7 @@ import java.util.List;
 public class NotificationController {
 
     private final NotificationService notificationService;
+    private final SseEmitterService sseEmitterService;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -40,4 +44,11 @@ public class NotificationController {
         notificationService.markAsRead(id, userPrincipal.getId());
         return ResponseEntity.ok().build();
     }
-} 
+
+    // SSE 구독 엔드포인트
+    @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("isAuthenticated()")
+    public SseEmitter subscribe(@CurrentUser UserPrincipal userPrincipal) {
+        return sseEmitterService.subscribe(userPrincipal.getId());
+    }
+}
