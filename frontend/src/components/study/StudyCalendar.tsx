@@ -7,7 +7,9 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import api from '../../services/api';
 import { StudySchedule, CalendarEvent } from '../../types/study';
-// import ScheduleModal from './ScheduleModal'; // 나중에 만들 모달 컴포넌트
+import ScheduleModal from './ScheduleModal'; // 나중에 만들 모달 컴포넌트
+import { DateClickArg } from '@fullcalendar/interaction';
+import { EventClickArg } from '@fullcalendar/core';
 
 interface StudyCalendarProps {
     studyId: number;
@@ -20,9 +22,9 @@ const StudyCalendar: React.FC<StudyCalendarProps> = ({ studyId, isLeader }) => {
     const [error, setError] = useState<string | null>(null);
 
     // TODO: 모달 관련 상태 추가
-    // const [modalOpen, setModalOpen] = useState(false);
-    // const [selectedDateInfo, setSelectedDateInfo] = useState<any>(null);
-    // const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedDateInfo, setSelectedDateInfo] = useState<any>(null);
+    const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
 
     const fetchSchedules = useCallback(async () => {
         setLoading(true);
@@ -51,28 +53,37 @@ const StudyCalendar: React.FC<StudyCalendarProps> = ({ studyId, isLeader }) => {
     }, [fetchSchedules]);
 
     // 날짜 클릭 핸들러 (새 일정 등록 모달 열기)
-    const handleDateClick = (arg: any) => {
+    const handleDateClick = (arg: DateClickArg) => {
         if (!isLeader) return; // 리더만 일정 추가 가능
-        alert(`리더라면 이 날짜(${arg.dateStr})에 새 일정을 등록하는 모달을 열 수 있습니다.`);
-        // setSelectedDateInfo(arg);
-        // setModalOpen(true);
+        //alert(`리더라면 이 날짜(${arg.dateStr})에 새 일정을 등록하는 모달을 열 수 있습니다.`);
+        setSelectedDateInfo(arg);
+        setModalOpen(true);
     };
 
-    // 기존 일정 클릭 핸들러 (상세/수정/삭제 모달 열기)
-    const handleEventClick = (arg: any) => {
-        alert(`'${arg.event.title}' 일정을 클릭했습니다. 상세/수정/삭제 모달을 엽니다.`);
-        // const event = events.find(e => e.id === arg.event.id);
-        // if (event) {
-        //   setSelectedEvent(event);
-        //   setModalOpen(true);
-        // }
+    const handleEventClick = (arg: EventClickArg) => {
+        const eventId = arg.event.id;
+        const event = events.find(e => e.id === eventId);
+        if (event) {
+            setSelectedEvent(event);
+            setModalOpen(true);
+        }
     };
 
-    // 모달 닫기 핸들러
     const handleCloseModal = () => {
-        // setModalOpen(false);
-        // setSelectedDateInfo(null);
-        // setSelectedEvent(null);
+        setModalOpen(false);
+        // 모달이 닫힐 때 선택 정보를 초기화해야 다음 열릴 때 영향이 없음
+        setTimeout(() => {
+            setSelectedDateInfo(null);
+            setSelectedEvent(null);
+        }, 200); // 닫히는 애니메이션 시간 고려
+    };
+
+    // 리더가 이벤트를 드래그하거나 크기 조절했을 때 호출될 함수 (선택적 구현)
+    const handleEventUpdate = async (eventInfo: any) => {
+        // eventInfo.event.id, .start, .end 등을 사용하여 API 호출
+        // await api.put(`/api/studies/${studyId}/schedules/${eventInfo.event.id}`, ...);
+        // 성공 후 fetchSchedules() 호출
+        alert('일정 시간이 변경되었습니다! (실제 API 연동 필요)');
     };
 
     if (loading) {
@@ -102,20 +113,19 @@ const StudyCalendar: React.FC<StudyCalendarProps> = ({ studyId, isLeader }) => {
                 dateClick={handleDateClick}
                 eventClick={handleEventClick}
                 // TODO: 이벤트 드래그/리사이즈 핸들러 추가
-                // eventDrop={(info) => handleEventUpdate(info.event)}
-                // eventResize={(info) => handleEventUpdate(info.event)}
+                eventDrop={(info) => handleEventUpdate(info.event)}
+                eventResize={(info) => handleEventUpdate(info.event)}
             />
-            {/*
-        <ScheduleModal
-          open={modalOpen}
-          onClose={handleCloseModal}
-          studyId={studyId}
-          isLeader={isLeader}
-          selectedEvent={selectedEvent}
-          selectedDateInfo={selectedDateInfo}
-          onSave={fetchSchedules} // 저장 성공 시 캘린더 새로고침
-        />
-      */}
+            {/* --- 모달 컴포넌트 렌더링 --- */}
+            <ScheduleModal
+                open={modalOpen}
+                onClose={handleCloseModal}
+                studyId={studyId}
+                isLeader={isLeader}
+                selectedEvent={selectedEvent}
+                selectedDateInfo={selectedDateInfo}
+                onSave={fetchSchedules} // 저장 성공 시 캘린더 새로고침
+            />
         </Box>
     );
 };
