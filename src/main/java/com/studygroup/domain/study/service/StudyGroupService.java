@@ -98,6 +98,8 @@ public class StudyGroupService {
                 .status(StudyStatus.RECRUITING)
                 .studyType(request.getStudyType())
                 .location(request.getLocation())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .build();

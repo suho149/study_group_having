@@ -29,6 +29,7 @@ public class StudyGroup extends BaseTimeEntity {
     @Column(nullable = false)
     private String title;
 
+    @Lob // CLOB, TEXT 타입으로 생성되도록
     @Column(nullable = false)
     private String description;
 
@@ -70,6 +71,7 @@ public class StudyGroup extends BaseTimeEntity {
     @Builder
     public StudyGroup(User leader, String title, String description, int maxMembers,
                      StudyStatus status, StudyType studyType, String location,
+                      Double latitude, Double longitude,
                      LocalDate startDate, LocalDate endDate) {
         this.leader = leader;
         this.title = title;
@@ -93,19 +95,23 @@ public class StudyGroup extends BaseTimeEntity {
     }
 
     // 멤버 추가 메서드
+    // 멤버를 추가하고, 만약 승인된 멤버라면 currentMembers를 1 증가시킴
     public void addMember(StudyMember member) {
         if (!this.members.contains(member)) {
             this.members.add(member);
             if (member.getStatus() == StudyMemberStatus.APPROVED) {
-                this.currentMembers = getCurrentMembers();
+                this.currentMembers++;
             }
         }
     }
 
     // 멤버 제거 메서드
+    // 멤버를 제거하고, 만약 승인된 멤버였다면 currentMembers를 1 감소시킴
     public void removeMember(StudyMember member) {
-        if (this.members.remove(member) && member.getStatus() == StudyMemberStatus.APPROVED) {
-            this.currentMembers = getCurrentMembers();
+        if (this.members.remove(member)) {
+            if (member.getStatus() == StudyMemberStatus.APPROVED) {
+                this.currentMembers--;
+            }
         }
     }
 
