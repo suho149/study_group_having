@@ -40,6 +40,14 @@ import CommentItem from "../../components/board/CommentItem"; // CommentCreateRe
 import LikeDislikeButtons from '../../components/board/LikeDislikeButtons';
 import { VoteType } from '../../types/apiSpecificEnums';
 import CommentForm from '../../components/board/CommentForm';
+// --- Viewer 관련 import 추가 ---
+import { Viewer } from '@toast-ui/react-editor';
+import '@toast-ui/editor/dist/toastui-editor-viewer.css'; // 뷰어용 CSS
+// 코드 하이라이팅 플러그인 (작성 페이지와 동일하게)
+import 'prismjs/themes/prism.css';
+import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
+import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
+import Prism from 'prismjs';
 
 const BoardPostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -322,11 +330,14 @@ const BoardPostDetailPage: React.FC = () => {
                 </Box>
                 <Divider sx={{ my: 3 }} />
 
-                {/* 게시글 내용 (HTML로 렌더링해야 할 경우 dangerouslySetInnerHTML 사용 주의) */}
+                {/* --- 기존 게시글 내용 부분을 Viewer 컴포넌트로 교체 --- */}
                 <Box sx={{ mb: 4, fontSize: '1.05rem', lineHeight: 1.8, wordBreak: 'break-word' }}>
-                    {/* 임시로 pre-wrap 사용, 실제로는 HTML 파서 또는 Markdown 렌더러 필요 */}
-                    <Typography component="div" dangerouslySetInnerHTML={{ __html: post.content.replace(/\n/g, '<br />') }} />
-                    {/* 만약 순수 텍스트라면: <Typography whiteSpace="pre-wrap">{post.content}</Typography> */}
+                    {post.content && (
+                        <Viewer
+                            initialValue={post.content}
+                            plugins={[[codeSyntaxHighlight, { highlighter: Prism }]]}
+                        />
+                    )}
                 </Box>
 
                 {/* TODO: 첨부파일 목록 표시 */}
