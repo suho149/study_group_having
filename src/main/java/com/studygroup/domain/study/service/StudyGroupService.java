@@ -4,10 +4,7 @@ import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
 import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.notification.service.NotificationService;
-import com.studygroup.domain.study.dto.StudyGroupRequest;
-import com.studygroup.domain.study.dto.StudyGroupResponse;
-import com.studygroup.domain.study.dto.StudyGroupDetailResponse;
-import com.studygroup.domain.study.dto.StudyGroupUpdateRequest;
+import com.studygroup.domain.study.dto.*;
 import com.studygroup.domain.study.entity.*;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.StudyLikeRepository;
@@ -25,9 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
 import jakarta.servlet.http.HttpSession;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -362,6 +361,8 @@ public class StudyGroupService {
             request.getStatus(),
             request.getStudyType(),
             request.getLocation(),
+                request.getLatitude(),
+                request.getLongitude(),
             request.getStartDate(),
             request.getEndDate()
         );
@@ -676,5 +677,15 @@ public class StudyGroupService {
             boolean isLiked = studyLikeRepository.existsByUserAndStudyGroup(user, studyGroup);
             return StudyGroupResponse.from(studyGroup, isLiked);
         });
+    }
+
+    public List<StudyForMapDto> getStudiesForMap() {
+        // 모집중인 오프라인, 하이브리드 스터디를 조회
+        List<StudyType> types = Arrays.asList(StudyType.OFFLINE, StudyType.HYBRID);
+        List<StudyGroup> studies = studyGroupRepository.findByStatusAndStudyTypeInAndLatitudeIsNotNull(StudyStatus.RECRUITING, types);
+
+        return studies.stream()
+                .map(StudyForMapDto::new)
+                .collect(Collectors.toList());
     }
 }

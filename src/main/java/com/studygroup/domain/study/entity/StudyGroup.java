@@ -47,6 +47,10 @@ public class StudyGroup extends BaseTimeEntity {
 
     private String location;
 
+    // --- 위도, 경도 필드 추가 ---
+    private Double latitude; // 위도
+    private Double longitude; // 경도
+
     @Column(nullable = false)
     private LocalDate startDate;
 
@@ -75,6 +79,8 @@ public class StudyGroup extends BaseTimeEntity {
         this.status = status;
         this.studyType = studyType;
         this.location = location;
+        this.latitude = latitude;     // 추가
+        this.longitude = longitude;   // 추가
         this.startDate = startDate;
         this.endDate = endDate;
         this.viewCount = 0;
@@ -120,6 +126,7 @@ public class StudyGroup extends BaseTimeEntity {
 
     public void update(String title, String description, int maxMembers,
                      StudyStatus status, StudyType studyType, String location,
+                       Double latitude, Double longitude,
                      LocalDate startDate, LocalDate endDate) {
         this.title = title;
         this.description = description;
@@ -127,6 +134,8 @@ public class StudyGroup extends BaseTimeEntity {
         this.status = status;
         this.studyType = studyType;
         this.location = location;
+        this.latitude = latitude;     // 추가
+        this.longitude = longitude;   // 추가
         this.startDate = startDate;
         this.endDate = endDate;
     }

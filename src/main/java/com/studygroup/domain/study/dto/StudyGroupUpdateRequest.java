@@ -33,6 +33,11 @@ public class StudyGroupUpdateRequest {
     @NotBlank(message = "장소는 필수입니다.")
     private String location;
 
+    // --- 위도, 경도 필드 추가 ---
+    private Double latitude;
+
+    private Double longitude;
+
     @NotNull(message = "시작일은 필수입니다.")
     private LocalDate startDate;
 

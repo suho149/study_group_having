@@ -172,4 +172,10 @@ public class StudyGroupController {
         studyGroupService.unlikeStudy(studyId, userPrincipal.getId());
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/map")
+    public ResponseEntity<List<StudyForMapDto>> getStudiesForMap() {
+        List<StudyForMapDto> response = studyGroupService.getStudiesForMap();
+        return ResponseEntity.ok(response);
+    }
 } 

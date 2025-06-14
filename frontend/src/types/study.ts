@@ -95,3 +95,14 @@ export interface CalendarEvent {
         content: string | null;
     };
 }
+
+/**
+ * 지도 위에 표시될 스터디의 최소 정보 타입.
+ * (GET /api/studies/map 응답)
+ */
+export interface StudyForMap {
+    id: number;
+    title: string;
+    latitude: number;
+    longitude: number;
+}
