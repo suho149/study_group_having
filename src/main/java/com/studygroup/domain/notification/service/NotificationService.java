@@ -5,6 +5,7 @@ import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
 import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.user.entity.User;
+import com.studygroup.global.service.EmailService;
 import com.studygroup.global.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final SseEmitterService sseEmitterService;
+    private final EmailService emailService;
 
     @Transactional
     public void createNotification(User sender, User receiver, String message, NotificationType type, Long referenceId) {
@@ -42,6 +44,45 @@ public class NotificationService {
 
         // "new-notification" 이라는 이름의 이벤트로 알림 데이터 전송
         sseEmitterService.sendToClient(receiverId, "new-notification", notificationDto);
+
+        // --- 이메일 발송 로직 추가 ---
+        // 특정 타입의 알림에 대해서만 이메일을 발송합니다.
+        sendEmailForNotification(savedNotification);
+    }
+
+    private void sendEmailForNotification(Notification notification) {
+        User receiver = notification.getReceiver();
+        User sender = notification.getSender();
+        String subject = "";
+        String emailContent = "";
+
+        switch (notification.getType()) {
+            case STUDY_INVITE:
+                // StudyGroup의 title을 가져오려면 추가적인 조회가 필요합니다.
+                // 여기서는 간단하게 알림 메시지를 활용하겠습니다.
+                subject = "[Having] '" + sender.getName() + "'님으로부터 스터디 초대가 도착했습니다.";
+                // TODO: EmailService에서 HTML 템플릿을 만드는 것이 더 좋습니다.
+                emailContent = "<html><body><p>" + notification.getMessage() + "</p>" +
+                        "<a href='http://localhost:3000/notifications'>알림 확인하기</a></body></html>";
+                break;
+
+            case CHAT_INVITE:
+                subject = "[Having] '" + sender.getName() + "'님으로부터 채팅방 초대가 도착했습니다.";
+                emailContent = "<html><body><p>" + notification.getMessage() + "</p>" +
+                        "<a href='http://localhost:3000/notifications'>알림 확인하기</a></body></html>";
+                break;
+
+            // 다른 중요한 알림(예: 참여 승인)에 대해서도 case 추가 가능
+            // case JOIN_APPROVED:
+            //     ...
+            //     break;
+
+            default:
+                // 다른 타입의 알림은 이메일을 보내지 않음
+                return;
+        }
+
+        emailService.sendEmail(receiver.getEmail(), subject, emailContent);
     }
 
     public List<NotificationResponse> getNotifications(User user) {
