@@ -1,11 +1,13 @@
 // src/components/home/StudyMap.tsx (새 파일)
 
 import React, { useEffect, useState, useRef } from 'react';
-import {Box, CircularProgress, IconButton, Tooltip, Typography} from '@mui/material';
+import {Box, CircularProgress, IconButton, Tooltip, Typography,
+    TextField, InputAdornment, Button, List, ListItem, ListItemText, Paper } from '@mui/material';
 import MyLocationIcon from '@mui/icons-material/MyLocation'; // '내 위치' 아이콘
 import api from '../../services/api';
 import { StudyForMap } from '../../types/study';
 import { useNavigate } from 'react-router-dom';
+import SearchIcon from "@mui/icons-material/Search";
 
 // Kakao Maps API 타입을 위한 전역 선언
 declare global {
@@ -20,6 +22,10 @@ const StudyMap: React.FC = () => {
     const [studies, setStudies] = useState<StudyForMap[]>([]);
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
+
+    // --- 장소 검색 관련 상태 추가 ---
+    const [searchKeyword, setSearchKeyword] = useState('');
+    const [searchResults, setSearchResults] = useState<any[]>([]);
 
     // 1. 지도에 표시할 스터디 데이터 불러오기
     useEffect(() => {
@@ -142,38 +148,104 @@ const StudyMap: React.FC = () => {
         }
     };
 
+    // --- 장소 검색 핸들러 함수 추가 ---
+    const handleSearch = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!searchKeyword.trim() || !window.kakao || !window.kakao.maps) return;
+
+        const ps = new window.kakao.maps.services.Places();
+        ps.keywordSearch(searchKeyword, (data: any[], status: any) => {
+            if (status === window.kakao.maps.services.Status.OK) {
+                setSearchResults(data);
+            } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
+                alert('검색 결과가 없습니다.');
+                setSearchResults([]);
+            } else {
+                alert('검색 중 오류가 발생했습니다.');
+                setSearchResults([]);
+            }
+        });
+    };
+
+    // --- 검색 결과 클릭 핸들러 함수 추가 ---
+    const handlePlaceClick = (place: any) => {
+        if (mapInstance) {
+            const moveLatLon = new window.kakao.maps.LatLng(place.y, place.x);
+            mapInstance.panTo(moveLatLon);
+            setSearchResults([]); // 목록 닫기
+            setSearchKeyword(place.place_name); // 검색창에 선택한 장소 이름 표시
+        }
+    };
+
     if (loading) {
         return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '500px' }}><CircularProgress /></Box>;
     }
 
     return (
-        <Box sx={{ position: 'relative', width: '100%', height: { xs: '400px', md: '500px' }, my: 4, borderRadius: 2, overflow: 'hidden', border: '1px solid #ddd' }}>
-            {/* --- 6. '내 위치로' 버튼 추가 --- */}
-            <Tooltip title="내 위치로 이동">
-                <IconButton
-                    onClick={panToCurrentUserLocation}
-                    sx={{
-                        position: 'absolute',
-                        bottom: 16, // <-- 수정: 아래쪽에서 16px
-                        right: 16,  // <-- 수정: 오른쪽에서 16px
-                        zIndex: 2, // 지도가 버튼 아래에 있도록
-                        backgroundColor: 'white',
-                        boxShadow: 3,
-                        '&:hover': {
-                            backgroundColor: 'grey.100',
-                        },
-                    }}
-                >
-                    <MyLocationIcon />
-                </IconButton>
-            </Tooltip>
-            {studies.length === 0 ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                    <Typography color="text.secondary">지도에 표시할 스터디가 없습니다.</Typography>
+        <Box sx={{ width: '100%' }}>
+
+            {/* --- 검색창 UI 추가 --- */}
+            <form onSubmit={handleSearch}>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                    <TextField
+                        fullWidth
+                        variant="outlined"
+                        size="small"
+                        placeholder="지역, 지하철역, 장소 등으로 검색"
+                        value={searchKeyword}
+                        onChange={(e) => setSearchKeyword(e.target.value)}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                    <Button type="submit" variant="contained">검색</Button>
                 </Box>
-            ) : (
-                <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+            </form>
+            {/* --- 검색 결과 목록 UI 추가 --- */}
+            {searchResults.length > 0 && (
+                <Paper elevation={3} sx={{ position: 'absolute', zIndex: 3, width: 'calc(100% - 144px)', maxHeight: '200px', overflowY: 'auto' }}>
+                    <List dense>
+                        {searchResults.map((place, index) => (
+                            <ListItem button key={index} onClick={() => handlePlaceClick(place)}>
+                                <ListItemText primary={place.place_name} secondary={place.road_address_name || place.address_name} />
+                            </ListItem>
+                        ))}
+                    </List>
+                </Paper>
             )}
+
+            <Box sx={{ position: 'relative', width: '100%', height: { xs: '400px', md: '500px' }, my: 4, borderRadius: 2, overflow: 'hidden', border: '1px solid #ddd' }}>
+                {/* --- 6. '내 위치로' 버튼 추가 --- */}
+                <Tooltip title="내 위치로 이동">
+                    <IconButton
+                        onClick={panToCurrentUserLocation}
+                        sx={{
+                            position: 'absolute',
+                            bottom: 16, // <-- 수정: 아래쪽에서 16px
+                            right: 16,  // <-- 수정: 오른쪽에서 16px
+                            zIndex: 2, // 지도가 버튼 아래에 있도록
+                            backgroundColor: 'white',
+                            boxShadow: 3,
+                            '&:hover': {
+                                backgroundColor: 'grey.100',
+                            },
+                        }}
+                    >
+                        <MyLocationIcon />
+                    </IconButton>
+                </Tooltip>
+                {studies.length === 0 ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <Typography color="text.secondary">지도에 표시할 스터디가 없습니다.</Typography>
+                    </Box>
+                ) : (
+                    <div ref={mapContainer} style={{ width: '100%', height: '100%' }} />
+                )}
+            </Box>
         </Box>
     );
 };
