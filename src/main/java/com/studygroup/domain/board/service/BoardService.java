@@ -3,11 +3,14 @@ package com.studygroup.domain.board.service;
 import com.studygroup.domain.board.dto.*;
 import com.studygroup.domain.board.entity.*;
 import com.studygroup.domain.board.repository.*;
+import com.studygroup.domain.user.dto.UserActivityEvent;
+import com.studygroup.domain.user.entity.ActivityType;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -36,6 +39,7 @@ public class BoardService {
     private final CommentLikeRepository commentLikeRepository;
     private static final int MIN_LIKES_FOR_HOT_POST = 4; // 핫 게시물 최소 추천 수
     private static final int HOT_POST_COUNT = 3;         // 가져올 핫 게시물 개수
+    private final ApplicationEventPublisher eventPublisher; // 이벤트 발행기 주입
 
     public BoardPostResponse createPost(BoardPostCreateRequest request, Long authorId) {
         User author = userRepository.findById(authorId)
@@ -51,6 +55,10 @@ public class BoardService {
 
         BoardPost savedPost = boardPostRepository.save(post);
         log.info("새 게시글 생성 완료: postId={}, authorId={}", savedPost.getId(), authorId);
+
+        // --- 게시글 작성 이벤트 발행 ---
+        eventPublisher.publishEvent(new UserActivityEvent(author, ActivityType.CREATE_POST));
+
         return BoardPostResponse.from(savedPost, false, false);
     }
 
@@ -162,6 +170,10 @@ public class BoardService {
             postLikeRepository.save(newVote);
             if (requestedVoteType == VoteType.LIKE) {
                 post.incrementLikeCount();
+                // 자신의 글에 투표하는 경우는 제외 (선택)
+                if (!user.getId().equals(userId)) {
+                    eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.GET_POST_LIKE));
+                }
             } else {
                 post.incrementDislikeCount();
             }
@@ -199,6 +211,9 @@ public class BoardService {
         log.info("새 댓글 생성 완료: commentId={}, postId={}, authorId={}", savedComment.getId(), postId, authorId);
 
         // TODO: 게시글 작성자 또는 부모 댓글 작성자에게 알림 생성 (NotificationService 사용)
+
+        // --- 댓글 작성 이벤트 발행 ---
+        eventPublisher.publishEvent(new UserActivityEvent(author, ActivityType.CREATE_COMMENT));
 
         return CommentResponseDto.from(savedComment, false, false);
     }

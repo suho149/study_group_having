@@ -1,6 +1,18 @@
 // src/pages/MyProfilePage.tsx (새 파일)
 import React, { useState, useEffect } from 'react';
-import { Container, Paper, Typography, Box, Avatar, Divider, Grid, CircularProgress, Button, Alert } from '@mui/material';
+import {
+    Container,
+    Paper,
+    Typography,
+    Box,
+    Avatar,
+    Divider,
+    Grid,
+    CircularProgress,
+    Button,
+    Alert,
+    Chip
+} from '@mui/material';
 import { styled } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +26,8 @@ interface UserProfile {
     email: string;
     profileImageUrl?: string;
     createdAt: string;
+    point: number; // 추가
+    level: number; // 추가
 }
 
 interface UserActivitySummary {
@@ -115,8 +129,18 @@ const MyProfilePage: React.FC = () => {
             <ProfileHeader>
                 <ProfileAvatar src={userInfo.profileImageUrl || "/images/default-avatar.png"} alt={userInfo.name} />
                 <ProfileInfo>
-                    <Typography variant="h5" component="h1" fontWeight="bold">{userInfo.name}</Typography>
-                    <Typography variant="body1" color="text.secondary">{userInfo.email}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="h5" component="h1" fontWeight="bold">
+                            {userInfo.name}
+                        </Typography>
+                        <Chip label={`Lv. ${userInfo.level}`} color="primary" size="small" />
+                    </Box>
+                    <Typography variant="body1" color="text.secondary">
+                        {userInfo.email}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        포인트: {userInfo.point.toLocaleString()} P
+                    </Typography>
                 </ProfileInfo>
                 <Button variant="outlined" startIcon={<EditIcon />} onClick={() => navigate('/mypage/edit-profile')}>프로필 수정</Button>
             </ProfileHeader>

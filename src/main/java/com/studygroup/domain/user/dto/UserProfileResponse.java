@@ -14,6 +14,9 @@ public class UserProfileResponse {
     private String email;
     private String profileImageUrl; // 프로필 이미지 URL
     private LocalDateTime createdAt; // 가입일
+    // --- 포인트 및 레벨 필드 추가 ---
+    private int point;
+    private int level;
 
     public static UserProfileResponse from(User user) {
         return UserProfileResponse.builder()
@@ -22,6 +25,8 @@ public class UserProfileResponse {
                 .email(user.getEmail())
                 .profileImageUrl(user.getProfile()) // User 엔티티의 profile 필드
                 .createdAt(user.getCreatedAt())
+                .point(user.getPoint())
+                .level(user.getLevel())
                 .build();
     }
 }
