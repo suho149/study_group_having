@@ -1,0 +1,89 @@
+package com.studygroup.domain.dm.service;
+
+import com.studygroup.domain.dm.dto.DmDto;
+import com.studygroup.domain.dm.entity.DmMessage;
+import com.studygroup.domain.dm.entity.DmRoom;
+import com.studygroup.domain.dm.repository.DmMessageRepository;
+import com.studygroup.domain.dm.repository.DmRoomRepository;
+import com.studygroup.domain.user.entity.User;
+import com.studygroup.domain.user.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class DmService {
+
+    private final DmRoomRepository dmRoomRepository;
+    private final DmMessageRepository dmMessageRepository;
+    private final UserRepository userRepository;
+    private final SimpMessageSendingOperations messagingTemplate;
+
+    // 채팅방 목록 조회
+    public List<DmDto.RoomResponse> getDmRooms(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        List<DmRoom> rooms = dmRoomRepository.findByUser1OrUser2OrderByLastMessageTimeDesc(user, user);
+        return rooms.stream()
+                .map(room -> new DmDto.RoomResponse(room, user))
+                .collect(Collectors.toList());
+    }
+
+    // 특정 사용자와의 채팅방 찾기 또는 생성
+    @Transactional
+    public DmDto.RoomResponse findOrCreateRoom(Long user1Id, Long user2Id) {
+        if (user1Id.equals(user2Id)) throw new IllegalArgumentException("Cannot create a DM room with yourself.");
+        User user1 = userRepository.findById(user1Id).orElseThrow();
+        User user2 = userRepository.findById(user2Id).orElseThrow();
+
+        DmRoom room = dmRoomRepository.findRoomBetweenUsers(user1, user2)
+                .orElseGet(() -> {
+                    DmRoom newRoom = DmRoom.builder().user1(user1).user2(user2).build();
+                    return dmRoomRepository.save(newRoom);
+                });
+        return new DmDto.RoomResponse(room, user1);
+    }
+
+    // 이전 메시지 목록 조회
+    public Page<DmDto.MessageResponse> getMessages(Long roomId, Long userId, Pageable pageable) {
+        DmRoom room = dmRoomRepository.findById(roomId).orElseThrow();
+        // TODO: userId가 이 채팅방의 멤버인지 확인하는 로직 추가
+
+        Page<DmMessage> messages = dmMessageRepository.findByDmRoomOrderByCreatedAtDesc(room, pageable);
+        return messages.map(DmDto.MessageResponse::new);
+    }
+
+    // 메시지 전송 및 저장
+    @Transactional
+    public void sendMessage(Long roomId, Long senderId, String content) {
+        User sender = userRepository.findById(senderId).orElseThrow();
+        DmRoom room = dmRoomRepository.findById(roomId).orElseThrow();
+
+        DmMessage message = DmMessage.builder()
+                .dmRoom(room)
+                .sender(sender)
+                .content(content)
+                .build();
+        dmMessageRepository.save(message);
+
+        // 채팅방의 마지막 메시지 업데이트
+        room.updateLastMessage(content, message.getCreatedAt());
+
+        DmDto.MessageResponse messageDto = new DmDto.MessageResponse(message);
+
+        // STOMP를 통해 두 사용자에게 메시지 전송
+        // 각 사용자는 자신만의 고유한 구독 경로를 가짐
+        Long user1Id = room.getUser1().getId();
+        Long user2Id = room.getUser2().getId();
+
+        messagingTemplate.convertAndSend("/sub/dm/user/" + user1Id, messageDto);
+        messagingTemplate.convertAndSend("/sub/dm/user/" + user2Id, messageDto);
+    }
+}

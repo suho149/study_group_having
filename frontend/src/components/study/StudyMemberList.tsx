@@ -18,7 +18,7 @@ import {
   DialogActions,
   DialogContent,
   DialogContentText,
-  DialogTitle, Button,
+  DialogTitle, Button, Tooltip,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert'; // 멤버 관리 메뉴 아이콘 (예시)
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'; // 승인 아이콘 (예시)
@@ -26,6 +26,8 @@ import HighlightOffIcon from '@mui/icons-material/HighlightOff'; // 거절 아�
 import PersonRemoveIcon from '@mui/icons-material/PersonRemove'; // 강제 탈퇴 아이콘
 import api from '../../services/api'; // API 서비스 import (경로 확인 필요)
 import { useAuth } from '../../contexts/AuthContext'; // currentUserId 가져오기 위함 (경로 확인 필요)
+import { useNavigate } from 'react-router-dom';
+import MessageIcon from '@mui/icons-material/Message';
 
 // 1. Member 인터페이스의 imageUrl을 profile로 변경
 interface Member {
@@ -52,12 +54,18 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
                                                            studyId,
                                                            onMemberStatusChange
                                                          }) => {
+  const navigate = useNavigate();
   const { currentUserId } = useAuth(); // 현재 로그인한 사용자 ID (본인 프로필 등에 활용 가능)
 
   // 멤버 관리 메뉴 상태
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [selectedMember, setSelectedMember] = React.useState<Member | null>(null);
   const [isProcessingMember, setIsProcessingMember] = React.useState(false);
+
+  const handleDmClick = (partnerId: number) => {
+    // 채팅방을 찾거나 새로 만들기 위해 /dm/new/:partnerId 경로로 이동
+    navigate(`/dm/new/${partnerId}`);
+  };
 
   // 강제 탈퇴 확인 다이얼로그 상태
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = React.useState(false);
@@ -190,23 +198,42 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
                         alignItems="flex-start"
                         sx={{ py: 0.8, px: 0.5 }}
                         secondaryAction={
-                            isLeaderView && member.id !== currentUserId && ( // 스터디장이고, 자기 자신이 아닐 때 메뉴 표시
-                                // PENDING 상태 멤버 또는 APPROVED 상태 멤버 (리더 제외)에 대해 메뉴 표시
-                                (member.status === 'PENDING' || (member.status === 'APPROVED' && member.role !== 'LEADER')) ? (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            {/* 1. DM 보내기 버튼 (자기 자신이 아닐 때만 표시) */}
+                            {member.id !== currentUserId && (
+                                <Tooltip title="DM 보내기">
+                                  <IconButton
+                                      edge="end"
+                                      aria-label={`send dm to ${member.name}`}
+                                      onClick={() => handleDmClick(member.id)}
+                                      size="small"
+                                  >
+                                    <MessageIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                            )}
+
+                            {/* 2. 멤버 관리 메뉴 버튼 (기존 로직) */}
+                            {isLeaderView && member.id !== currentUserId &&
+                                (member.status === 'PENDING' || (member.status === 'APPROVED' && member.role !== 'LEADER')) &&
+                                (
                                     isProcessingMember && selectedMember?.id === member.id ? (
                                         <CircularProgress size={24} />
                                     ) : (
-                                        <IconButton
-                                            edge="end"
-                                            aria-label={`manage member ${member.name}`}
-                                            onClick={(e) => handleMenuOpen(e, member)}
-                                            size="small"
-                                        >
-                                          <MoreVertIcon fontSize="small" />
-                                        </IconButton>
+                                        <Tooltip title="멤버 관리">
+                                          <IconButton
+                                              edge="end"
+                                              aria-label={`manage member ${member.name}`}
+                                              onClick={(e) => handleMenuOpen(e, member)}
+                                              size="small"
+                                          >
+                                            <MoreVertIcon fontSize="small" />
+                                          </IconButton>
+                                        </Tooltip>
                                     )
-                                ) : null // 그 외 상태(예: REJECTED)는 메뉴 표시 안 함
-                            )
+                                )
+                            }
+                          </Box>
                         }
                     >
                       <ListItemAvatar sx={{ minWidth: 'auto', mr: 1.5, mt: 0.5 }}>

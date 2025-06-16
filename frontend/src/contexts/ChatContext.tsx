@@ -4,6 +4,7 @@ import SockJS from 'sockjs-client';
 import { useAuth } from './AuthContext'; // AuthContext에서 토큰 가져오기 위함
 import {ChatMessageResponse, ChatMessageSendRequest} from '../types/chat';
 import {MessageType} from "../types/apiSpecificEnums"; // ChatMessageResponse 타입 정의 필요
+import { DmMessageResponse, DmMessageSendRequest } from '../types/dm'; // DM 타입 추가
 
 interface ChatContextType {
     stompClient: Client | null;
@@ -11,12 +12,15 @@ interface ChatContextType {
     subscribeToRoom: (roomId: number, onMessageReceived: (message: ChatMessageResponse) => void) => string | undefined;
     unsubscribeFromRoom: (subscriptionId: string) => void;
     sendMessage: (roomId: number, content: string, messageType?: MessageType) => void;
+    // --- DM 관련 기능 추가 ---
+    subscribeToDm: (onDmReceived: (message: DmMessageResponse) => void) => void;
+    sendDm: (roomId: number, content: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { isLoggedIn, token } = useAuth(); // AuthContext에서 토큰과 로그인 상태 가져옴
+    const { isLoggedIn, currentUserId } = useAuth(); // AuthContext에서 토큰과 로그인 상태 가져옴
     const [stompClient, setStompClient] = useState<Client | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [subscriptions, setSubscriptions] = useState<Record<string, { unsubscribe: () => void }>>({}); // 구독 객체 저장
@@ -176,9 +180,44 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [stompClient, isConnected]); // isConnected도 의존성에 추가
 
+    // --- DM 구독 로직 추가 ---
+    const subscribeToDm = useCallback((onDmReceived: (message: DmMessageResponse) => void) => {
+        if (stompClient?.active && isConnected && currentUserId) {
+            const destination = `/sub/dm/user/${currentUserId}`;
+            console.log(`ChatContext: Subscribing to DM channel: ${destination}`);
+
+            // 이미 구독했다면 중복 구독 방지
+            if (subscriptions['dm-channel']) {
+                console.log("DM channel already subscribed.");
+                return;
+            }
+
+            const sub = stompClient.subscribe(destination, (message: IMessage) => {
+                const parsedMessage: DmMessageResponse = JSON.parse(message.body);
+                onDmReceived(parsedMessage);
+            });
+            setSubscriptions(prev => ({ ...prev, 'dm-channel': sub }));
+        }
+    }, [stompClient, isConnected, currentUserId, subscriptions]);
+
+    // --- DM 전송 로직 추가 ---
+    const sendDm = useCallback((roomId: number, content: string) => {
+        if (stompClient?.active && isConnected) {
+            const destination = `/dm/room/${roomId}/send`;
+            const payload: DmMessageSendRequest = { content };
+            stompClient.publish({
+                destination: destination,
+                body: JSON.stringify(payload)
+            });
+        }
+    }, [stompClient, isConnected]);
 
     return (
-        <ChatContext.Provider value={{ stompClient, isConnected, subscribeToRoom, unsubscribeFromRoom, sendMessage }}>
+        <ChatContext.Provider value={{
+            stompClient, isConnected,
+            subscribeToRoom, unsubscribeFromRoom, sendMessage,
+            subscribeToDm, sendDm // Context value에 추가
+        }}>
             {children}
         </ChatContext.Provider>
     );

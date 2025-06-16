@@ -23,6 +23,7 @@ import ParticipatingStudiesPage from './pages/ParticipatingStudiesPage'; // 새�
 import EditProfilePage from './pages/EditProfilePage'; // 새로 만들 페이지 import
 import { SnackbarProvider } from 'notistack'; // SnackbarProvider import
 import NotificationListener from './components/notification/NotificationListener'; // 새로 만든 컴포넌트 import
+import DmChatPage from './pages/DmChatPage'; // 새로 만든 페이지 import
 
 const theme = createTheme({
   palette: {
@@ -97,6 +98,9 @@ function App() {
                 <Route path="/board/post/:postId" element={<BoardPostDetailPage />} /> {/* 게시글 상세 페이지 라우트 */}
                 {/* <Route path="/board" element={<BoardListPage />} /> */}
                 {/* 예: <Route path="*" element={<NotFoundPage />} /> */}
+                {/* roomId가 있는 경우와 없는 경우(partnerId로 생성)를 모두 처리 */}
+                <Route path="/dm/room/:roomId" element={<DmChatPage />} />
+                <Route path="/dm/new/:partnerId" element={<DmChatPage />} />
               </Routes>
             </Router>
           </ChatProvider>
