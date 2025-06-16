@@ -12,8 +12,6 @@ interface ChatContextType {
     subscribeToRoom: (roomId: number, onMessageReceived: (message: ChatMessageResponse) => void) => string | undefined;
     unsubscribeFromRoom: (subscriptionId: string) => void;
     sendMessage: (roomId: number, content: string, messageType?: MessageType) => void;
-    // --- DM 관련 기능 추가 ---
-    subscribeToDm: (onDmReceived: (message: DmMessageResponse) => void) => void;
     sendDm: (roomId: number, content: string) => void;
 }
 
@@ -180,31 +178,15 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, [stompClient, isConnected]); // isConnected도 의존성에 추가
 
-    // --- DM 구독 로직 추가 ---
-    const subscribeToDm = useCallback((onDmReceived: (message: DmMessageResponse) => void) => {
-        if (stompClient?.active && isConnected && currentUserId) {
-            const destination = `/sub/dm/user/${currentUserId}`;
-            console.log(`ChatContext: Subscribing to DM channel: ${destination}`);
-
-            // 이미 구독했다면 중복 구독 방지
-            if (subscriptions['dm-channel']) {
-                console.log("DM channel already subscribed.");
-                return;
-            }
-
-            const sub = stompClient.subscribe(destination, (message: IMessage) => {
-                const parsedMessage: DmMessageResponse = JSON.parse(message.body);
-                onDmReceived(parsedMessage);
-            });
-            setSubscriptions(prev => ({ ...prev, 'dm-channel': sub }));
-        }
-    }, [stompClient, isConnected, currentUserId, subscriptions]);
-
     // --- DM 전송 로직 추가 ---
     const sendDm = useCallback((roomId: number, content: string) => {
         if (stompClient?.active && isConnected) {
-            const destination = `/dm/room/${roomId}/send`;
-            const payload: DmMessageSendRequest = { content };
+            // destination 경로를 단순화합니다.
+            const destination = `/pub/dm/send`;
+
+            // 페이로드에 roomId와 content를 모두 담습니다.
+            const payload = { roomId, content };
+
             stompClient.publish({
                 destination: destination,
                 body: JSON.stringify(payload)
@@ -215,8 +197,7 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <ChatContext.Provider value={{
             stompClient, isConnected,
-            subscribeToRoom, unsubscribeFromRoom, sendMessage,
-            subscribeToDm, sendDm // Context value에 추가
+            subscribeToRoom, unsubscribeFromRoom, sendMessage, sendDm // Context value에 추가
         }}>
             {children}
         </ChatContext.Provider>

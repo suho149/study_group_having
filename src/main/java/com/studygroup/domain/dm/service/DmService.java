@@ -8,6 +8,7 @@ import com.studygroup.domain.dm.repository.DmRoomRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessageSendingOperations;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class DmService {
@@ -78,12 +80,8 @@ public class DmService {
 
         DmDto.MessageResponse messageDto = new DmDto.MessageResponse(message);
 
-        // STOMP를 통해 두 사용자에게 메시지 전송
-        // 각 사용자는 자신만의 고유한 구독 경로를 가짐
-        Long user1Id = room.getUser1().getId();
-        Long user2Id = room.getUser2().getId();
-
-        messagingTemplate.convertAndSend("/sub/dm/user/" + user1Id, messageDto);
-        messagingTemplate.convertAndSend("/sub/dm/user/" + user2Id, messageDto);
+        String destination = "/sub/dm/room/" + roomId;
+        messagingTemplate.convertAndSend(destination, messageDto);
+        log.info("Message sent to destination: {}", destination);
     }
 }

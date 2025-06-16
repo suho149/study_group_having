@@ -24,6 +24,7 @@ import EditProfilePage from './pages/EditProfilePage'; // 새로 만들 페이�
 import { SnackbarProvider } from 'notistack'; // SnackbarProvider import
 import NotificationListener from './components/notification/NotificationListener'; // 새로 만든 컴포넌트 import
 import DmChatPage from './pages/DmChatPage'; // 새로 만든 페이지 import
+import DmNotificationListener from './components/dm/DmNotificationListener';
 
 const theme = createTheme({
   palette: {
@@ -69,6 +70,7 @@ function App() {
           <ChatProvider>
             <Router>
               <NotificationListener />
+              <DmNotificationListener />
               <Navbar />
               <Routes>
                 <Route path="/" element={<Home />} />

@@ -4,6 +4,8 @@ import com.studygroup.domain.chat.dto.UserSummaryDto;
 import com.studygroup.domain.dm.entity.DmMessage;
 import com.studygroup.domain.dm.entity.DmRoom;
 import com.studygroup.domain.user.entity.User;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
@@ -32,6 +34,9 @@ public class DmDto {
     // 메시지 전송 요청
     @Getter
     public static class SendRequest {
+        @NotNull // roomId는 필수
+        private Long roomId;
+        @NotBlank
         private String content;
     }
 
