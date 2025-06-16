@@ -10,11 +10,14 @@ import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.StudyLikeRepository;
 import com.studygroup.domain.study.repository.StudyMemberRepository;
 import com.studygroup.domain.study.repository.TagRepository;
+import com.studygroup.domain.user.dto.UserActivityEvent;
+import com.studygroup.domain.user.entity.ActivityType;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -44,6 +47,7 @@ public class StudyGroupService {
     private final StudyMemberRepository studyMemberRepository;
     private final NotificationRepository notificationRepository;
     private final StudyLikeRepository studyLikeRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public StudyGroupDetailResponse getStudyGroupDetail(Long id, UserPrincipal currentUserPrincipal) {
@@ -132,6 +136,10 @@ public class StudyGroupService {
         // 저장 및 응답 반환
         StudyGroup savedStudyGroup = studyGroupRepository.save(studyGroup);
         log.debug("스터디 그룹 생성 완료: groupId={}, userId={}", savedStudyGroup.getId(), userId);
+
+        // --- 스터디 생성 이벤트 발행 로직 추가 ---
+        eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.CREATE_STUDY));
+
         return StudyGroupResponse.from(savedStudyGroup, false);
     }
 

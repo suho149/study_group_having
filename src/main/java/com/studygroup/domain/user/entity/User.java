@@ -51,6 +51,6 @@ public class User extends BaseTimeEntity {
         this.point += point;
         // TODO: 레벨업 정책에 따라 level 필드 업데이트 로직 추가
         // 예: 1000 포인트마다 1레벨업
-        // this.level = (this.point / 1000) + 1;
+         this.level = (this.point / 400) + 1;
     }
 } 

@@ -132,6 +132,8 @@ public class BoardService {
         BoardPost post = boardPostRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
 
+        User postAuthor = post.getAuthor();
+
         Optional<PostLike> existingVoteOpt = postLikeRepository.findByUserAndBoardPost(user, post);
 
         if (existingVoteOpt.isPresent()) { // 이미 투표한 기록이 있는 경우
@@ -171,8 +173,8 @@ public class BoardService {
             if (requestedVoteType == VoteType.LIKE) {
                 post.incrementLikeCount();
                 // 자신의 글에 투표하는 경우는 제외 (선택)
-                if (!user.getId().equals(userId)) {
-                    eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.GET_POST_LIKE));
+                if (!postAuthor.getId().equals(userId)) {
+                    eventPublisher.publishEvent(new UserActivityEvent(postAuthor, ActivityType.GET_POST_LIKE));
                 }
             } else {
                 post.incrementDislikeCount();
