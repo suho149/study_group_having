@@ -25,6 +25,7 @@ import { SnackbarProvider } from 'notistack'; // SnackbarProvider import
 import NotificationListener from './components/notification/NotificationListener'; // 새로 만든 컴포넌트 import
 import DmChatPage from './pages/DmChatPage'; // 새로 만든 페이지 import
 import DmNotificationListener from './components/dm/DmNotificationListener';
+import DmListPage from './pages/DmListPage';
 
 const theme = createTheme({
   palette: {
@@ -101,6 +102,7 @@ function App() {
                 {/* <Route path="/board" element={<BoardListPage />} /> */}
                 {/* 예: <Route path="*" element={<NotFoundPage />} /> */}
                 {/* roomId가 있는 경우와 없는 경우(partnerId로 생성)를 모두 처리 */}
+                <Route path="/dm" element={<DmListPage />} /> {/* DM 목록 페이지 */}
                 <Route path="/dm/room/:roomId" element={<DmChatPage />} />
                 <Route path="/dm/new/:partnerId" element={<DmChatPage />} />
               </Routes>

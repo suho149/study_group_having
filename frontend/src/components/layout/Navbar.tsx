@@ -1,11 +1,12 @@
 import React from 'react';
-import {AppBar, Toolbar, Typography, Button, Box, IconButton, Menu, MenuItem, alpha} from '@mui/material';
+import {AppBar, Toolbar, Typography, Button, Box, IconButton, Menu, MenuItem, alpha, Tooltip} from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import { useAuth } from '../../contexts/AuthContext'; // 경로가 올바른지 확인해주세요.
 import NotificationList from '../../components/notification/NotificationList';
+import MessageIcon from '@mui/icons-material/Message'; // 아이콘 import
 
 // Styled components는 그대로 사용합니다.
 const StyledAppBar = styled(AppBar)({
@@ -87,6 +88,12 @@ const Navbar = () => {
           </Box>
           {isLoggedIn ? (
               <>
+                {/* --- DM 목록 바로가기 아이콘 추가 --- */}
+                <Tooltip title="DM 목록">
+                  <IconButton color="inherit" onClick={() => navigate('/dm')}>
+                    <MessageIcon />
+                  </IconButton>
+                </Tooltip>
                 {/* NotificationList 컴포넌트 추가 */}
                 <NotificationList />
 
