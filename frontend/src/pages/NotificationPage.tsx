@@ -38,18 +38,36 @@ const NotificationPage: React.FC = () => {
       const response = await api.get<Notification[]>('/api/notifications');
       const groupedNotifications = new Map<string, GroupedNotification>();
       response.data.forEach(n => {
-        if (n.type === NotificationType.NEW_DM && !n.isRead) {
+        // 1. DM 알림일 경우 (읽음 여부와 상관없이) 그룹화 시도
+        if (n.type === NotificationType.NEW_DM) {
           const groupKey = `dm-room-${n.referenceId}`;
           const existing = groupedNotifications.get(groupKey);
+
           if (existing) {
-            existing.count++;
-            if (!existing.senders.includes(n.senderName)) {
-              existing.senders.push(n.senderName);
+            // 이미 읽은 그룹에 새로운 안읽은 메시지가 포함될 수 있으므로, isRead 상태는 AND 논리로 결정
+            existing.isRead = existing.isRead && n.isRead;
+
+            // 안 읽은 메시지만 카운트
+            if (!n.isRead) {
+              existing.count++;
+              if (!existing.senders.includes(n.senderName)) {
+                existing.senders.push(n.senderName);
+              }
             }
-            existing.createdAt = n.createdAt;
-            existing.message = `'${existing.senders[0]}'님 외 ${existing.senders.length - 1}명으로부터 ${existing.count}개의 새 메시지가 있습니다.`;
+            // 그룹의 대표 시간은 항상 최신 알림의 시간으로 업데이트
+            if (new Date(n.createdAt) > new Date(existing.createdAt)) {
+              existing.createdAt = n.createdAt;
+              existing.message = `'${n.senderName}'님과의 대화`; // 메시지도 최신 정보로
+            }
           } else {
-            groupedNotifications.set(groupKey, { ...n, isGrouped: true, count: 1, senders: [n.senderName] });
+            groupedNotifications.set(groupKey, {
+              ...n,
+              isGrouped: true,
+              count: n.isRead ? 0 : 1, // 읽었으면 카운트 0, 안읽었으면 1
+              senders: [n.senderName],
+              // 메시지 내용을 "A님과의 대화" 와 같이 통일성있게 변경
+              message: `'${n.senderName}'님과의 대화`
+            });
           }
         } else {
           groupedNotifications.set(`notification-${n.id}`, { ...n, isGrouped: false, count: 1, senders: [n.senderName] });
@@ -145,40 +163,37 @@ const NotificationPage: React.FC = () => {
   };
 
   const handleGeneralNotificationClick = async (notification: GroupedNotification) => {
-    // 이미 처리된 초대 알림은 버튼으로 액션이 일어나므로, 여기서는 일반 클릭 시 네비게이션만 처리
-    if (notification.isRead && (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE')) {
-      // 이미 응답한 초대는 클릭해도 특별한 동작 없음 (또는 해당 채팅방/스터디로 이동)
-      if (notification.referenceId) {
-        if (notification.type === 'CHAT_INVITE') navigate(`/chat/room/${notification.referenceId}`);
-        else if (notification.type === 'STUDY_INVITE') navigate(`/studies/${notification.referenceId}`);
-      }
-      return;
-    }
-
-    // 액션 버튼이 있는 (아직 처리 안 된) 초대 알림은 ListItem 전체 클릭보다는 버튼 클릭 유도
-    if (!notification.isRead && (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE')) {
-      return; // 버튼으로 액션하도록 하고, ListItem 전체 클릭은 무시
-    }
-
     try {
-      if (!notification.isRead) {
+      // 1. 클릭된 알림이 그룹화된 DM 알림인 경우
+      if (notification.isGrouped && notification.type === NotificationType.NEW_DM && notification.referenceId) {
+        // 그룹 읽음 처리 API를 호출
+        await api.patch(`/api/notifications/read/dm/${notification.referenceId}`);
+      }
+      // 2. 그 외의 아직 읽지 않은 일반 알림인 경우
+      else if (!notification.isRead) {
         await api.patch(`/api/notifications/${notification.id}/read`);
-        setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n));
-        // unreadCount 상태가 있다면 여기서도 업데이트
       }
 
-      if (notification.type === 'JOIN_APPROVED' || notification.type === 'INVITE_ACCEPTED') {
-        if (String(notification.message).toLowerCase().includes("스터디") && notification.referenceId) {
-          navigate(`/studies/${notification.referenceId}`);
-        } else if (String(notification.message).toLowerCase().includes("채팅방") && notification.referenceId) {
-          navigate(`/chat/room/${notification.referenceId}`);
-        }
-      } else if (notification.type === 'STUDY_JOIN_REQUEST' && notification.referenceId) {
+      // 3. API 호출 성공 후, 최신 알림 목록을 다시 불러와 UI를 갱신
+      await fetchNotifications();
+
+      // 4. 알림 타입에 따라 적절한 페이지로 이동
+      if (notification.type === NotificationType.NEW_DM && notification.referenceId) {
+        navigate(`/dm/room/${notification.referenceId}`);
+      } else if (
+          (notification.type === NotificationType.STUDY_INVITE ||
+              notification.type === NotificationType.JOIN_APPROVED ||
+              notification.type === NotificationType.STUDY_JOIN_REQUEST) &&
+          notification.referenceId
+      ) {
         navigate(`/studies/${notification.referenceId}`);
+      } else if (notification.type === NotificationType.CHAT_INVITE && notification.referenceId) {
+        navigate(`/chat/room/${notification.referenceId}`);
       }
-      // 다른 타입에 대한 네비게이션 로직 추가
+
     } catch (error) {
-      console.error('일반 알림 클릭 처리 실패:', error);
+      console.error('알림 클릭 처리 실패:', error);
+      setPageError('알림 처리 중 오류가 발생했습니다.');
     }
   };
 
@@ -222,8 +237,14 @@ const NotificationPage: React.FC = () => {
 
   const getStatusChip = (notification: GroupedNotification) => {
     // 그룹화된 DM 알림일 경우 특별한 칩 표시
-    if (notification.isGrouped) {
-      return <Chip label={`+${notification.count} 새 메시지`} size="small" color="primary" variant="filled" />;
+    // 그룹화된 DM 알림
+    if (notification.isGrouped && notification.type === NotificationType.NEW_DM) {
+      // 안 읽은 메시지가 하나라도 있으면 '새 메시지' 칩 표시
+      if (notification.count > 0) {
+        return <Chip label={`+${notification.count} 새 메시지`} size="small" color="primary" />;
+      }
+      // 모두 읽었으면 '확인함' 칩 표시
+      return <Chip label="확인함" size="small" variant="outlined" />;
     }
     if (notification.isRead) {
       if (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') {

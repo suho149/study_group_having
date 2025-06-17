@@ -71,24 +71,27 @@ const NotificationListener: React.FC = () => {
                         const groupInfo = notificationGroup.get(groupKey)!;
                         const finalMessage = groupInfo.count > 1 ? groupInfo.message : notificationData.message;
 
-                        // notistack의 key를 그룹 key로 사용하여, 기존 스낵바를 업데이트/교체
+                        // 1. 기존에 같은 key의 스낵바가 있다면 먼저 닫습니다.
+                        closeSnackbar(groupKey);
+
+                        // 2. 새로운 스낵바를 띄웁니다.
                         enqueueSnackbar(finalMessage, {
                             key: groupKey,
                             variant: 'success',
                             anchorOrigin: { vertical: 'top', horizontal: 'right' },
                             action: (key: SnackbarKey) => (
                                 <Button size="small" sx={{ color: 'white' }} onClick={() => {
-                                    navigate(`/dm/room/${groupInfo.data.referenceId}`);
-                                    notificationGroup.delete(groupKey!);
+                                    if (groupInfo.data.referenceId) {
+                                        navigate(`/dm/room/${groupInfo.data.referenceId}`);
+                                    }
+                                    notificationGroup.delete(groupKey!); // 그룹 정보 삭제
                                     closeSnackbar(key);
                                 }}>
                                     {groupInfo.count > 1 ? `+${groupInfo.count} 확인` : '보러가기'}
                                 </Button>
                             ),
-                            onExited: (event, key) => {
-                                // 스낵바가 자동으로 닫히면 맵에서 제거
-                                notificationGroup.delete(key as string);
-                            }
+                            onExited: (event, key) => notificationGroup.delete(key as string),
+                            preventDuplicate: true, // 중복 방지 옵션 추가
                         });
 
                     } else {

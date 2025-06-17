@@ -57,18 +57,36 @@ const NotificationList: React.FC = () => {
       // 2. 받아온 알림 목록을 그룹화하는 로직을 수행합니다.
       const groupedNotifications = new Map<string, GroupedNotification>();
       notifResponse.data.forEach(n => {
-        if (n.type === NotificationType.NEW_DM && !n.isRead) {
+        // 1. DM 알림일 경우 (읽음 여부와 상관없이) 그룹화 시도
+        if (n.type === NotificationType.NEW_DM) {
           const groupKey = `dm-room-${n.referenceId}`;
           const existing = groupedNotifications.get(groupKey);
+
           if (existing) {
-            existing.count++;
-            if (!existing.senders.includes(n.senderName)) {
-              existing.senders.push(n.senderName);
+            // 이미 읽은 그룹에 새로운 안읽은 메시지가 포함될 수 있으므로, isRead 상태는 AND 논리로 결정
+            existing.isRead = existing.isRead && n.isRead;
+
+            // 안 읽은 메시지만 카운트
+            if (!n.isRead) {
+              existing.count++;
+              if (!existing.senders.includes(n.senderName)) {
+                existing.senders.push(n.senderName);
+              }
             }
-            existing.createdAt = n.createdAt;
-            existing.message = `'${existing.senders[0]}'님 외 ${existing.senders.length - 1}명으로부터 ${existing.count}개의 새 메시지`;
+            // 그룹의 대표 시간은 항상 최신 알림의 시간으로 업데이트
+            if (new Date(n.createdAt) > new Date(existing.createdAt)) {
+              existing.createdAt = n.createdAt;
+              existing.message = `'${n.senderName}'님과의 대화`; // 메시지도 최신 정보로
+            }
           } else {
-            groupedNotifications.set(groupKey, { ...n, isGrouped: true, count: 1, senders: [n.senderName] });
+            groupedNotifications.set(groupKey, {
+              ...n,
+              isGrouped: true,
+              count: n.isRead ? 0 : 1, // 읽었으면 카운트 0, 안읽었으면 1
+              senders: [n.senderName],
+              // 메시지 내용을 "A님과의 대화" 와 같이 통일성있게 변경
+              message: `'${n.senderName}'님과의 대화`
+            });
           }
         } else {
           groupedNotifications.set(`notification-${n.id}`, { ...n, isGrouped: false, count: 1, senders: [n.senderName] });
