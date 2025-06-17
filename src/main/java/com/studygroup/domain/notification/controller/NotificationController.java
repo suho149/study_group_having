@@ -51,4 +51,14 @@ public class NotificationController {
     public SseEmitter subscribe(@CurrentUser UserPrincipal userPrincipal) {
         return sseEmitterService.subscribe(userPrincipal.getId());
     }
+
+    // --- DM 알림 그룹 읽음 처리 API 엔드포인트 추가 ---
+    @PatchMapping("/read/dm/{roomId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> markDmNotificationsAsRead(
+            @PathVariable Long roomId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        notificationService.markDmNotificationsAsRead(userPrincipal.getId(), roomId);
+        return ResponseEntity.ok().build();
+    }
 }

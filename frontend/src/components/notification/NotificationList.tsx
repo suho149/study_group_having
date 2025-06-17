@@ -144,38 +144,36 @@ const NotificationList: React.FC = () => {
     }
   };
 
-  const handleGeneralNotificationClick = async (notification: Notification) => {
-    // 초대 관련 알림은 버튼으로 처리하므로, 여기서는 일반 알림 클릭 시 동작 정의
-    if (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') {
-      // 버튼이 있는 초대 알림의 경우, ListItem 클릭 시의 기본 동작을 막거나 다르게 처리 가능
-      // 예를 들어, 바로 페이지로 이동하지 않고 메뉴만 닫도록 할 수 있음
-      if (!notification.isRead) { // 아직 안 읽은 초대 알림을 그냥 클릭한 경우
-        // 읽음 처리만 하고 메뉴는 유지하거나, 페이지로 이동은 버튼으로만 유도
-      }
-      // return; // 버튼이 있으므로 ListItem 전체 클릭에 대한 액션은 생략 가능
-    }
-
+  const handleGeneralNotificationClick = async (notification: GroupedNotification) => {
     try {
-      if (!notification.isRead) {
+      // 1. 클릭된 알림이 그룹화된 DM 알림인 경우
+      if (notification.isGrouped && notification.type === NotificationType.NEW_DM && notification.referenceId) {
+        // 새로 만든 그룹 읽음 처리 API를 호출
+        await api.patch(`/api/notifications/read/dm/${notification.referenceId}`);
+      }
+      // 2. 그 외의 일반 알림인 경우
+      else if (!notification.isRead) {
+        // 기존의 단일 알림 읽음 처리 API를 호출
         await api.patch(`/api/notifications/${notification.id}/read`);
-        setNotifications(prev => prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n));
-        setUnreadCount(prev => Math.max(0, prev - 1));
       }
 
-      // 특정 타입에 따른 페이지 이동 로직
-      if (notification.type === 'JOIN_APPROVED' || notification.type === 'INVITE_ACCEPTED') {
-        // 메시지 내용으로 스터디/채팅 구분은 임시방편. referenceType 등이 있다면 그것 사용
-        if (String(notification.message).toLowerCase().includes("스터디")) {
-          navigate(notification.referenceId ? `/studies/${notification.referenceId}` : '/');
-        } else if (String(notification.message).toLowerCase().includes("채팅방")) {
-          navigate(notification.referenceId ? `/chat/room/${notification.referenceId}` : '/');
-        }
-      } else if (notification.type === 'STUDY_JOIN_REQUEST' && notification.referenceId) { // 스터디장이 참여 신청 알림 클릭
-        navigate(`/studies/${notification.referenceId}`); // 해당 스터디 상세로 이동하여 멤버 관리
-      }
-      // TODO: 다른 알림 타입에 대한 네비게이션 로직 추가
+      // API 호출 성공 후, 최신 알림 상태를 다시 불러와 UI를 갱신
+      fetchAllData();
 
-      handleClose(); // 알림 클릭 후 메뉴 닫기
+      // --- 페이지 이동 로직 ---
+      if (notification.type === NotificationType.NEW_DM && notification.referenceId) {
+        navigate(`/dm/room/${notification.referenceId}`);
+      } else if (
+          (notification.type === NotificationType.STUDY_INVITE ||
+              notification.type === NotificationType.JOIN_APPROVED) &&
+          notification.referenceId
+      ) {
+        navigate(`/studies/${notification.referenceId}`);
+      }
+      // ... 다른 타입에 대한 네비게이션 로직
+
+      handleClose(); // 메뉴 닫기
+
     } catch (error) {
       console.error('알림 클릭 처리 실패 (Navbar):', error);
     }
@@ -280,46 +278,45 @@ const NotificationList: React.FC = () => {
           ) : (
               <List sx={{p:0}}>
                 {notifications.slice(0, 7).map((notification, index, arr) => {
-                  const isActionableInvite = !notification.isRead && (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE');
-                  const listItemShouldBeButton = !isActionableInvite; // 액션 버튼이 없을 때만 ListItem 전체가 버튼 역할
+                  const isActionable = !notification.isRead && (notification.type === NotificationType.STUDY_INVITE || notification.type === NotificationType.CHAT_INVITE);
 
-                  // ListItem에 전달할 props 객체 생성
-                  const listItemProps: any = { // 타입을 any로 하거나, ListItemProps에서 button을 제외한 타입을 명시
-                    onClick: listItemShouldBeButton ? () => handleGeneralNotificationClick(notification) : undefined,
-                    sx: {
-                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
-                      backgroundColor: !notification.isRead ? 'action.hover' : 'inherit',
-                      py: 1.5, px:2,
-                      cursor: listItemShouldBeButton ? 'pointer' : 'default',
-                    },
-                  };
-
-                  // listItemShouldBeButton이 true일 때만 button prop을 추가
-                  if (listItemShouldBeButton) {
-                    listItemProps.button = true;
-                  }
+                  // 1. 고유하고 일관된 key를 생성합니다.
+                  const uniqueKey = notification.isGrouped
+                      ? `group-${notification.type}-${notification.referenceId}`
+                      : `item-${notification.id}`;
 
                   return (
-                      <React.Fragment key={notification.id}>
-                        <ListItem {...listItemProps}> {/* 수정된 listItemProps 사용 */}
-                          <Box sx={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb:0.5 }}>
+                      <React.Fragment key={uniqueKey}>
+                        <ListItem
+                            disablePadding
+                            secondaryAction={getStatusChipForList(notification)}
+                        >
+                          <ListItemButton
+                              // 그룹화된 알림을 포함한 모든 읽지 않은 일반 알림은 클릭 가능
+                              onClick={!isActionable ? () => handleGeneralNotificationClick(notification) : undefined}
+                              sx={{ py: 1.5, px: 2, cursor: !isActionable ? 'pointer' : 'default' }}
+                          >
                             <ListItemText
                                 primary={notification.message}
                                 primaryTypographyProps={{
                                   variant: 'body2',
-                                  sx: { fontWeight: !notification.isRead ? 500 : 'normal', whiteSpace: 'normal', wordBreak: 'break-word' }
+                                  sx: { fontWeight: !notification.isRead ? 500 : 'normal', whiteSpace: 'normal', wordBreak: 'break-word', pr: '80px' }
                                 }}
-                                sx={{m:0, flexGrow:1, mr:1}}
+                                secondary={
+                                  <>
+                                    <Typography variant="caption" color="textSecondary" component="div" sx={{ mt: 0.5 }}>
+                                      {notification.isGrouped
+                                          ? `가장 최근 메시지: ${new Date(notification.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' })}`
+                                          : `${notification.senderName} • ${new Date(notification.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' })}`
+                                      }
+                                    </Typography>
+                                    {getNotificationActionsForList(notification)}
+                                  </>
+                                }
                             />
-                            {getStatusChipForList(notification)}
-                          </Box>
-                          <Typography variant="caption" color="textSecondary" component="div" sx={{width:'100%'}}>
-                            {notification.senderName && `${notification.senderName} • `}
-                            {new Date(notification.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' })}
-                          </Typography>
-                          {getNotificationActionsForList(notification)}
+                          </ListItemButton>
                         </ListItem>
-                        {index < arr.slice(0, 7).length - 1 && <Divider component="li" variant="middle" />}
+                        {index < arr.length - 1 && <Divider component="li" />}
                       </React.Fragment>
                   );
                 })}

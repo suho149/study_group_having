@@ -5,9 +5,11 @@ import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
 import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.user.entity.User;
+import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.service.EmailService;
 import com.studygroup.global.service.SseEmitterService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NotificationService {
@@ -22,6 +25,7 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final SseEmitterService sseEmitterService;
     private final EmailService emailService;
+    private final UserRepository userRepository;
 
     @Transactional
     public void createNotification(User sender, User receiver, String message, NotificationType type, Long referenceId) {
@@ -106,5 +110,24 @@ public class NotificationService {
 
     public long getUnreadCount(User user) {
         return notificationRepository.countByReceiverAndIsReadFalse(user);
+    }
+
+    // --- DM 알림 그룹을 한번에 읽음 처리하는 서비스 메소드 추가 ---
+    @Transactional
+    public void markDmNotificationsAsRead(Long userId, Long roomId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        List<Notification> dmNotifications = notificationRepository.findByReceiverAndReferenceIdAndType(
+                user,
+                roomId,
+                NotificationType.NEW_DM
+        );
+
+        // 조회된 모든 DM 알림을 순회하며 읽음 처리
+        dmNotifications.forEach(Notification::markAsRead);
+
+        // @Transactional에 의해 메소드 종료 시 변경사항이 한번에 DB에 반영됨
+        log.info("Marked {} DM notifications as read for user ID {} and room ID {}", dmNotifications.size(), userId, roomId);
     }
 } 
