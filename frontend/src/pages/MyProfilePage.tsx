@@ -11,13 +11,19 @@ import {
     CircularProgress,
     Button,
     Alert,
-    Chip
+    Chip,
+    Tooltip
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { Badge } from '../types/badge'; // 뱃지 타입 import
+// --- Material-UI 아이콘 import ---
+import NewReleasesIcon from '@mui/icons-material/NewReleases'; // '새싹' (NEWBIE) 뱃지 아이콘
+import CreateIcon from '@mui/icons-material/Create'; // '첫 걸음' (FIRST_POST) 뱃지 아이콘
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'; // 기본 뱃지 아이콘
 
 // --- 데이터 타입 정의 ---
 interface UserProfile {
@@ -74,6 +80,14 @@ const SectionTitle = styled(Typography)(({ theme }) => ({
     color: theme.palette.text.primary,
 }));
 
+// --- 1. 뱃지 이름과 아이콘을 매핑하는 객체 생성 ---
+const badgeIcons: { [key: string]: React.ReactElement } = {
+    NEWBIE: <NewReleasesIcon />,
+    FIRST_POST: <CreateIcon />,
+    // 여기에 새로운 뱃지가 추가될 때마다 아이콘을 매핑합니다.
+    // 예: STUDY_LEADER: <GroupsIcon />,
+    DEFAULT: <EmojiEventsIcon />, // 해당하는 아이콘이 없을 때 보여줄 기본 아이콘
+};
 
 const MyProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -82,6 +96,8 @@ const MyProfilePage: React.FC = () => {
     const [activitySummary, setActivitySummary] = useState<UserActivitySummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [badges, setBadges] = useState<Badge[]>([]);
+    const [loadingBadges, setLoadingBadges] = useState(true);
 
     useEffect(() => {
         if (authLoading) return; // 인증 상태 로딩 중에는 대기
@@ -94,13 +110,17 @@ const MyProfilePage: React.FC = () => {
             setLoading(true);
             setError(null);
             try {
-                const profilePromise = api.get<UserProfile>('/api/users/me');
-                const activityPromise = api.get<UserActivitySummary>('/api/users/me/activity-summary');
+                // --- 1. Promise.all에 뱃지 API 호출을 추가합니다 ---
+                const [profileRes, activityRes, badgesRes] = await Promise.all([
+                    api.get<UserProfile>('/api/users/me'),
+                    api.get<UserActivitySummary>('/api/users/me/activity-summary'),
+                    api.get<Badge[]>(`/api/users/${currentUserId}/badges`)
+                ]);
 
-                const [profileResponse, activityResponse] = await Promise.all([profilePromise, activityPromise]);
+                setUserInfo(profileRes.data);
+                setActivitySummary(activityRes.data);
+                setBadges(badgesRes.data);
 
-                setUserInfo(profileResponse.data);
-                setActivitySummary(activityResponse.data);
             } catch (err: any) {
                 console.error('마이페이지 데이터 조회 실패:', err);
                 setError(err.response?.data?.message || '정보를 불러오는데 실패했습니다.');
@@ -172,6 +192,24 @@ const MyProfilePage: React.FC = () => {
                     </Grid>
                 ) : (
                     <Typography color="text.secondary">활동 내역을 불러올 수 없습니다.</Typography>
+                )}
+            </InfoSection>
+
+            {/* --- 2. 획득한 뱃지를 렌더링하는 UI를 추가합니다 --- */}
+            <InfoSection>
+                <SectionTitle>획득한 뱃지</SectionTitle>
+                {badges.length > 0 ? (
+                    <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                        {badges.map(badge => (
+                            <Tooltip key={badge.name} title={badge.description} arrow>
+                                <Avatar sx={{ bgcolor: 'secondary.light', color: 'secondary.dark', width: 48, height: 48 }}>
+                                    {badgeIcons[badge.name] || badgeIcons['DEFAULT']}
+                                </Avatar>
+                            </Tooltip>
+                        ))}
+                    </Box>
+                ) : (
+                    <Typography color="text.secondary">아직 획득한 뱃지가 없습니다.</Typography>
                 )}
             </InfoSection>
         </ProfileContainer>

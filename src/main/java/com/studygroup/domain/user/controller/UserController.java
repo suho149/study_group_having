@@ -1,5 +1,8 @@
 package com.studygroup.domain.user.controller;
 
+import com.studygroup.domain.badge.dto.BadgeDto;
+import com.studygroup.domain.badge.entity.UserBadge;
+import com.studygroup.domain.badge.repository.UserBadgeRepository;
 import com.studygroup.domain.board.dto.BoardPostSummaryResponse;
 import com.studygroup.domain.board.service.BoardService;
 import com.studygroup.domain.study.dto.StudyGroupResponse;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/users")
@@ -31,6 +35,7 @@ public class UserController {
     private final UserService userService;
     private final BoardService boardService; // BoardService 주입 (좋아요 한 글 목록 때문에 필요)
     private final StudyGroupService studyGroupService;
+    private final UserBadgeRepository userBadgeRepository;
 
     @GetMapping("/search")
     @PreAuthorize("isAuthenticated()")
@@ -91,5 +96,18 @@ public class UserController {
 
         userService.updateUserProfile(userPrincipal.getId(), name, profileImage);
         return ResponseEntity.ok().build();
+    }
+
+    // --- 사용자의 뱃지 목록 조회 API 추가 ---
+    @GetMapping("/{userId}/badges")
+    public ResponseEntity<List<BadgeDto>> getUserBadges(@PathVariable Long userId) {
+        User user = userService.getUserById(userId); // 기존 UserService 메소드 재활용
+        List<UserBadge> userBadges = userBadgeRepository.findByUser(user);
+
+        List<BadgeDto> badgeDtos = userBadges.stream()
+                .map(userBadge -> new BadgeDto(userBadge.getBadge()))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(badgeDtos);
     }
 } 
