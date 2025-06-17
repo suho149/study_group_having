@@ -198,24 +198,23 @@ const NotificationList: React.FC = () => {
   };
 
   const getNotificationActionsForList = (notification: Notification) => {
-    if (notification.isRead || processingNotificationId === notification.id) {
-      return null;
-    }
-    if (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') {
+    if (notification.isRead) return null;
+    const isCurrentlyProcessing = processingNotificationId === notification.id;
+    if (notification.type === NotificationType.STUDY_INVITE || notification.type === NotificationType.CHAT_INVITE) {
       return (
-          <Box sx={{ mt: 1, display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
+          <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
             <Button
                 variant="contained" color="primary" size="small"
                 onClick={(e) => { e.stopPropagation(); handleInviteResponseAction(notification, true); }}
-                disabled={processingNotificationId === notification.id}
+                disabled={processingNotificationId !== null}
                 sx={{minWidth: 60}}
             >
-              {processingNotificationId === notification.id ? <CircularProgress size={16} color="inherit" sx={{mr:0.5}}/> : '수락'}
+              {isCurrentlyProcessing ? <CircularProgress size={16} /> : '수락'}
             </Button>
             <Button
-                variant="outlined" color="secondary" size="small"
+                variant="outlined" color="inherit" size="small"
                 onClick={(e) => { e.stopPropagation(); handleInviteResponseAction(notification, false); }}
-                disabled={processingNotificationId === notification.id}
+                disabled={processingNotificationId !== null}
                 sx={{minWidth: 60}}
             >
               거절
@@ -241,25 +240,6 @@ const NotificationList: React.FC = () => {
       case 'INVITE_REJECTED':
       case 'JOIN_REJECTED': return <Chip label="거절됨" size="small" color="error" variant="outlined" />;
       default: return <Chip label="새 알림" size="small" color="primary" variant="filled" />;
-    }
-  };
-
-  const handleNotificationClick = async (notification: Notification) => {
-    try {
-      // 알림을 읽음으로 표시
-      if (!notification.isRead) {
-        await api.patch(`/api/notifications/${notification.id}/read`);
-        fetchUnreadCount();
-      }
-
-      // 알림 타입에 따른 처리
-      if (notification.type === 'STUDY_INVITE') {
-        navigate(`/studies/${notification.referenceId}`);
-      }
-
-      handleClose();
-    } catch (error) {
-      console.error('알림 처리 실패:', error);
     }
   };
 
@@ -316,15 +296,13 @@ const NotificationList: React.FC = () => {
                           >
                             <ListItemText
                                 primary={notification.message}
-                                primaryTypographyProps={{
-                                  variant: 'body2',
-                                  sx: { fontWeight: !notification.isRead ? 500 : 'normal', whiteSpace: 'normal', wordBreak: 'break-word', pr: '80px' }
-                                }}
+                                primaryTypographyProps={{ variant: 'body2', sx: { fontWeight: !notification.isRead ? 500 : 'normal', whiteSpace: 'normal', wordBreak: 'break-word', pr: '90px' } }}
+                                secondaryTypographyProps={{ component: 'div' }}
                                 secondary={
                                   <>
-                                    <Typography variant="caption" color="textSecondary" component="div" sx={{ mt: 0.5 }}>
+                                    <Typography variant="caption" color="textSecondary" component="div" sx={{mt: 0.5}}>
                                       {notification.isGrouped
-                                          ? `가장 최근 메시지: ${new Date(notification.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' })}`
+                                          ? `가장 최근 발신자: ${notification.senderName}`
                                           : `${notification.senderName} • ${new Date(notification.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' })}`
                                       }
                                     </Typography>

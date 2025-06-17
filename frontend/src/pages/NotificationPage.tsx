@@ -311,14 +311,19 @@ const NotificationPage: React.FC = () => {
                             <ListItemText
                                 primary={notification.message}
                                 primaryTypographyProps={{ variant: 'body1', sx: { fontWeight: !notification.isRead ? 500 : 'normal', pr: '90px' } }}
+                                secondaryTypographyProps={{
+                                  // secondary 텍스트를 렌더링할 때 사용할 컴포넌트를 span으로 지정
+                                  component: 'div' // 또는 span. 여기서는 자식으로 Box가 오므로 div가 더 적합.
+                                }}
                                 secondary={
                                   <>
-                                    <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
+                                    <Typography variant="caption" color="text.secondary" component="span"> {/* p가 아닌 span으로 렌더링 */}
                                       {notification.isGrouped
                                           ? `가장 최근 발신자: ${notification.senderName}`
-                                          : `${notification.senderName} • ${new Date(notification.createdAt).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })}`
+                                          : `${notification.senderName} • ${new Date(notification.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour:'2-digit', minute:'2-digit' })}`
                                       }
                                     </Typography>
+                                    {/* getNotificationActions가 <Box>를 반환하므로, 이 구조 전체를 <div>로 감싸는 것이 시맨틱적으로 맞음 */}
                                     {getNotificationActions(notification)}
                                   </>
                                 }
