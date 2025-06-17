@@ -12,7 +12,8 @@ public enum NotificationType {
     LEADER_REMOVED_MEMBER("스터디장 멤버 내보내기 완료"), // 스터디장이 멤버를 내보냄 (스터디장에게 확인용)
     CHAT_INVITE("채팅방 초대"),
     CHAT_MEMBER_REMOVED("채팅방에서 내보내짐"), // 방장에 의해 내보내진 멤버에게
-    CHAT_INVITE_AGAIN("채팅방 재초대"); // 이미 초대했거나 나갔던 멤버를 다시 초대할 경우 (선택적)
+    CHAT_INVITE_AGAIN("채팅방 재초대"), // 이미 초대했거나 나갔던 멤버를 다시 초대할 경우 (선택적)
+    NEW_DM("새로운 DM 도착"); // DM 관련 타입 추가
 
     private final String description;
 

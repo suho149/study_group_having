@@ -5,6 +5,8 @@ import com.studygroup.domain.dm.entity.DmMessage;
 import com.studygroup.domain.dm.entity.DmRoom;
 import com.studygroup.domain.dm.repository.DmMessageRepository;
 import com.studygroup.domain.dm.repository.DmRoomRepository;
+import com.studygroup.domain.notification.entity.NotificationType;
+import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +30,8 @@ public class DmService {
     private final DmMessageRepository dmMessageRepository;
     private final UserRepository userRepository;
     private final SimpMessageSendingOperations messagingTemplate;
+    private final NotificationService notificationService;
+
 
     // 채팅방 목록 조회
     public List<DmDto.RoomResponse> getDmRooms(Long userId) {
@@ -83,5 +87,22 @@ public class DmService {
         String destination = "/sub/dm/room/" + roomId;
         messagingTemplate.convertAndSend(destination, messageDto);
         log.info("Message sent to destination: {}", destination);
+
+        // 1. 메시지 수신자를 찾습니다.
+        User receiver = room.getUser1().getId().equals(senderId) ? room.getUser2() : room.getUser1();
+
+        // 2. 알림 메시지를 생성합니다.
+        String notificationMessage = "'" + sender.getName() + "'님으로부터 새로운 메시지가 도착했습니다.";
+
+        // 3. NotificationService를 호출하여 알림을 생성합니다.
+        //    (DB 저장 및 SSE 전송은 NotificationService가 알아서 처리)
+        //    referenceId에는 채팅방 ID(roomId)를 넣어, 알림 클릭 시 해당 채팅방으로 이동할 수 있도록 합니다.
+        notificationService.createNotification(
+                sender,
+                receiver,
+                notificationMessage,
+                NotificationType.NEW_DM,
+                roomId
+        );
     }
 }
