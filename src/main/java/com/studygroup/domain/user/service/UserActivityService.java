@@ -69,6 +69,20 @@ public class UserActivityService {
             awardBadge(user, "NEWBIE");
         }
 
+        // --- '좋아요 받음' 이벤트가 발생했을 때만 아래 로직 실행 ---
+        if (activityType == ActivityType.GET_POST_LIKE) {
+
+            Integer totalLikes = boardPostRepository.getTotalLikeCountByAuthor(user);
+            if (totalLikes == null) totalLikes = 0; // null 방지
+
+            log.info("Checking 'GET_100_POST_LIKES' badge for User ID {}. Total likes: {}", user.getId(), totalLikes);
+
+            // 총 좋아요 100개 달성 뱃지 확인
+            if (totalLikes >= 100) {
+                awardBadge(user, "GET_100_POST_LIKES");
+            }
+        }
+
         // TODO: 다른 조건들 추가 (예: 스터디 5회 완료, 좋아요 100개 받기 등)
     }
 

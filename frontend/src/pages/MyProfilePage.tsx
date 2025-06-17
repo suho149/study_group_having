@@ -24,6 +24,7 @@ import { Badge } from '../types/badge'; // 뱃지 타입 import
 import NewReleasesIcon from '@mui/icons-material/NewReleases'; // '새싹' (NEWBIE) 뱃지 아이콘
 import CreateIcon from '@mui/icons-material/Create'; // '첫 걸음' (FIRST_POST) 뱃지 아이콘
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'; // 기본 뱃지 아이콘
+import FavoriteIcon from '@mui/icons-material/Favorite';
 
 // --- 데이터 타입 정의 ---
 interface UserProfile {
@@ -86,6 +87,8 @@ const badgeIcons: { [key: string]: React.ReactElement } = {
     FIRST_POST: <CreateIcon />,
     // 여기에 새로운 뱃지가 추가될 때마다 아이콘을 매핑합니다.
     // 예: STUDY_LEADER: <GroupsIcon />,
+    // '좋아요 100개' 뱃지에 대한 아이콘 매핑 추가
+    GET_100_POST_LIKES: <FavoriteIcon />,
     DEFAULT: <EmojiEventsIcon />, // 해당하는 아이콘이 없을 때 보여줄 기본 아이콘
 };
 

@@ -28,4 +28,7 @@ public interface BoardPostRepository extends JpaRepository<BoardPost, Long>, Jpa
             Pageable pageable); // Pageable을 사용하여 상위 N개만 가져옴
 
     long countByAuthor(User author); // 내가 작성한 게시글 수
+
+    @Query("SELECT SUM(p.likeCount) FROM BoardPost p WHERE p.author = :author")
+    Integer getTotalLikeCountByAuthor(@Param("author") User author);
 }
