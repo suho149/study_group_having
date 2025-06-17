@@ -15,10 +15,17 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { Notification, NotificationTypeStrings } from '../types/notification'; // 공통 타입 사용
+import {Notification, NotificationType, NotificationTypeStrings} from '../types/notification'; // 공통 타입 사용
+
+// 그룹화된 알림을 위한 새로운 타입 정의
+interface GroupedNotification extends Notification {
+  isGrouped: boolean;
+  count: number;
+  senders: string[];
+}
 
 const NotificationPage: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<GroupedNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingNotificationId, setProcessingNotificationId] = useState<number | null>(null);
   const [pageError, setPageError] = useState<string | null>(null); // 페이지 레벨 에러
@@ -29,7 +36,52 @@ const NotificationPage: React.FC = () => {
     setPageError(null); // 조회 시작 시 이전 에러 초기화
     try {
       const response = await api.get<Notification[]>('/api/notifications');
-      setNotifications(response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      const groupedNotifications = new Map<string, GroupedNotification>();
+
+      // 최신순으로 정렬된 알림을 순회
+      response.data.forEach(n => {
+        // 1. DM 알림이고, 아직 읽지 않았을 때만 그룹화 시도
+        if (n.type === NotificationType.NEW_DM && !n.isRead) {
+          const groupKey = `dm-room-${n.referenceId}`;
+          const existing = groupedNotifications.get(groupKey);
+
+          // 2. 이미 해당 채팅방의 그룹이 존재하면
+          if (existing) {
+            existing.count += 1;
+            // 보낸 사람 목록에 추가 (중복 제외)
+            if (!existing.senders.includes(n.senderName)) {
+              existing.senders.push(n.senderName);
+            }
+            // 메시지와 시간은 최신 것으로 업데이트
+            existing.createdAt = n.createdAt;
+            existing.message = `'${existing.senders[0]}'님 외 ${existing.senders.length - 1}명으로부터 ${existing.count}개의 새 메시지가 있습니다.`;
+          }
+          // 3. 해당 채팅방의 첫 알림이면
+          else {
+            groupedNotifications.set(groupKey, {
+              ...n,
+              isGrouped: true,
+              count: 1,
+              senders: [n.senderName],
+            });
+          }
+        } else {
+          // 4. 그룹화 대상이 아닌 일반 알림
+          // 중복되지 않도록 고유한 키 사용
+          groupedNotifications.set(`notification-${n.id}`, {
+            ...n,
+            isGrouped: false,
+            count: 1,
+            senders: [n.senderName]
+          });
+        }
+      });
+
+      // Map의 value들을 배열로 변환하여 최종 목록 생성
+      const finalNotifications = Array.from(groupedNotifications.values())
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setNotifications(finalNotifications);
     } catch (error: any) {
       console.error('알림 조회 실패:', error);
       setPageError(error.response?.data?.message || "알림을 불러오는데 실패했습니다.");
