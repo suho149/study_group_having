@@ -37,4 +37,5 @@ export enum NotificationType {
     CHAT_INVITE = 'CHAT_INVITE',
     CHAT_MEMBER_REMOVED = 'CHAT_MEMBER_REMOVED',
     CHAT_INVITE_AGAIN = 'CHAT_INVITE_AGAIN',
+    NEW_DM = 'NEW_DM',
 }

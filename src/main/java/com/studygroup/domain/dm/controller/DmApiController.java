@@ -41,4 +41,14 @@ public class DmApiController {
             @PageableDefault(size = 30) Pageable pageable) {
         return ResponseEntity.ok(dmService.getMessages(roomId, userPrincipal.getId(), pageable));
     }
+
+    // --- 채팅방 상세 정보 조회 API 추가 ---
+    @GetMapping("/rooms/{roomId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<DmDto.RoomResponse> getDmRoomDetails(
+            @PathVariable Long roomId,
+            @CurrentUser UserPrincipal userPrincipal) {
+        DmDto.RoomResponse roomDetails = dmService.getDmRoomDetails(roomId, userPrincipal.getId());
+        return ResponseEntity.ok(roomDetails);
+    }
 }

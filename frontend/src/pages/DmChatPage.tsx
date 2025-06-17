@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {useParams, useNavigate, useLocation} from 'react-router-dom';
 import {
     Container, Box, Typography, TextField, IconButton, Paper, List, ListItem,
-    ListItemAvatar, Avatar, ListItemText, CircularProgress, AppBar, Toolbar
+    ListItemAvatar, Avatar, ListItemText, CircularProgress, AppBar, Toolbar, Alert
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -47,36 +47,28 @@ const DmChatPage: React.FC = () => {
                 let fetchedRoomInfo: DmRoomInfo;
 
                 if (!currentRoomId && partnerId) {
+                    // 1. 파트너 ID로 채팅방 찾기/생성
                     const response = await api.post<DmRoomInfo>(`/api/dm/rooms/find-or-create?partnerId=${partnerId}`);
-                    fetchedRoomInfo = response.data;
-                    currentRoomId = String(fetchedRoomInfo.roomId);
-                    // state에 partner 정보를 담아 URL을 변경하여, 새로고침 시에도 상대방 정보를 알 수 있게 함
-                    navigate(`/dm/room/${currentRoomId}`, { replace: true, state: { partner: fetchedRoomInfo.partner } });
-                    // URL이 변경되면 이 useEffect가 다시 실행되므로, 여기서 로직을 종료
-                    return;
-                } else if (currentRoomId) {
-                    // URL에 roomId가 있는 경우 (직접 접속 또는 위에서 navigate된 경우)
-                    const partnerInfo = (location.state as any)?.partner;
-                    fetchedRoomInfo = {
-                        roomId: Number(currentRoomId),
-                        partner: partnerInfo, // state에 없으면 undefined가 될 수 있음
-                        lastMessage: null,
-                        lastMessageTime: null,
-                    };
+                    // state에 파트너 정보를 담아 새 URL로 이동
+                    navigate(`/dm/room/${response.data.roomId}`, { replace: true, state: { partner: response.data.partner } });
+                    return; // navigate 후 이 useEffect는 다시 실행되므로 여기서 종료
+                }
 
-                    // 만약 partner 정보가 없다면 API로 조회 (방어 코드)
-                    if (!partnerInfo) {
-                        // TODO: /api/dm/rooms/{roomId} 같은 API를 만들어 채팅방 정보를 가져오는 로직 추가
-                        // 예시: const roomDetails = await api.get(`/api/dm/rooms/${currentRoomId}`);
-                        // fetchedRoomInfo.partner = roomDetails.data.partner;
+                if (currentRoomId) {
+                    // 2. Room ID가 있을 때
+                    let fetchedRoomInfo = roomInfo;
+
+                    // 만약 페이지 새로고침 등으로 roomInfo 상태가 비어있다면 API로 다시 가져옴
+                    if (!fetchedRoomInfo || !fetchedRoomInfo.partner) {
+                        console.log("Partner info not found in state, fetching from API...");
+                        const response = await api.get<DmRoomInfo>(`/api/dm/rooms/${currentRoomId}`);
+                        fetchedRoomInfo = response.data;
                     }
-
                     setRoomInfo(fetchedRoomInfo);
+
+                    // 이전 메시지 로드
                     const msgResponse = await api.get<{ content: DmMessageResponse[] }>(`/api/dm/rooms/${currentRoomId}/messages`);
                     setMessages(msgResponse.data.content.reverse());
-                    scrollToBottom('auto');
-                } else {
-                    return; // roomId도, partnerId도 없는 비정상적인 경우
                 }
             } catch (err: any) {
                 setError(err.response?.data?.message || "채팅 데이터를 불러오는데 실패했습니다.");
@@ -140,12 +132,23 @@ const DmChatPage: React.FC = () => {
         return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}><CircularProgress /></Box>;
     }
 
+    if (error) {
+        return <Container sx={{ mt: 4 }}><Alert severity="error">{error}</Alert></Container>;
+    }
+
+    // ★★★ 2. 렌더링 전, roomInfo와 partner 정보가 모두 있는지 확인 (안전장치) ★★★
+    if (!roomInfo || !roomInfo.partner) {
+        // 이 경우는 보통 데이터 로딩 중이거나 에러가 발생한 경우이므로, 위에서 처리됩니다.
+        // 하지만 만약의 경우를 대비한 방어 코드입니다.
+        return <Container sx={{ mt: 4 }}><Alert severity="warning">채팅방 정보를 불러오는 중입니다...</Alert></Container>;
+    }
+
     return (
         <Container maxWidth="md" sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', p: 0, bgcolor: 'background.default' }}>
             <AppBar position="static" color="inherit" elevation={1} sx={{flexShrink:0, borderBottom: '1px solid #ddd'}}>
                 <Toolbar variant="dense">
                     <IconButton edge="start" color="inherit" onClick={() => navigate(-1)}><ArrowBackIcon /></IconButton>
-                    <Avatar src={roomInfo?.partner.profileImageUrl || undefined} sx={{ width: 32, height: 32, mr: 1.5 }} />
+                    <Avatar src={roomInfo?.partner?.profileImageUrl || undefined} sx={{ width: 32, height: 32, mr: 1.5 }} />
                     <Typography variant="h6">{roomInfo?.partner.name}</Typography>
                 </Toolbar>
             </AppBar>

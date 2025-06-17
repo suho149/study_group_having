@@ -46,6 +46,9 @@ const NotificationListener: React.FC = () => {
                                 case NotificationType.CHAT_INVITE:
                                     navigate(`/chat/room/${notificationData.referenceId}`);
                                     break;
+                                case NotificationType.NEW_DM:
+                                    navigate(`/dm/room/${notificationData.referenceId}`);
+                                    break;
                                 default:
                                     navigate('/notifications');
                                     break;

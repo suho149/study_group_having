@@ -105,4 +105,20 @@ public class DmService {
                 roomId
         );
     }
+
+    // --- 채팅방 상세 정보 조회 메소드 추가 ---
+    public DmDto.RoomResponse getDmRoomDetails(Long roomId, Long currentUserId) {
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Current user not found"));
+
+        DmRoom room = dmRoomRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("DM room not found"));
+
+        // 요청한 사용자가 해당 채팅방의 멤버가 맞는지 확인 (보안 강화)
+        if (!room.getUser1().getId().equals(currentUserId) && !room.getUser2().getId().equals(currentUserId)) {
+            throw new IllegalStateException("You are not a member of this DM room.");
+        }
+
+        return new DmDto.RoomResponse(room, currentUser);
+    }
 }
