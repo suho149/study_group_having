@@ -18,25 +18,22 @@ import {
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Notification, NotificationTypeStrings } from '../../types/notification'; // 공통 타입 사용
+import {Notification, NotificationType, NotificationTypeStrings} from '../../types/notification'; // 공통 타입 사용
+
+// NotificationPage와 동일한 그룹화된 알림 타입을 사용
+interface GroupedNotification extends Notification {
+  isGrouped: boolean;
+  count: number;
+  senders: string[];
+}
 
 const NotificationList: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<GroupedNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [processingNotificationId, setProcessingNotificationId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true); // <--- loading 상태 추가
   const navigate = useNavigate();
-
-  // 데이터 로딩 함수들을 useCallback으로 감싸서 참조 안정성 확보
-  const fetchNotifications = useCallback(async () => {
-    try {
-      const response = await api.get<Notification[]>('/api/notifications');
-      setNotifications(response.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (error) {
-      console.error('알림 목록 조회 실패 (Navbar):', error);
-    }
-  }, []);
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -48,10 +45,49 @@ const NotificationList: React.FC = () => {
   }, []);
 
   const fetchAllData = useCallback(async () => {
-    setLoading(true); // <--- 로딩 시작
-    await Promise.all([fetchNotifications(), fetchUnreadCount()]);
-    setLoading(false); // <--- 로딩 종료
-  }, [fetchNotifications, fetchUnreadCount]);
+    setLoading(true);
+    try {
+      // 1. 알림 목록과 안 읽은 수를 동시에 API로 요청합니다.
+      const [notifResponse, countResponse] = await Promise.all([
+        api.get<Notification[]>('/api/notifications'),
+        api.get<number>('/api/notifications/unread-count')
+      ]);
+      setUnreadCount(countResponse.data);
+
+      // 2. 받아온 알림 목록을 그룹화하는 로직을 수행합니다.
+      const groupedNotifications = new Map<string, GroupedNotification>();
+      notifResponse.data.forEach(n => {
+        if (n.type === NotificationType.NEW_DM && !n.isRead) {
+          const groupKey = `dm-room-${n.referenceId}`;
+          const existing = groupedNotifications.get(groupKey);
+          if (existing) {
+            existing.count++;
+            if (!existing.senders.includes(n.senderName)) {
+              existing.senders.push(n.senderName);
+            }
+            existing.createdAt = n.createdAt;
+            existing.message = `'${existing.senders[0]}'님 외 ${existing.senders.length - 1}명으로부터 ${existing.count}개의 새 메시지`;
+          } else {
+            groupedNotifications.set(groupKey, { ...n, isGrouped: true, count: 1, senders: [n.senderName] });
+          }
+        } else {
+          groupedNotifications.set(`notification-${n.id}`, { ...n, isGrouped: false, count: 1, senders: [n.senderName] });
+        }
+      });
+
+      // 3. 그룹화된 결과를 최종적으로 상태에 저장합니다.
+      const finalNotifications = Array.from(groupedNotifications.values())
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setNotifications(finalNotifications);
+
+    } catch (error) {
+      console.error('알림 데이터 조회 실패 (Navbar):', error);
+    } finally {
+      setLoading(false);
+    }
+    // 4. 의존성 배열에서 fetchNotifications, fetchUnreadCount를 제거합니다.
+  }, []);
 
   useEffect(() => {
     fetchAllData();
