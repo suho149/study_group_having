@@ -171,53 +171,23 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
       );
     }
 
-    // 2. 스터디장이 아닐 경우
-
-    // 2-1. 비로그인 사용자: 로그인 버튼 반환
+    // 2. 비로그인 사용자
     if (!isAuthenticated) {
-      return (
-          <Button variant="outlined" startIcon={<LoginIcon />} onClick={() => navigate('/login')}>
-            로그인 후 신청
-          </Button>
-      );
+      return <Button variant="outlined" startIcon={<LoginIcon />} onClick={() => navigate('/login')}>로그인 후 신청</Button>;
     }
 
-    // 2-2. 로그인한 사용자: 참여/대기/탈퇴 버튼과 신고 버튼을 함께 보여줌
-    let userActionUI;
-
+    // 3. 로그인한 비-리더 사용자 (신고 버튼은 여기서 제외)
     if (isMemberApproved) {
-      // 승인된 멤버: '스터디 나가기' 버튼
-      userActionUI = (
-          <Button variant="outlined" color="error" startIcon={isLeaving ? <CircularProgress size={20}/> : <ExitToAppIcon />} onClick={handleOpenLeaveConfirm} disabled={isLeaving}>
-            {isLeaving ? '나가는 중...' : '스터디 나가기'}
-          </Button>
-      );
-    } else if (isMemberPending) {
-      // 승인 대기중: '승인 대기중' 칩
-      userActionUI = <Chip label="승인 대기중" color="warning" variant="outlined" />;
-    } else if (canApply) {
-      // 참여 가능: '참여 신청하기' 버튼
-      userActionUI = (
-          <Button variant="contained" startIcon={isApplying ? <CircularProgress size={20}/> : <HowToRegIcon />} onClick={onApply} disabled={isApplying}>
-            {isApplying ? '신청 중...' : '참여 신청하기'}
-          </Button>
-      );
-    } else {
-      // 그 외 참여 불가 사유
-      userActionUI = <Chip label="참여 불가" color="default" variant="outlined" />;
+      return <Button variant="outlined" color="error" startIcon={isLeaving ? <CircularProgress size={20}/> : <ExitToAppIcon />} onClick={handleOpenLeaveConfirm} disabled={isLeaving}>{isLeaving ? '나가는 중...' : '스터디 나가기'}</Button>;
+    }
+    if (isMemberPending) {
+      return <Chip label="승인 대기중" color="warning" variant="outlined" />;
+    }
+    if (canApply) {
+      return <Button variant="contained" startIcon={isApplying ? <CircularProgress size={20}/> : <HowToRegIcon />} onClick={onApply} disabled={isApplying}>{isApplying ? '신청 중...' : '참여 신청하기'}</Button>;
     }
 
-    return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {userActionUI}
-          <Tooltip title="이 스터디 신고하기">
-            {/* 신고 아이콘 버튼 추가 */}
-            <IconButton onClick={() => setIsReportModalOpen(true)} color="warning">
-              <ReportIcon />
-            </IconButton>
-          </Tooltip>
-        </Box>
-    );
+    return <Chip label="참여 불가" color="default" variant="outlined" />;
   };
 
   return (
@@ -237,13 +207,30 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
                     sx={{ fontWeight: 500 }}
                 />
               </Box>
-              <Stack direction="row" spacing={0.5} alignItems="center"> {/* 버튼 간 간격 조정 */}
-                {/* 좋아요 버튼 */}
-                <IconButton onClick={handleLikeToggle} disabled={isLiking || !isLoggedIn} color="error" size="small">
-                  {isLiking ? <CircularProgress size={20} color="inherit"/> : (isLikedState ? <FavoriteIcon /> : <FavoriteBorderIcon />)}
-                </IconButton>
-                <Typography variant="body2" color="textSecondary" sx={{mr:1}}>{likeCountState}</Typography>
-                {renderActionButtons()} {/* 스터디장/멤버 액션 버튼 */}
+              <Stack direction="row" spacing={1} alignItems="center"> {/* 버튼 간 간격 조정 */}
+                {/* 1. 신고 버튼 (스터디장이 아닐 때 & 로그인했을 때) */}
+                {!isLeader && isLoggedIn && (
+                    <Tooltip title="이 스터디 신고하기">
+                      <IconButton onClick={() => setIsReportModalOpen(true)} color="warning">
+                        <ReportIcon />
+                      </IconButton>
+                    </Tooltip>
+                )}
+
+                {/* 2. 좋아요 버튼 */}
+                <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}> {/* ★★★ 여기에 mr: 1 추가 ★★★ */}
+                  <Tooltip title={isLikedState ? "좋아요 취소" : "좋아요"}>
+                        <span>
+                          <IconButton onClick={handleLikeToggle} disabled={isLiking || !isLoggedIn} color="error" size="small">
+                              {isLiking ? <CircularProgress size={20} color="inherit"/> : (isLikedState ? <FavoriteIcon /> : <FavoriteBorderIcon />)}
+                          </IconButton>
+                        </span>
+                  </Tooltip>
+                  <Typography variant="body2" color="textSecondary">{likeCountState}</Typography>
+                </Box>
+
+                {/* 3. 나머지 액션 버튼들 (참여/나가기/관리자 메뉴 등) */}
+                {renderActionButtons()}
               </Stack>
             </Box>
 
