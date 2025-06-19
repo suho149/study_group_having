@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { StudyGroupSummary } from "../types/study";
 import { BoardPostSummary } from '../types/board';
+import RecommendedStudies from '../components/home/RecommendedStudies';
 
 // 컴포넌트 분리
 import Banner from '../components/home/Banner';
@@ -119,6 +120,9 @@ const Home: React.FC = () => {
           {isLoggedIn && <CreateStudyButton />}
         </Box>
         <Banner />
+
+        {/* --- 로그인한 사용자에게만 추천 섹션 표시 --- */}
+        {isLoggedIn && <RecommendedStudies />}
 
         <Box sx={{ mb: 4, mt: 4 }}>
           <Tabs value={currentView} onChange={handleViewChange} sx={{ mb: 3 }}>

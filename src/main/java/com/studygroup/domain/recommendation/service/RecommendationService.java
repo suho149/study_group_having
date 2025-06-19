@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,19 +36,25 @@ public class RecommendationService {
                 .map(p -> p.getTag())
                 .collect(Collectors.toList());
 
-        List<StudyGroup> recommendedStudies;
-
-        // 2. 선호 태그가 있으면, 그것을 기반으로 추천
-        if (!preferredTags.isEmpty()) {
-            recommendedStudies = studyGroupRepository.findRecommendedStudies(user, preferredTags, PageRequest.of(0, 6)); // 최대 6개 추천
-        } else {
-            // 3. 선호 태그가 없으면, 단순히 인기 스터디를 추천 (Fallback)
-            recommendedStudies = studyGroupRepository.findByStatusOrderByLikeCountDesc(StudyStatus.RECRUITING, PageRequest.of(0, 6));
+        if (preferredTags.isEmpty()) {
+            // 선호 태그가 없으면 빈 목록 반환
+            return Collections.emptyList();
         }
 
-        // DTO로 변환하여 반환
+        // 수정된 쿼리 호출
+        List<Object[]> results = studyGroupRepository.findRecommendedStudiesWithMatchCount(
+                user,
+                preferredTags,
+                PageRequest.of(0, 3) // 추천 개수를 3~4개로 줄여서 '엄선된' 느낌을 줌
+        );
+
+        // 결과(Object 배열)를 StudyGroup 리스트로 변환
+        List<StudyGroup> recommendedStudies = results.stream()
+                .map(result -> (StudyGroup) result[0])
+                .collect(Collectors.toList());
+
         return recommendedStudies.stream()
-                .map(sg -> StudyGroupResponse.from(sg, false)) // 좋아요 여부는 여기서 중요하지 않으므로 false
+                .map(sg -> StudyGroupResponse.from(sg, false))
                 .collect(Collectors.toList());
     }
 }

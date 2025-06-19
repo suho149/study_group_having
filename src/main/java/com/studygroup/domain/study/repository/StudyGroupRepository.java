@@ -44,4 +44,16 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
 
     // --- 관심사 없는 유저를 위한 폴백(Fallback) 추천 쿼리 ---
     List<StudyGroup> findByStatusOrderByLikeCountDesc(StudyStatus status, Pageable pageable);
+
+    @Query("SELECT sg, COUNT(sgt.tag) as matchCount FROM StudyGroup sg " + // 스터디와 일치 태그 수를 함께 조회
+            "JOIN sg.tags sgt " +
+            "WHERE sgt.tag IN :preferredTags " +
+            "AND sg.status = 'RECRUITING' " +
+            "AND sg.id NOT IN (SELECT sm.studyGroup.id FROM StudyMember sm WHERE sm.user = :user) " +
+            "GROUP BY sg.id " +
+            "ORDER BY matchCount DESC, sg.likeCount DESC") // 일치 태그 수(matchCount)로 정렬
+    List<Object[]> findRecommendedStudiesWithMatchCount( // 반환 타입을 Object 배열로 변경
+                                                         @Param("user") User user,
+                                                         @Param("preferredTags") List<Tag> preferredTags,
+                                                         Pageable pageable);
 } 
