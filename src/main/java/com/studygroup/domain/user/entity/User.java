@@ -53,4 +53,9 @@ public class User extends BaseTimeEntity {
         // 예: 1000 포인트마다 1레벨업
          this.level = (this.point / 400) + 1;
     }
+
+    // --- 역할 변경을 위한 메소드 추가 ---
+    public void updateRole(Role role) {
+        this.role = role;
+    }
 } 

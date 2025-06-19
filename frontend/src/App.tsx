@@ -26,6 +26,8 @@ import NotificationListener from './components/notification/NotificationListener
 import DmChatPage from './pages/DmChatPage'; // 새로 만든 페이지 import
 import DmNotificationListener from './components/dm/DmNotificationListener';
 import DmListPage from './pages/DmListPage';
+import AdminPage from './pages/admin/AdminPage'; // 새로 만들 페이지
+import AdminRoute from './components/auth/AdminRoute'; // 관리자만 접근 가능한 라우트
 
 const theme = createTheme({
   palette: {
@@ -74,6 +76,12 @@ function App() {
               <DmNotificationListener />
               <Navbar />
               <Routes>
+                {/* 관리자 페이지 라우트 */}
+                <Route path="/admin" element={
+                  <AdminRoute>
+                    <AdminPage />
+                  </AdminRoute>
+                } />
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/mypage" element={<MyPage />}>

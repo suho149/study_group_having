@@ -24,6 +24,9 @@ import { CommentDto } from '../../types/board';
 import api from '../../services/api';
 import LikeDislikeButtons from './LikeDislikeButtons';
 import { VoteType } from '../../types/apiSpecificEnums';
+import ReportModal from "./ReportModal";
+import {ReportType} from "../../types/report";
+import ReportIcon from '@mui/icons-material/Report';
 
 interface CommentItemProps {
     comment: CommentDto;
@@ -41,6 +44,7 @@ const CommentItem: React.FC<CommentItemProps> = ({
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [showReplies, setShowReplies] = useState(false); // 대댓글 보기/숨기기
     const isAuthor = currentUserId === comment.author.id;
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
     const handleMenuClose = () => setAnchorEl(null);
@@ -84,6 +88,12 @@ const CommentItem: React.FC<CommentItemProps> = ({
                          // 또는 별도의 onVoteSuccess 콜백을 만들고 부모에서 처리
     };
 
+    // --- 신고 버튼 클릭 핸들러 추가 ---
+    const handleReport = () => {
+        setIsReportModalOpen(true);
+        handleMenuClose(); // 메뉴는 닫기
+    };
+
     // TODO: handleLike, handleDislike 함수 구현 (추천/비추천 API 호출)
 
     if (comment.isDeleted) {
@@ -103,90 +113,111 @@ const CommentItem: React.FC<CommentItemProps> = ({
     }
 
     return (
-        <ListItem alignItems="flex-start" sx={{ pl: isChild ? 4 : 0, flexDirection: 'column', mb:1, borderBottom: isChild ? 'none' : '1px solid #f0f0f0', pb:1 }}>
-            <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', mb: 0.5 }}>
-                <Avatar
-                    src={comment.author.profileImageUrl || undefined}
-                    alt={comment.author.name}
-                    sx={{ width: 28, height: 28, mr: 1 }}
-                >
-                    {!comment.author.profileImageUrl && comment.author.name ? comment.author.name[0] : null}
-                </Avatar>
-                <Typography variant="body2" sx={{ fontWeight: 'medium', mr: 1 }}>
-                    {comment.author.name}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                    {formatDistanceToNowStrict(parseISO(comment.createdAt), { addSuffix: true, locale: ko })}
-                </Typography>
-                {isAuthor && !isEditing && ( // 자신의 댓글이고, 수정 중이 아닐 때만 메뉴 버튼 표시
-                    <IconButton size="small" onClick={handleMenuOpen} sx={{ ml: 'auto' }}>
-                        <MoreVertIcon fontSize="inherit" />
-                    </IconButton>
-                )}
-            </Box>
-
-            {isEditing ? (
-                <Box sx={{ width: '100%', pl: 4.5 /* Avatar + margin */, mt:1 }}>
-                    <TextField
-                        fullWidth
-                        multiline
-                        variant="outlined"
-                        size="small"
-                        value={editedContent}
-                        onChange={(e) => setEditedContent(e.target.value)}
-                    />
-                    <Box sx={{ mt: 1, textAlign: 'right' }}>
-                        <Button size="small" onClick={() => setIsEditing(false)} sx={{mr:1}}>취소</Button>
-                        <Button size="small" variant="contained" onClick={handleSaveEdit}>저장</Button>
-                    </Box>
+        <React.Fragment>
+            <ListItem alignItems="flex-start" sx={{ pl: isChild ? 4 : 0, flexDirection: 'column', mb:1, borderBottom: isChild ? 'none' : '1px solid #f0f0f0', pb:1 }}>
+                <Box sx={{ display: 'flex', width: '100%', alignItems: 'center', mb: 0.5 }}>
+                    <Avatar
+                        src={comment.author.profileImageUrl || undefined}
+                        alt={comment.author.name}
+                        sx={{ width: 28, height: 28, mr: 1 }}
+                    >
+                        {!comment.author.profileImageUrl && comment.author.name ? comment.author.name[0] : null}
+                    </Avatar>
+                    <Typography variant="body2" sx={{ fontWeight: 'medium', mr: 1 }}>
+                        {comment.author.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                        {formatDistanceToNowStrict(parseISO(comment.createdAt), { addSuffix: true, locale: ko })}
+                    </Typography>
+                    {/* --- 이 부분의 isAuthor 조건을 제거합니다 --- */}
+                    {!isEditing && (
+                        <IconButton size="small" onClick={handleMenuOpen} sx={{ ml: 'auto' }}>
+                            <MoreVertIcon fontSize="inherit" />
+                        </IconButton>
+                    )}
                 </Box>
-            ) : (
-                <Typography variant="body2" sx={{ pl: 4.5, whiteSpace: 'pre-line' }}>
-                    {comment.content}
-                </Typography>
-            )}
 
-            {!isEditing && ( // 수정 중이 아닐 때만 답글/추천 버튼 표시
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, pl: 4.5 /* 아바타 너비 + 간격 */ }}>
-                    <Button size="small" startIcon={<ReplyIcon fontSize="inherit"/>} onClick={() => onReply(comment)}>
-                        답글
-                    </Button>
-                    <LikeDislikeButtons
-                        targetId={comment.id}
-                        initialLikeCount={comment.likeCount}
-                        initialDislikeCount={comment.dislikeCount}
-                        initialUserVote={
-                            comment.likedByCurrentUser ? VoteType.LIKE :
-                                comment.dislikedByCurrentUser ? VoteType.DISLIKE : null
-                        }
-                        onVoteSuccess={handleCommentVoteSuccess}
-                        targetType="comment"
-                    />
-                </Box>
-            )}
-
-            {/* 수정/삭제 메뉴 */}
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
-                <MenuItem onClick={handleEdit}><EditIcon fontSize="small" sx={{mr:1}}/> 수정</MenuItem>
-                <MenuItem onClick={handleDelete} sx={{color: 'error.main'}}><DeleteIcon fontSize="small" sx={{mr:1}}/> 삭제</MenuItem>
-            </Menu>
-
-            {/* 대댓글 목록 렌더링 */}
-            {comment.children && comment.children.length > 0 && (
-                <List sx={{ width:'100%', pt:1 }}>
-                    {comment.children.map(childComment => (
-                        <CommentItem
-                            key={childComment.id}
-                            comment={childComment}
-                            currentUserId={currentUserId}
-                            onReply={onReply}
-                            onActionSuccess={onActionSuccess}
-                            isChild // isChild prop을 true로 전달
+                {isEditing ? (
+                    <Box sx={{ width: '100%', pl: 4.5 /* Avatar + margin */, mt:1 }}>
+                        <TextField
+                            fullWidth
+                            multiline
+                            variant="outlined"
+                            size="small"
+                            value={editedContent}
+                            onChange={(e) => setEditedContent(e.target.value)}
                         />
-                    ))}
-                </List>
-            )}
-        </ListItem>
+                        <Box sx={{ mt: 1, textAlign: 'right' }}>
+                            <Button size="small" onClick={() => setIsEditing(false)} sx={{mr:1}}>취소</Button>
+                            <Button size="small" variant="contained" onClick={handleSaveEdit}>저장</Button>
+                        </Box>
+                    </Box>
+                ) : (
+                    <Typography variant="body2" sx={{ pl: 4.5, whiteSpace: 'pre-line' }}>
+                        {comment.content}
+                    </Typography>
+                )}
+
+                {!isEditing && ( // 수정 중이 아닐 때만 답글/추천 버튼 표시
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, pl: 4.5 /* 아바타 너비 + 간격 */ }}>
+                        <Button size="small" startIcon={<ReplyIcon fontSize="inherit"/>} onClick={() => onReply(comment)}>
+                            답글
+                        </Button>
+                        <LikeDislikeButtons
+                            targetId={comment.id}
+                            initialLikeCount={comment.likeCount}
+                            initialDislikeCount={comment.dislikeCount}
+                            initialUserVote={
+                                comment.likedByCurrentUser ? VoteType.LIKE :
+                                    comment.dislikedByCurrentUser ? VoteType.DISLIKE : null
+                            }
+                            onVoteSuccess={handleCommentVoteSuccess}
+                            targetType="comment"
+                        />
+                    </Box>
+                )}
+
+                {/* --- 수정/삭제/신고 메뉴 --- */}
+                <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+                    {isAuthor ? (
+                        [ // 본인 댓글일 때: 수정, 삭제
+                            <MenuItem key="edit" onClick={handleEdit}><EditIcon fontSize="small" sx={{mr:1}}/> 수정</MenuItem>,
+                            <MenuItem key="delete" onClick={handleDelete} sx={{color: 'error.main'}}><DeleteIcon fontSize="small" sx={{mr:1}}/> 삭제</MenuItem>
+                        ]
+                    ) : (
+                        // 남의 댓글일 때: 신고
+                        <MenuItem onClick={handleReport}>
+                            <ReportIcon fontSize="small" sx={{mr:1}}/> 신고하기
+                        </MenuItem>
+                    )}
+                </Menu>
+
+                {/* 대댓글 목록 렌더링 */}
+                {comment.children && comment.children.length > 0 && (
+                    <List sx={{ width:'100%', pt:1 }}>
+                        {comment.children.map(childComment => (
+                            <CommentItem
+                                key={childComment.id}
+                                comment={childComment}
+                                currentUserId={currentUserId}
+                                onReply={onReply}
+                                onActionSuccess={onActionSuccess}
+                                isChild // isChild prop을 true로 전달
+                            />
+                        ))}
+                    </List>
+                )}
+
+                {/* --- 신고 모달 렌더링 추가 --- */}
+                <ReportModal
+                    open={isReportModalOpen}
+                    onClose={() => setIsReportModalOpen(false)}
+                    reportType={ReportType.COMMENT} // 타입 지정
+                    targetId={comment.id}
+                />
+
+            </ListItem>
+        </React.Fragment>
     );
 };
 
