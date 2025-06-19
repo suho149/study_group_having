@@ -10,8 +10,10 @@ import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.StudyLikeRepository;
 import com.studygroup.domain.study.repository.StudyMemberRepository;
 import com.studygroup.domain.study.repository.TagRepository;
+import com.studygroup.domain.user.dto.TagInteractionEvent;
 import com.studygroup.domain.user.dto.UserActivityEvent;
 import com.studygroup.domain.user.entity.ActivityType;
+import com.studygroup.domain.user.entity.InteractionType;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
@@ -55,6 +57,14 @@ public class StudyGroupService {
                 .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + id));
         
         incrementViewCountIfNeeded(studyGroup);
+
+        // --- '조회' 이벤트 발행 ---
+        if (currentUserPrincipal != null) {
+            User user = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
+            if (user != null) {
+                eventPublisher.publishEvent(new TagInteractionEvent(user, studyGroup, InteractionType.VIEW_STUDY));
+            }
+        }
 
         boolean isLiked = false;
         if (currentUserPrincipal != null) {
@@ -188,6 +198,10 @@ public class StudyGroupService {
                 .build();
         studyLikeRepository.save(studyLike);
         studyGroup.incrementLikeCount();
+
+        // --- '좋아요' 이벤트 발행 ---
+        eventPublisher.publishEvent(new TagInteractionEvent(user, studyGroup, InteractionType.LIKE_STUDY));
+
         // studyGroupRepository.save(studyGroup); // 변경 감지로 저장됨 (likeCount 필드)
         log.info("스터디 좋아요 추가: userId={}, studyId={}", userId, studyId);
     }
