@@ -15,7 +15,8 @@ import {
   DialogContentText, // 추가
   DialogTitle, // 추가
   CircularProgress, // 추가
-  ChipProps, // 추가
+  ChipProps,
+  Tooltip, // 추가
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -34,6 +35,9 @@ import { StudyGroupDataType } from '../../types/study'; // <--- 수정
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import {useNavigate} from "react-router-dom";
+import ReportIcon from '@mui/icons-material/Report';
+import ReportModal from '../board/ReportModal'; // 경로 확인
+import { ReportType } from '../../types/report';
 
 interface StudyDetailProps {
   study: StudyGroupDataType; // <--- 수정: 타입을 StudyGroupDataType으로 변경
@@ -106,6 +110,8 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
   const handleOpenLeaveConfirm = () => setIsLeaveConfirmOpen(true);
   const handleCloseLeaveConfirm = () => setIsLeaveConfirmOpen(false);
 
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
   // study prop이 변경될 때 좋아요 상태 동기화
   useEffect(() => {
     setIsLikedState(study.liked);
@@ -148,100 +154,70 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
   };
 
   const renderActionButtons = () => {
+    // 1. 스터디장일 경우: 관리 메뉴 반환
     if (isLeader) {
       return (
           <>
-            <IconButton color="primary" onClick={onInvite} title="멤버 초대">
-              <GroupAddIcon />
-            </IconButton>
-            <IconButton color="info" onClick={onEdit} title="스터디 수정">
-              <EditIcon />
-            </IconButton>
-            <IconButton color="error" onClick={onDelete} title="스터디 삭제">
-              <DeleteIcon />
-            </IconButton>
+            <Tooltip title="멤버 초대">
+              <IconButton color="primary" onClick={onInvite}><GroupAddIcon /></IconButton>
+            </Tooltip>
+            <Tooltip title="스터디 수정">
+              <IconButton color="info" onClick={onEdit}><EditIcon /></IconButton>
+            </Tooltip>
+            <Tooltip title="스터디 삭제">
+              <IconButton color="error" onClick={onDelete}><DeleteIcon /></IconButton>
+            </Tooltip>
           </>
       );
     }
 
-    // 스터디장이 아닐 경우
+    // 2. 스터디장이 아닐 경우
+
+    // 2-1. 비로그인 사용자: 로그인 버튼 반환
     if (!isAuthenticated) {
       return (
-          <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<LoginIcon />}
-              onClick={() => { /* 로그인 페이지로 이동하는 로직 추가 필요 */
-                // 예: navigate('/login', { state: { from: location.pathname } });
-                // 이 컴포넌트에서 navigate를 직접 사용하려면 props로 받거나 HOC 사용
-                // 또는 부모 컴포넌트에서 로그인 페이지 이동 함수를 받아 호출
-                alert('로그인이 필요한 기능입니다.'); // 임시
-              }}
-          >
+          <Button variant="outlined" startIcon={<LoginIcon />} onClick={() => navigate('/login')}>
             로그인 후 신청
           </Button>
       );
     }
 
-    // // 스터디장이 아닐 경우
-    // if (!isAuthenticated) {
-    //   return (
-    //       <Button
-    //           variant="outlined"
-    //           color="primary"
-    //           startIcon={<LoginIcon />}
-    //           onClick={() => alert('로그인이 필요한 기능입니다.')} // 실제로는 로그인 페이지 이동
-    //       >
-    //         로그인 후 신청
-    //       </Button>
-    //   );
-    // }
+    // 2-2. 로그인한 사용자: 참여/대기/탈퇴 버튼과 신고 버튼을 함께 보여줌
+    let userActionUI;
 
-    // 현재 사용자가 승인된 멤버이고, 스터디장이 아닌 경우 "스터디 나가기" 버튼 표시
-    if (isMemberApproved && !isLeader) {
-      return (
-          <Button
-              variant="outlined"
-              color="error"
-              startIcon={isLeaving ? <CircularProgress size={20} color="inherit" /> : <ExitToAppIcon />}
-              onClick={handleOpenLeaveConfirm}
-              disabled={isLeaving}
-          >
+    if (isMemberApproved) {
+      // 승인된 멤버: '스터디 나가기' 버튼
+      userActionUI = (
+          <Button variant="outlined" color="error" startIcon={isLeaving ? <CircularProgress size={20}/> : <ExitToAppIcon />} onClick={handleOpenLeaveConfirm} disabled={isLeaving}>
             {isLeaving ? '나가는 중...' : '스터디 나가기'}
           </Button>
       );
-    }
-
-    if (isMemberApproved) {
-      return <Chip label="참여중" color="success" variant="outlined" size="medium" />;
-    }
-    if (isMemberPending) {
-      return <Chip label="승인 대기중" color="warning" variant="outlined" size="medium" />;
-    }
-    if (canApply) {
-      return (
-          <Button
-              variant="contained"
-              color="primary"
-              startIcon={isApplying ? <CircularProgress size={20} color="inherit" /> : <HowToRegIcon />}
-              onClick={onApply}
-              disabled={isApplying} // canApply 조건에서 이미 다른 disabled 조건들은 체크됨
-          >
-            {isApplying ? '신청 처리중...' : '참여 신청하기'}
+    } else if (isMemberPending) {
+      // 승인 대기중: '승인 대기중' 칩
+      userActionUI = <Chip label="승인 대기중" color="warning" variant="outlined" />;
+    } else if (canApply) {
+      // 참여 가능: '참여 신청하기' 버튼
+      userActionUI = (
+          <Button variant="contained" startIcon={isApplying ? <CircularProgress size={20}/> : <HowToRegIcon />} onClick={onApply} disabled={isApplying}>
+            {isApplying ? '신청 중...' : '참여 신청하기'}
           </Button>
       );
+    } else {
+      // 그 외 참여 불가 사유
+      userActionUI = <Chip label="참여 불가" color="default" variant="outlined" />;
     }
 
-    // 참여 신청 불가 사유 표시
-    if (study.status !== 'RECRUITING') {
-      return <Chip label="모집 마감" color="default" variant="outlined" size="medium" />;
-    }
-    if (study.currentMembers >= study.maxMembers) {
-      return <Chip label="정원 마감" color="default" variant="outlined" size="medium" />;
-    }
-    // 기타 참여 불가 사유 (예: 이미 거절된 경우 등 - 현재 로직에서는 거절 시 멤버에서 제거되므로 이 경우는 잘 없음)
-    // 이 외의 canApply가 false인 경우는 보통 로그인 안했거나, 이미 멤버거나, 이미 신청중인 경우임
-    return <Chip label="참여 조건 미충족" color="default" variant="outlined" size="medium" />;
+    return (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {userActionUI}
+          <Tooltip title="이 스터디 신고하기">
+            {/* 신고 아이콘 버튼 추가 */}
+            <IconButton onClick={() => setIsReportModalOpen(true)} color="warning">
+              <ReportIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+    );
   };
 
   return (
@@ -357,6 +333,13 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
             </Button>
           </DialogActions>
         </Dialog>
+
+        <ReportModal
+            open={isReportModalOpen}
+            onClose={() => setIsReportModalOpen(false)}
+            reportType={ReportType.STUDY_GROUP}
+            targetId={study.id}
+        />
       </>
   );
 };

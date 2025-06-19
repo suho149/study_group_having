@@ -14,8 +14,7 @@ public class BoardPostResponse {
     private BoardCategory category;
     private String title;
     private String content; // 상세 조회 시에는 content 포함, 목록 조회 시에는 생략 가능
-    private String authorName;
-    private Long authorId;
+    private UserSummaryDto author;
     private LocalDateTime createdAt;
     private LocalDateTime modifiedAt;
     private int viewCount;
@@ -31,8 +30,7 @@ public class BoardPostResponse {
                 .category(post.getCategory())
                 .title(post.getTitle())
                 .content(post.getContent()) // 상세 조회 시
-                .authorName(post.getAuthor().getName())
-                .authorId(post.getAuthor().getId())
+                .author(UserSummaryDto.from(post.getAuthor())) // User 객체를 UserSummaryDto로 변환하여 할당
                 .createdAt(post.getCreatedAt())
                 .modifiedAt(post.getModifiedAt())
                 .viewCount(post.getViewCount())

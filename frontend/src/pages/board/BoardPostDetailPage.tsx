@@ -20,7 +20,7 @@ import {
     Alert,
     DialogActions,
     Dialog,
-    DialogTitle, DialogContent, DialogContentText
+    DialogTitle, DialogContent, DialogContentText, Tooltip, Menu, MenuItem
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -48,6 +48,10 @@ import 'prismjs/themes/prism.css';
 import '@toast-ui/editor-plugin-code-syntax-highlight/dist/toastui-editor-plugin-code-syntax-highlight.css';
 import codeSyntaxHighlight from '@toast-ui/editor-plugin-code-syntax-highlight';
 import Prism from 'prismjs';
+import ReportIcon from '@mui/icons-material/Report';
+import ReportModal from '../../components/board/ReportModal';
+import { ReportType } from '../../types/report';
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 
 const BoardPostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -71,6 +75,12 @@ const BoardPostDetailPage: React.FC = () => {
     const [commentPage, setCommentPage] = useState(0); // 현재 댓글 페이지 번호
     const [hasMoreComments, setHasMoreComments] = useState(true); // 더 불러올 댓글이 있는지
     const [loadingMoreComments, setLoadingMoreComments] = useState(false); // 더보기 로딩 상태
+
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false); // 게시글 신고 모달 상태
+
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+    const handleMenuClose = () => setAnchorEl(null);
 
     // fetchComments 함수를 페이징에 맞게 수정
     const fetchComments = useCallback(async (pageToFetch = 0, initialLoad = false) => {
@@ -271,31 +281,21 @@ const BoardPostDetailPage: React.FC = () => {
         return <Container sx={{mt:5, textAlign:'center'}}><Typography>게시글을 찾을 수 없습니다.</Typography></Container>;
     }
 
-    const isAuthor = isLoggedIn && currentUserId === post.author?.id;
+    const isAuthor = isLoggedIn && Number(currentUserId) === Number(post.author?.id);
+    console.log("isAuthor is calculated as:", isAuthor);
 
     return (
         <Container maxWidth="md" sx={{ my: 4 }}>
             <Paper elevation={2} sx={{ p: { xs: 2, sm: 3, md: 4 }, borderRadius: 2 }}>
                 <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Chip label={post.category} color="secondary" size="small" />
-                    {isAuthor && (
+                    {isLoggedIn && ( // 로그인한 사용자에게만 더보기 메뉴가 보입니다.
                         <Box>
-                            <Button
-                                size="small"
-                                startIcon={<EditIcon />}
-                                onClick={() => navigate(`/board/edit/${post.id}`)} // 수정 페이지로 (추후 구현)
-                                sx={{mr:1}}
-                            >
-                                수정
-                            </Button>
-                            <Button
-                                size="small"
-                                color="error"
-                                startIcon={<DeleteIcon />}
-                                onClick={() => setIsConfirmDeleteDialogOpen(true)}
-                            >
-                                삭제
-                            </Button>
+                            <Tooltip title="더보기">
+                                <IconButton onClick={handleMenuOpen}>
+                                    <MoreVertIcon />
+                                </IconButton>
+                            </Tooltip>
                         </Box>
                     )}
                 </Box>
@@ -412,6 +412,35 @@ const BoardPostDetailPage: React.FC = () => {
                     onSubmitSuccess={handleCommentActionSuccess} // 댓글 작성 성공 시 콜백 전달
                 />
             )}
+
+            <Menu
+                anchorEl={anchorEl}
+                open={Boolean(anchorEl)}
+                onClose={handleMenuClose}
+            >
+                {/* isAuthor가 true일 때만 수정/삭제를 보여주고, 아닐 때 신고를 보여줍니다. */}
+                {isAuthor ? (
+                    [
+                        <MenuItem key="edit" onClick={() => { navigate(`/board/edit/${post.id}`); handleMenuClose(); }}>
+                            <EditIcon fontSize="small" sx={{ mr: 1 }} /> 수정
+                        </MenuItem>,
+                        <MenuItem key="delete" onClick={() => { setIsConfirmDeleteDialogOpen(true); handleMenuClose(); }} sx={{ color: 'error.main' }}>
+                            <DeleteIcon fontSize="small" sx={{ mr: 1 }} /> 삭제
+                        </MenuItem>
+                    ]
+                ) : (
+                    <MenuItem onClick={() => { setIsReportModalOpen(true); handleMenuClose(); }}>
+                        <ReportIcon fontSize="small" sx={{ mr: 1 }}/> 신고하기
+                    </MenuItem>
+                )}
+            </Menu>
+
+            <ReportModal
+                open={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                reportType={ReportType.POST}
+                targetId={post.id}
+            />
 
             {/* 삭제 확인 다이얼로그 */}
             <Dialog open={isConfirmDeleteDialogOpen} onClose={() => setIsConfirmDeleteDialogOpen(false)}>
