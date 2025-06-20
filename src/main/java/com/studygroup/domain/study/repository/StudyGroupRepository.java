@@ -8,6 +8,7 @@ import com.studygroup.domain.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -56,4 +57,9 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
                                                          @Param("user") User user,
                                                          @Param("preferredTags") List<Tag> preferredTags,
                                                          Pageable pageable);
+
+    // --- 스터디 블라인드 처리를 위한 JPQL 쿼리 추가 ---
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE StudyGroup sg SET sg.isBlinded = true WHERE sg.id = :id")
+    void blindById(@Param("id") Long id);
 } 

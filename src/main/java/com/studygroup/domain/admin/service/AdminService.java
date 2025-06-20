@@ -9,6 +9,7 @@ import com.studygroup.domain.board.repository.BoardPostRepository;
 import com.studygroup.domain.report.dto.ReportProcessDto;
 import com.studygroup.domain.report.entity.Report;
 import com.studygroup.domain.report.repository.ReportRepository;
+import com.studygroup.domain.study.entity.StudyGroup;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.TagRepository;
 import com.studygroup.domain.user.repository.UserRepository;
@@ -57,6 +58,10 @@ public class AdminService {
                             .map(BoardComment::getContent)
                             .orElse("삭제된 댓글");
                 // TODO: STUDY_GROUP case
+                case STUDY_GROUP:
+                    return studyGroupRepository.findById(report.getTargetId())
+                            .map(StudyGroup::getTitle)
+                            .orElse("삭제된 스터디");
                 default:
                     return "알 수 없는 콘텐츠";
             }
@@ -121,5 +126,10 @@ public class AdminService {
     // --- 댓글 블라인드 처리 메소드 추가 ---
     public void blindComment(Long commentId) {
         boardCommentRepository.blindById(commentId);
+    }
+
+    // --- 스터디 블라인드 처리 메소드 추가 ---
+    public void blindStudyGroup(Long studyGroupId) {
+        studyGroupRepository.blindById(studyGroupId);
     }
 }

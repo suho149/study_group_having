@@ -67,7 +67,14 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
         setIsBlinding(true);
         setError('');
         try {
-            const endpoint = `/api/admin/${report.reportType.toLowerCase()}s/${report.targetId}/blind`;
+            let endpoint = '';
+            const typeString = report.reportType.toLowerCase();
+
+            if (typeString === 'study_group') {
+                endpoint = `/api/admin/study_groups/${report.targetId}/blind`;
+            } else {
+                endpoint = `/api/admin/${typeString}s/${report.targetId}/blind`;
+            }
             await api.post(endpoint);
             // 숨김 처리 후, 신고 상태도 '처리완료'로 함께 업데이트
             await api.patch(`/api/admin/reports/${report.id}`, {

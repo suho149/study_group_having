@@ -63,4 +63,11 @@ public class AdminController {
         adminService.blindComment(commentId);
         return ResponseEntity.ok().build();
     }
+
+    // --- 스터디 그룹 블라인드 처리 API 추가 ---
+    @PostMapping("/study_groups/{studyGroupId}/blind")
+    public ResponseEntity<Void> blindStudyGroup(@PathVariable Long studyGroupId) {
+        adminService.blindStudyGroup(studyGroupId);
+        return ResponseEntity.ok().build();
+    }
 }

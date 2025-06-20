@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -67,6 +68,14 @@ public class StudyGroup extends BaseTimeEntity {
 
     @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
     private int likeCount = 0; // 좋아요 수, 기본값 0
+
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean isBlinded = false;
+
+    public void blind() {
+        this.isBlinded = true;
+    }
 
     @Builder
     public StudyGroup(User leader, String title, String description, int maxMembers,
