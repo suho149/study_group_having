@@ -66,9 +66,11 @@ public class AdminService {
     }
 
     public void processReport(Long reportId, ReportProcessDto dto) {
-        Report report = reportRepository.findById(reportId)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found"));
-        report.updateStatus(dto.getStatus(), dto.getAdminMemo());
+        reportRepository.updateReportStatusAndMemo(
+                reportId,
+                dto.getStatus(),
+                dto.getAdminMemo()
+        );
     }
 
     public void deletePost(Long postId) {

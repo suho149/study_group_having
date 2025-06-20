@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
     Dialog, DialogTitle, DialogContent, TextField, DialogActions,
-    Button, FormControl, InputLabel, Select, MenuItem, Alert, Typography
+    Button, FormControl, InputLabel, Select, MenuItem, Alert, Typography,
+    CircularProgress
 } from '@mui/material';
 import api from '../../services/api';
 import { ReportStatus, ReportDetailDto } from '../../types/report'; // ReportStatus Enum import 확인
@@ -18,6 +19,15 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
     const [status, setStatus] = useState<ReportStatus>(report?.status || ReportStatus.RECEIVED);
     const [adminMemo, setAdminMemo] = useState(report?.adminMemo || '');
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false); // 처리 중 로딩 상태
+
+    // 모달이 열리거나 대상 report가 변경될 때 상태를 초기화합니다.
+    useEffect(() => {
+        if (report) {
+            setStatus(report.status);
+            setAdminMemo(report.adminMemo || '');
+        }
+    }, [report]);
 
     const handleStatusChange = (event: SelectChangeEvent) => {
         // e.target.value를 ReportStatus 타입으로 단언하여 setStatus에 전달합니다.
@@ -26,12 +36,22 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
 
     const handleSubmit = async () => {
         if (!report) return;
+        setIsSubmitting(true);
+        setError('');
+
         try {
-            await api.patch(`/api/admin/reports/${report.id}`, { status, adminMemo });
+            await api.patch(`/api/admin/reports/${report.id}`, {
+                status: status,
+                adminMemo: adminMemo
+            });
+
+            // 성공 시, 부모 컴포넌트(ReportList)에 알려서 목록을 새로고침합니다.
             onSuccess();
-            onClose();
+            onClose(); // 모달 닫기
         } catch (err: any) {
-            setError(err.response?.data?.message || '처리 중 오류 발생');
+            setError(err.response?.data?.message || '신고 처리 중 오류가 발생했습니다.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -65,8 +85,10 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
                 />
             </DialogContent>
             <DialogActions>
-                <Button onClick={onClose}>취소</Button>
-                <Button onClick={handleSubmit}>저장</Button>
+                <Button onClick={onClose} disabled={isSubmitting}>취소</Button>
+                <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
+                    {isSubmitting ? <CircularProgress size={24} /> : '저장'}
+                </Button>
             </DialogActions>
         </Dialog>
     );
