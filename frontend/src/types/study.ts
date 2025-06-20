@@ -48,6 +48,7 @@ export interface StudyGroupDataType { // 이름을 StudyGroupDetail에서 변경
     likeCount: number;
     liked: boolean; // 현재 사용자가 이 스터디를 좋아했는지 여부
     members: StudyMember[];
+    isBlinded: boolean;
 }
 
 export enum StudyMemberRole {

@@ -159,10 +159,10 @@ public class StudyGroupService {
         
         Page<StudyGroup> studyGroups;
         if (keyword != null && !keyword.trim().isEmpty()) {
-            studyGroups = studyGroupRepository.findByTitleContainingOrDescriptionContaining(
-                keyword, keyword, pageable);
+            studyGroups = studyGroupRepository.findByIsBlindedFalseAndTitleContainingOrIsBlindedFalseAndDescriptionContaining(
+                    keyword, keyword, pageable);
         } else {
-            studyGroups = studyGroupRepository.findAll(pageable);
+            studyGroups = studyGroupRepository.findByIsBlindedFalse(pageable);
         }
 
         User currentUser = null;

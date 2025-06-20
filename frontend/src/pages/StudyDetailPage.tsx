@@ -172,6 +172,17 @@ const StudyDetailPage = () => {
   if (error) return <Typography color="error" sx={{ textAlign: 'center', mt: 4 }}>{error}</Typography>;
   if (!study) return <Typography sx={{ textAlign: 'center', mt: 4 }}>스터디 정보를 찾을 수 없습니다.</Typography>;
 
+  // study.isBlinded가 true이면, 경고 메시지를 보여주고 렌더링을 중단합니다.
+  if (study.isBlinded) {
+    return (
+        <Container maxWidth="md" sx={{ my: 4 }}>
+          <Alert severity="warning" variant="filled">
+            관리자에 의해 숨김 처리된 스터디입니다.
+          </Alert>
+        </Container>
+    );
+  }
+
   const isLeader = study.leader.id === Number(currentUserId);
   const isMemberApproved = currentUserMemberInfo?.status === 'APPROVED';
   const isMemberPending = currentUserMemberInfo?.status === 'PENDING';
