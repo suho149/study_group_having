@@ -7,14 +7,22 @@ import com.studygroup.domain.study.entity.Tag;
 import com.studygroup.domain.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
+
+    // findById를 오버라이딩하여 EntityGraph 적용
+    @Override
+    @EntityGraph(attributePaths = {"leader", "members.user", "tags.tag"})
+    Optional<StudyGroup> findById(Long id);
+
     @Query("SELECT DISTINCT sg FROM StudyGroup sg " +
            "LEFT JOIN FETCH sg.tags sgt " +
            "LEFT JOIN FETCH sgt.tag " +
@@ -63,11 +71,18 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
     @Query("UPDATE StudyGroup sg SET sg.isBlinded = true WHERE sg.id = :id")
     void blindById(@Param("id") Long id);
 
-    @Query(value = "SELECT sg FROM StudyGroup sg JOIN FETCH sg.leader WHERE sg.isBlinded = false",
+    @Query(value = "SELECT DISTINCT sg FROM StudyGroup sg " +
+            "JOIN FETCH sg.leader " +
+            "LEFT JOIN FETCH sg.tags sgt " + // LEFT JOIN FETCH: 태그가 없는 스터디도 조회
+            "LEFT JOIN FETCH sgt.tag " +     // 태그 이름(String)을 가져오기 위해 Tag 엔티티까지 함께 조회
+            "WHERE sg.isBlinded = false",
             countQuery = "SELECT count(sg) FROM StudyGroup sg WHERE sg.isBlinded = false")
     Page<StudyGroup> findAllByIsBlindedFalse(Pageable pageable);
 
-    @Query(value = "SELECT sg FROM StudyGroup sg JOIN FETCH sg.leader " +
+    @Query(value = "SELECT DISTINCT sg FROM StudyGroup sg " +
+            "JOIN FETCH sg.leader " +
+            "LEFT JOIN FETCH sg.tags sgt " +
+            "LEFT JOIN FETCH sgt.tag " +
             "WHERE sg.isBlinded = false AND (sg.title LIKE %:keyword% OR sg.description LIKE %:keyword%)",
             countQuery = "SELECT count(sg) FROM StudyGroup sg " +
                     "WHERE sg.isBlinded = false AND (sg.title LIKE %:keyword% OR sg.description LIKE %:keyword%)")

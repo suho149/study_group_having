@@ -24,6 +24,14 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
 
     Page<BoardComment> findByBoardPostAndParentCommentIsNullOrderByCreatedAtAsc(BoardPost post, Pageable pageable);
 
+    // Fetch Join을 적용한 새로운 메소드 추가 또는 기존 쿼리 수정
+    @Query(value = "SELECT c FROM BoardComment c JOIN FETCH c.author " +
+            "WHERE c.boardPost = :post AND c.parentComment IS NULL " +
+            "ORDER BY c.createdAt ASC",
+            countQuery = "SELECT count(c) FROM BoardComment c " +
+                    "WHERE c.boardPost = :post AND c.parentComment IS NULL")
+    Page<BoardComment> findByBoardPostWithAuthor(@Param("post") BoardPost post, Pageable pageable);
+
     @Modifying(clearAutomatically = true) // ★★★ clearAutomatically = true 추가 ★★★
     @Query("UPDATE BoardComment c SET c.isBlinded = true, c.content = '관리자에 의해 숨김 처리된 댓글입니다.' WHERE c.id = :id")
     void blindById(@Param("id") Long id);
