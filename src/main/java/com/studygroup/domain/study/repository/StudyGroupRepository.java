@@ -63,10 +63,13 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
     @Query("UPDATE StudyGroup sg SET sg.isBlinded = true WHERE sg.id = :id")
     void blindById(@Param("id") Long id);
 
-    // 제목 또는 설명에 키워드를 포함하고, 블라인드되지 않은 스터디를 조회
-    Page<StudyGroup> findByIsBlindedFalseAndTitleContainingOrIsBlindedFalseAndDescriptionContaining(
-            String titleKeyword, String descriptionKeyword, Pageable pageable);
+    @Query(value = "SELECT sg FROM StudyGroup sg JOIN FETCH sg.leader WHERE sg.isBlinded = false",
+            countQuery = "SELECT count(sg) FROM StudyGroup sg WHERE sg.isBlinded = false")
+    Page<StudyGroup> findAllByIsBlindedFalse(Pageable pageable);
 
-    // 키워드가 없을 때, 블라인드되지 않은 모든 스터디를 조회
-    Page<StudyGroup> findByIsBlindedFalse(Pageable pageable);
+    @Query(value = "SELECT sg FROM StudyGroup sg JOIN FETCH sg.leader " +
+            "WHERE sg.isBlinded = false AND (sg.title LIKE %:keyword% OR sg.description LIKE %:keyword%)",
+            countQuery = "SELECT count(sg) FROM StudyGroup sg " +
+                    "WHERE sg.isBlinded = false AND (sg.title LIKE %:keyword% OR sg.description LIKE %:keyword%)")
+    Page<StudyGroup> findByKeywordAndIsBlindedFalse(@Param("keyword") String keyword, Pageable pageable);
 } 
