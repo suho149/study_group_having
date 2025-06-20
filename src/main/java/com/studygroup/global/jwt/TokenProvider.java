@@ -16,6 +16,7 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -42,10 +43,16 @@ public class TokenProvider {
 
         log.debug("토큰 생성: userId={}, email={}", userPrincipal.getId(), userPrincipal.getEmail());
 
+        // 1. Authentication 객체로부터 권한 목록을 가져옵니다.
+        String authorities = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(",")); // "ROLE_ADMIN,ROLE_USER" 와 같이 콤마로 구분된 문자열로 변환
+
         return Jwts.builder()
                 .setSubject(userPrincipal.getId().toString())
                 .claim("email", userPrincipal.getEmail())
-                .claim("authorities", "ROLE_USER")
+                // 2. 하드코딩된 문자열 대신, 위에서 동적으로 생성한 authorities 문자열을 클레임에 추가합니다.
+                .claim("authorities", authorities)
                 .setIssuedAt(now)
                 .setExpiration(validity)
                 .signWith(key, SignatureAlgorithm.HS512)
@@ -75,15 +82,25 @@ public class TokenProvider {
 
         Long userId = Long.parseLong(claims.getSubject());
         String email = claims.get("email", String.class);
-        Collection<? extends GrantedAuthority> authorities = 
-            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+
+        // 콤마로 구분된 권한 문자열을 다시 GrantedAuthority 컬렉션으로 변환
+        String[] authoritiesStrings = claims.get("authorities", String.class).split(",");
+        Collection<? extends GrantedAuthority> authorities =
+                java.util.Arrays.stream(authoritiesStrings)
+                        .map(SimpleGrantedAuthority::new)
+                        .collect(Collectors.toList());
 
         User user = User.builder()
                 .id(userId)
                 .email(email)
+                // User 엔티티에는 대표 권한 하나만 설정하거나, authorities 필드를 추가할 수 있음
+                // 여기서는 UserPrincipal 생성에만 사용하므로 User 엔티티 수정은 불필요
                 .build();
 
-        return UserPrincipal.create(user);
+        // 수정된 UserPrincipal 생성자 또는 메소드가 필요할 수 있습니다.
+        // 현재 UserPrincipal은 authorities를 외부에서 받지 않으므로, 생성 로직 수정이 필요합니다.
+        // 가장 간단한 방법은 UserPrincipal 내부에서 authorities를 설정하는 것입니다.
+        return UserPrincipal.create(user, authorities); // 이와 같이 authorities를 전달하는 create 메소드 필요
     }
 
     public boolean validateToken(String token) {

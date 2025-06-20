@@ -31,3 +31,24 @@ export interface ReportResponse {
     adminMemo?: string;
     createdAt: string;
 }
+
+// --- 이 Enum을 추가합니다 ---
+export enum ReportStatus {
+    RECEIVED = 'RECEIVED',
+    IN_PROGRESS = 'IN_PROGRESS',
+    COMPLETED = 'COMPLETED',
+}
+
+// ReportDetailDto 타입 정의 추가
+export interface ReportDetailDto {
+    id: number;
+    reportType: ReportType;
+    targetId: number;
+    targetContentPreview: string;
+    reason: string;
+    status: ReportStatus;
+    reporterName: string;
+    reportedUserName: string;
+    createdAt: string;
+    adminMemo: string;
+}

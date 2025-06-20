@@ -2,12 +2,15 @@ package com.studygroup.global.security;
 
 import com.studygroup.domain.auth.entity.RefreshToken;
 import com.studygroup.domain.auth.repository.RefreshTokenRepository;
+import com.studygroup.domain.user.entity.User;
+import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.jwt.TokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -23,6 +26,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private final TokenProvider tokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserRepository userRepository;
 
     @Value("${app.oauth2.redirectUri}")
     private String redirectUri;
@@ -46,9 +50,21 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             throw new IllegalStateException("User ID cannot be null");
         }
 
+        // --- ★★★ 핵심 로직 추가 ★★★ ---
+        // DB에서 사용자의 최신 정보를 다시 조회합니다.
+        // DataInitializer에 의해 Role이 USER -> ADMIN으로 변경된 경우, 이 조회로 최신 Role을 가져올 수 있습니다.
+        User latestUser = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalStateException("User not found in DB during token creation."));
+
+        // 최신 정보를 담은 새로운 UserPrincipal과 Authentication 객체를 생성합니다.
+        UserPrincipal finalPrincipal = UserPrincipal.create(latestUser, userPrincipal.getAttributes());
+        Authentication finalAuthentication = new UsernamePasswordAuthenticationToken(
+                finalPrincipal, null, finalPrincipal.getAuthorities());
+        // -----------------------------
+
         // 1. 토큰 쌍 생성
-        String accessToken = tokenProvider.createToken(authentication);
-        String refreshTokenValue = tokenProvider.createRefreshToken(authentication);
+        String accessToken = tokenProvider.createToken(finalAuthentication);
+        String refreshTokenValue = tokenProvider.createRefreshToken(finalAuthentication);
 
         // --- 2. Refresh Token을 DB에 저장 또는 업데이트하는 로직 ---
         refreshTokenRepository.findByUserId(userId)

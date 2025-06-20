@@ -8,6 +8,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 public class UserPrincipal implements OAuth2User, UserDetails {
@@ -18,17 +19,24 @@ public class UserPrincipal implements OAuth2User, UserDetails {
     private Map<String, Object> attributes;
     private User user;
 
-    public UserPrincipal(User user) {
+    public UserPrincipal(User user, Collection<? extends GrantedAuthority> authorities) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = "";
-        this.authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
+        this.authorities = authorities;
         this.user = user;
     }
 
     public static UserPrincipal create(User user) {
-        UserPrincipal userPrincipal = new UserPrincipal(user);
-        return userPrincipal;
+        // DB에서 가져온 user.getRole()을 바탕으로 권한 목록을 생성합니다.
+        List<GrantedAuthority> authorities = Collections.singletonList(
+                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+        );
+        return new UserPrincipal(user, authorities);
+    }
+
+    public static UserPrincipal create(User user, Collection<? extends GrantedAuthority> authorities) {
+        return new UserPrincipal(user, authorities);
     }
 
     public static UserPrincipal create(User user, Map<String, Object> attributes) {

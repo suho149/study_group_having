@@ -1,5 +1,6 @@
 package com.studygroup.domain.admin.controller;
 
+import com.studygroup.domain.admin.dto.ReportDetailDto;
 import com.studygroup.domain.admin.service.AdminService;
 import com.studygroup.domain.report.dto.ReportProcessDto;
 import com.studygroup.domain.report.entity.Report;
@@ -20,7 +21,7 @@ public class AdminController {
 
     // 신고 목록 조회
     @GetMapping("/reports")
-    public ResponseEntity<Page<Report>> getReports(Pageable pageable) {
+    public ResponseEntity<Page<ReportDetailDto>> getReports(Pageable pageable) {
         return ResponseEntity.ok(adminService.getReports(pageable));
     }
 
