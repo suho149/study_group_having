@@ -1,6 +1,7 @@
 package com.studygroup.domain.admin.controller;
 
 import com.studygroup.domain.admin.dto.ReportDetailDto;
+import com.studygroup.domain.admin.dto.StatisticsResponseDto;
 import com.studygroup.domain.admin.service.AdminService;
 import com.studygroup.domain.report.dto.ReportProcessDto;
 import com.studygroup.domain.report.entity.Report;
@@ -42,4 +43,10 @@ public class AdminController {
     // TODO: 사용자 관리 API (제재, 권한 변경 등)
 
     // TODO: 통계 데이터 조회 API
+
+    // 통계 데이터 조회 API
+    @GetMapping("/statistics")
+    public ResponseEntity<StatisticsResponseDto> getDashboardStatistics() {
+        return ResponseEntity.ok(adminService.getDashboardStatistics());
+    }
 }
