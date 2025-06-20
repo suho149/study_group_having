@@ -28,6 +28,8 @@ import DmNotificationListener from './components/dm/DmNotificationListener';
 import DmListPage from './pages/DmListPage';
 import AdminPage from './pages/admin/AdminPage'; // 새로 만들 페이지
 import AdminRoute from './components/auth/AdminRoute'; // 관리자만 접근 가능한 라우트
+import ReportManagementPage from './pages/admin/ReportManagementPage'; // 새로 만들 페이지
+import StatisticsPage from './pages/admin/StatisticsPage'; // 새로 만들 페이지
 
 const theme = createTheme({
   palette: {
@@ -81,7 +83,13 @@ function App() {
                   <AdminRoute>
                     <AdminPage />
                   </AdminRoute>
-                } />
+                }>
+                  {/* 자식 라우트들 */}
+                  <Route index element={<StatisticsPage />} /> {/* /admin (기본 경로) */}
+                  <Route path="reports" element={<ReportManagementPage />} /> {/* /admin/reports */}
+                  {/* 다른 관리자 메뉴가 추가되면 여기에 라우트 추가 */}
+                </Route>
+
                 <Route path="/" element={<Home />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/mypage" element={<MyPage />}>
