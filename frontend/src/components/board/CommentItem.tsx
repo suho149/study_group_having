@@ -96,11 +96,29 @@ const CommentItem: React.FC<CommentItemProps> = ({
 
     // TODO: handleLike, handleDislike 함수 구현 (추천/비추천 API 호출)
 
-    if (comment.isDeleted) {
+    // if (comment.isDeleted) {
+    //     return (
+    //         <ListItem alignItems="flex-start" sx={{ pl: isChild ? 4 : 0, opacity: 0.7, borderBottom: '1px solid #f0f0f0', pb:1 }}>
+    //             <ListItemText secondary="삭제된 댓글입니다." />
+    //             {/* 삭제된 댓글이라도 대댓글은 보여주도록 처리 */}
+    //             {comment.children && comment.children.length > 0 && (
+    //                 <List sx={{ width:'100%', pt:1 }}>
+    //                     {comment.children.map(childComment => (
+    //                         <CommentItem key={childComment.id} comment={childComment} currentUserId={currentUserId} onReply={onReply} onActionSuccess={onActionSuccess} isChild />
+    //                     ))}
+    //                 </List>
+    //             )}
+    //         </ListItem>
+    //     );
+    // }
+
+    // comment.isBlinded 또는 isDeleted가 true일 때 처리
+    if (comment.isDeleted || comment.isBlinded) {
+        const message = comment.isBlinded ? "관리자에 의해 숨김 처리된 댓글입니다." : "삭제된 댓글입니다.";
         return (
             <ListItem alignItems="flex-start" sx={{ pl: isChild ? 4 : 0, opacity: 0.7, borderBottom: '1px solid #f0f0f0', pb:1 }}>
-                <ListItemText secondary="삭제된 댓글입니다." />
-                {/* 삭제된 댓글이라도 대댓글은 보여주도록 처리 */}
+                <ListItemText secondary={message} />
+                {/* 숨겨진 댓글이라도 대댓글은 보여주도록 처리 */}
                 {comment.children && comment.children.length > 0 && (
                     <List sx={{ width:'100%', pt:1 }}>
                         {comment.children.map(childComment => (

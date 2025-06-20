@@ -30,6 +30,7 @@ export interface CommentDto {
     parentId?: number | null; // 대댓글인 경우 부모 댓글 ID
     children?: CommentDto[]; // 대댓글 목록 (계층 구조로 받을 경우)
     isDeleted?: boolean; // 삭제된 댓글인지 여부
+    isBlinded: boolean;
 }
 
 // 댓글 생성 요청 DTO 타입
@@ -54,6 +55,7 @@ export interface BoardPostResponseDto {
     likedByCurrentUser: boolean; // 현재 로그인한 사용자가 이 게시글을 추천했는지
     dislikedByCurrentUser: boolean; // 현재 로그인한 사용자가 이 게시글을 비추천했는지
     attachments?: AttachmentDto[]; // 첨부파일 목록 (선택적)
+    isBlinded: boolean;
     // comments?: CommentDto[]; // 초기 댓글 목록을 함께 내려줄 경우 (페이징 별도 권장)
 }
 

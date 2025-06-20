@@ -14,6 +14,9 @@ public class BoardPostSpecification {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            // --- ★★★ 블라인드되지 않은 게시물만 조회하는 조건 추가 ★★★ ---
+            predicates.add(criteriaBuilder.isFalse(root.get("isBlinded")));
+
             // 카테고리 필터링
             if (StringUtils.hasText(category) && !"ALL".equalsIgnoreCase(category)) {
                 try {

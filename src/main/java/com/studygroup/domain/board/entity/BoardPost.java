@@ -4,6 +4,7 @@ import com.studygroup.domain.user.entity.User;
 import com.studygroup.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,14 +45,18 @@ public class BoardPost extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
     private int dislikeCount = 0;
 
-     //댓글
-     @OneToMany(mappedBy = "boardPost", cascade = CascadeType.ALL, orphanRemoval = true)
-     @Builder.Default
-     private List<BoardComment> comments = new ArrayList<>();
+    //댓글
+    @OneToMany(mappedBy = "boardPost", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<BoardComment> comments = new ArrayList<>();
 
-    // @OneToMany(mappedBy = "boardPost", cascade = CascadeType.ALL, orphanRemoval = true)
-    // @Builder.Default
-    // private List<BoardAttachment> attachments = new ArrayList<>();
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean isBlinded = false;
+
+    public void blind() {
+        this.isBlinded = true;
+    }
 
     public void update(String title, String content, BoardCategory category) {
         this.title = title;

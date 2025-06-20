@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {
     Dialog, DialogTitle, DialogContent, TextField, DialogActions,
     Button, FormControl, InputLabel, Select, MenuItem, Alert, Typography,
-    CircularProgress
+    CircularProgress, Box
 } from '@mui/material';
 import api from '../../services/api';
 import { ReportStatus, ReportDetailDto } from '../../types/report'; // ReportStatus Enum import 확인
@@ -20,6 +20,7 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
     const [adminMemo, setAdminMemo] = useState(report?.adminMemo || '');
     const [error, setError] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false); // 처리 중 로딩 상태
+    const [isBlinding, setIsBlinding] = useState(false);
 
     // 모달이 열리거나 대상 report가 변경될 때 상태를 초기화합니다.
     useEffect(() => {
@@ -57,6 +58,31 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
 
     if (!report) return null;
 
+    const handleBlindContent = async () => {
+        if (!report) return;
+
+        const confirmBlind = window.confirm("정말로 이 콘텐츠를 숨김 처리하시겠습니까? 이 작업은 되돌릴 수 없습니다.");
+        if (!confirmBlind) return;
+
+        setIsBlinding(true);
+        setError('');
+        try {
+            const endpoint = `/api/admin/${report.reportType.toLowerCase()}s/${report.targetId}/blind`;
+            await api.post(endpoint);
+            // 숨김 처리 후, 신고 상태도 '처리완료'로 함께 업데이트
+            await api.patch(`/api/admin/reports/${report.id}`, {
+                status: 'COMPLETED',
+                adminMemo: `${adminMemo}\n(콘텐츠 숨김 처리됨)`
+            });
+            onSuccess();
+            onClose();
+        } catch (err: any) {
+            setError(err.response?.data?.message || '숨김 처리 중 오류 발생');
+        } finally {
+            setIsBlinding(false);
+        }
+    };
+
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
             <DialogTitle>신고 처리 (ID: {report.id})</DialogTitle>
@@ -84,11 +110,21 @@ const ProcessReportModal: React.FC<ProcessReportModalProps> = ({ open, onClose, 
                     value={adminMemo} onChange={(e) => setAdminMemo(e.target.value)}
                 />
             </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} disabled={isSubmitting}>취소</Button>
-                <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
-                    {isSubmitting ? <CircularProgress size={24} /> : '저장'}
+            <DialogActions sx={{ p: '16px 24px', justifyContent: 'space-between' }}>
+                <Button
+                    onClick={handleBlindContent}
+                    color="error"
+                    variant="outlined"
+                    disabled={isSubmitting || isBlinding}
+                >
+                    {isBlinding ? <CircularProgress size={24} /> : '콘텐츠 숨김'}
                 </Button>
+                <Box>
+                    <Button onClick={onClose} disabled={isSubmitting}>취소</Button>
+                    <Button onClick={handleSubmit} variant="contained" disabled={isSubmitting}>
+                        {isSubmitting ? <CircularProgress size={24} /> : '상태 저장'}
+                    </Button>
+                </Box>
             </DialogActions>
         </Dialog>
     );

@@ -112,4 +112,14 @@ public class AdminService {
                 .popularTags(popularTags)
                 .build();
     }
+
+    // --- 게시글 블라인드 처리 메소드 추가 ---
+    public void blindPost(Long postId) {
+        boardPostRepository.blindById(postId);
+    }
+
+    // --- 댓글 블라인드 처리 메소드 추가 ---
+    public void blindComment(Long commentId) {
+        boardCommentRepository.blindById(commentId);
+    }
 }

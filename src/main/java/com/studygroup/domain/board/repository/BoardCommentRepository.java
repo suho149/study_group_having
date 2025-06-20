@@ -5,6 +5,9 @@ import com.studygroup.domain.board.entity.BoardPost;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -20,4 +23,8 @@ public interface BoardCommentRepository extends JpaRepository<BoardComment, Long
     long countByBoardPostAndIsDeletedFalse(BoardPost boardPost);
 
     Page<BoardComment> findByBoardPostAndParentCommentIsNullOrderByCreatedAtAsc(BoardPost post, Pageable pageable);
+
+    @Modifying(clearAutomatically = true) // ★★★ clearAutomatically = true 추가 ★★★
+    @Query("UPDATE BoardComment c SET c.isBlinded = true, c.content = '관리자에 의해 숨김 처리된 댓글입니다.' WHERE c.id = :id")
+    void blindById(@Param("id") Long id);
 }

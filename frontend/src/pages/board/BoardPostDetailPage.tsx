@@ -281,6 +281,17 @@ const BoardPostDetailPage: React.FC = () => {
         return <Container sx={{mt:5, textAlign:'center'}}><Typography>게시글을 찾을 수 없습니다.</Typography></Container>;
     }
 
+    // post.isBlinded가 true이면, 경고 메시지를 보여주고 렌더링을 중단합니다.
+    if (post.isBlinded) {
+        return (
+            <Container maxWidth="md" sx={{ my: 4 }}>
+                <Alert severity="warning" variant="filled">
+                    관리자에 의해 숨김 처리된 게시물입니다.
+                </Alert>
+            </Container>
+        );
+    }
+
     const isAuthor = isLoggedIn && Number(currentUserId) === Number(post.author?.id);
     console.log("isAuthor is calculated as:", isAuthor);
 

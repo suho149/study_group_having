@@ -49,4 +49,18 @@ public class AdminController {
     public ResponseEntity<StatisticsResponseDto> getDashboardStatistics() {
         return ResponseEntity.ok(adminService.getDashboardStatistics());
     }
+
+    // --- 게시글 블라인드 처리 API 추가 ---
+    @PostMapping("/posts/{postId}/blind")
+    public ResponseEntity<Void> blindPost(@PathVariable Long postId) {
+        adminService.blindPost(postId);
+        return ResponseEntity.ok().build();
+    }
+
+    // --- 댓글 블라인드 처리 API 추가 ---
+    @PostMapping("/comments/{commentId}/blind")
+    public ResponseEntity<Void> blindComment(@PathVariable Long commentId) {
+        adminService.blindComment(commentId);
+        return ResponseEntity.ok().build();
+    }
 }

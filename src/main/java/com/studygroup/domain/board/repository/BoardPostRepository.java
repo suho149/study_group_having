@@ -5,6 +5,7 @@ import com.studygroup.domain.user.entity.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -31,4 +32,8 @@ public interface BoardPostRepository extends JpaRepository<BoardPost, Long>, Jpa
 
     @Query("SELECT SUM(p.likeCount) FROM BoardPost p WHERE p.author = :author")
     Integer getTotalLikeCountByAuthor(@Param("author") User author);
+
+    @Modifying(clearAutomatically = true) // ★★★ clearAutomatically = true 추가 ★★★
+    @Query("UPDATE BoardPost p SET p.isBlinded = true WHERE p.id = :id")
+    void blindById(@Param("id") Long id);
 }

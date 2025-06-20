@@ -4,6 +4,7 @@ import com.studygroup.domain.user.entity.User;
 import com.studygroup.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,15 @@ public class BoardComment extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private boolean isDeleted = false; // 삭제 여부 (소프트 삭제용)
+
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean isBlinded = false;
+
+    public void blind() {
+        this.isBlinded = true;
+        this.content = "관리자에 의해 숨김 처리된 댓글입니다."; // 내용도 변경
+    }
 
     // 댓글 내용 수정 메소드
     public void updateContent(String content) {
