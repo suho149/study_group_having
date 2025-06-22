@@ -17,7 +17,10 @@ public enum NotificationType {
     NEW_LIKE_ON_POST("회원님의 게시글을 좋아합니다."),
     // NEW_LIKE_ON_COMMENT("회원님의 댓글을 좋아합니다."), // 댓글 좋아요 알림은 너무 많을 수 있어 일단 보류
     NEW_COMMENT_ON_POST("회원님의 게시글에 새로운 댓글이 달렸습니다."),
-    NEW_REPLY_ON_COMMENT("회원님의 댓글에 새로운 답글이 달렸습니다.");
+    NEW_REPLY_ON_COMMENT("회원님의 댓글에 새로운 답글이 달렸습니다."),
+    // --- 친구 관련 알림 타입 추가 ---
+    FRIEND_REQUEST("님이 회원님에게 친구 신청을 보냈습니다."),
+    FRIEND_ACCEPTED("님이 친구 신청을 수락했습니다.");
 
     private final String description;
 

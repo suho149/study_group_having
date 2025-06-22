@@ -169,6 +169,16 @@ const NotificationPage: React.FC = () => {
         apiEndpoint = `/api/chat/rooms/${notificationToHandle.referenceId}/invites/respond?accept=${accept}`;
         await api.post(apiEndpoint);
         actionTaken = true;
+      } else if (notificationToHandle.type === 'FRIEND_REQUEST') {
+        // friendshipId는 이 경우 referenceId가 아닌, 별도의 테이블 ID.
+        // 이 알림을 처리하려면 Friendship ID가 필요하므로, Notification의 referenceId에 friendshipId를 저장해야 함.
+        // 백엔드 FriendshipService의 sendFriendRequest에서 Notification 생성 시 friendship.getId()를 referenceId로 넘겨줘야 함.
+        if (accept) {
+          await api.post(`/api/friends/accept/${notificationToHandle.referenceId}`);
+        } else {
+          await api.delete(`/api/friends/request/${notificationToHandle.referenceId}`);
+        }
+        actionTaken = true;
       } else {
         console.warn("Unhandled actionable notification type for action:", notificationToHandle.type);
         setProcessingNotificationId(null);
@@ -254,7 +264,7 @@ const NotificationPage: React.FC = () => {
     // 현재 이 알림이 처리 중인지 여부 판단
     const isCurrentlyProcessing = processingNotificationId === notification.id;
 
-    if (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE') {
+    if (notification.type === 'STUDY_INVITE' || notification.type === 'CHAT_INVITE' || notification.type === 'FRIEND_REQUEST') {
       return (
           <Box sx={{ mt: 1, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
             <Button
