@@ -30,6 +30,7 @@ import AdminPage from './pages/admin/AdminPage'; // 새로 만들 페이지
 import AdminRoute from './components/auth/AdminRoute'; // 관리자만 접근 가능한 라우트
 import ReportManagementPage from './pages/admin/ReportManagementPage'; // 새로 만들 페이지
 import StatisticsPage from './pages/admin/StatisticsPage'; // 새로 만들 페이지
+import FriendManagementPage from './pages/FriendManagementPage'; // 새로 만들 페이지
 
 const theme = createTheme({
   palette: {
@@ -99,6 +100,8 @@ function App() {
                   <Route path="liked-posts" element={<LikedPostsPage />} /> {/* /mypage/liked-posts */}
                   <Route path="liked-studies" element={<LikedStudiesPage />} /> {/* /mypage/liked-studies */}
                   <Route path="participating-studies" element={<ParticipatingStudiesPage />} /> {/* /mypage/participating-studies */}
+                  {/* --- 친구 관리 라우트 추가 --- */}
+                  <Route path="friends" element={<FriendManagementPage />} />
                 </Route>
 
                 {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}

@@ -9,6 +9,7 @@ import BookmarksIcon from '@mui/icons-material/Bookmarks'; // 좋아요 한 스�
 import GroupsIcon from '@mui/icons-material/Groups';
 import {jwtDecode} from "jwt-decode"; // 참여중인 스터디 아이콘
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import PeopleIcon from '@mui/icons-material/People'; // 친구 아이콘
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
@@ -67,6 +68,14 @@ const MyPage: React.FC = () => {
                 <ListItemButton selected={isSelected('/mypage/participating-studies')} onClick={() => navigate('/mypage/participating-studies')}>
                   <ListItemIcon sx={{ minWidth: 40 }}><GroupsIcon color={isSelected('/mypage/participating-studies') ? "primary" : "inherit"} /></ListItemIcon>
                   <ListItemText primary="참여중인 스터디" />
+                </ListItemButton>
+                <Divider />
+                {/* --- 친구 관리 메뉴 추가 --- */}
+                <ListItemButton selected={isSelected('/mypage/friends')} onClick={() => navigate('/mypage/friends')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <PeopleIcon color={isSelected('/mypage/friends') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="친구 관리" />
                 </ListItemButton>
                 <Divider />
                 <ListItemButton selected={isSelected('/notifications')} onClick={() => navigate('/notifications')}>
