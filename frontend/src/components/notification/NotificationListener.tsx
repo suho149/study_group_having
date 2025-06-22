@@ -16,6 +16,30 @@ const NotificationListener: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    // --- ★★★ 네비게이션 경로를 결정하는 함수를 여기에 정의합니다 ★★★ ---
+    const getNavigationPath = (notification: Notification): string => {
+        const type = notification.type;
+        const refId = notification.referenceId;
+
+        if (!refId) return '/notifications';
+
+        switch (type) {
+            case NotificationType.NEW_DM:
+                return `/dm/room/${refId}`;
+            case NotificationType.CHAT_INVITE:
+                return `/chat/room/${refId}`;
+            case NotificationType.STUDY_INVITE:
+            case NotificationType.JOIN_APPROVED:
+                return `/studies/${refId}`;
+            case NotificationType.NEW_LIKE_ON_POST:
+            case NotificationType.NEW_COMMENT_ON_POST:
+            case NotificationType.NEW_REPLY_ON_COMMENT:
+                return `/board/post/${refId}`;
+            default:
+                return '/notifications';
+        }
+    };
+
     useEffect(() => {
         let eventSource: EventSource | undefined;
 
@@ -38,6 +62,13 @@ const NotificationListener: React.FC = () => {
             eventSource.addEventListener('new-notification', (event) => {
                 try {
                     const notificationData: Notification = JSON.parse(event.data);
+
+                    const path = getNavigationPath(notificationData);
+
+                    // 현재 보고 있는 페이지와 관련된 알림이면 띄우지 않음
+                    if (location.pathname === path) {
+                        return;
+                    }
 
                     let groupKey: string | null = null;
                     // NEW_DM 타입일 때만 그룹화 (그룹화 기준: 채팅방 ID)
@@ -96,35 +127,13 @@ const NotificationListener: React.FC = () => {
 
                     } else {
                         // 2. 그룹화 대상이 아닌 일반 알림 (기존 로직)
-                        const handleNavigation = () => {
-                            if (notificationData.referenceId) {
-                                switch (notificationData.type) {
-                                    case NotificationType.STUDY_INVITE:
-                                    case NotificationType.JOIN_APPROVED:
-                                        navigate(`/studies/${notificationData.referenceId}`);
-                                        break;
-                                    case NotificationType.CHAT_INVITE:
-                                        navigate(`/chat/room/${notificationData.referenceId}`);
-                                        break;
-                                    case NotificationType.NEW_DM:
-                                        navigate(`/dm/room/${notificationData.referenceId}`);
-                                        break;
-                                    default:
-                                        navigate('/notifications');
-                                        break;
-                                }
-                            } else {
-                                navigate('/notifications');
-                            }
-                        };
-
-                        // --- 이 부분이 최종 수정된 부분입니다 ---
+                        // --- ★★★ 일반 알림 처리 로직을 수정합니다 ★★★ ---
                         const action = (key: SnackbarKey) => (
                             <Button
                                 size="small"
-                                sx={{ color: 'white' }}
+                                sx={{ color: 'white', fontWeight: 'bold' }}
                                 onClick={() => {
-                                    handleNavigation();
+                                    navigate(path); // getNavigationPath로 계산된 경로 사용
                                     closeSnackbar(key);
                                 }}
                             >
@@ -135,7 +144,6 @@ const NotificationListener: React.FC = () => {
                         enqueueSnackbar(notificationData.message, {
                             variant: 'info',
                             anchorOrigin: { vertical: 'top', horizontal: 'right' },
-                            // onClick 대신 action prop을 사용하여 버튼을 렌더링합니다.
                             action: action,
                         });
                     }
