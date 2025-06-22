@@ -2,8 +2,10 @@ package com.studygroup.domain.friend.service;
 
 import com.studygroup.domain.friend.dto.FriendDto;
 import com.studygroup.domain.friend.dto.FriendRequestDto;
+import com.studygroup.domain.friend.dto.FriendshipStatusDto;
 import com.studygroup.domain.friend.entity.Friendship;
 import com.studygroup.domain.friend.entity.FriendshipStatus;
+import com.studygroup.domain.friend.entity.FriendshipStatusType;
 import com.studygroup.domain.friend.repository.FriendshipRepository;
 import com.studygroup.domain.notification.entity.NotificationType;
 import com.studygroup.domain.notification.service.NotificationService;
@@ -103,5 +105,33 @@ public class FriendshipService {
                 .stream()
                 .map(friendship -> new FriendRequestDto(friendship, true)) // 내가 보낸 신청
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public FriendshipStatusDto getFriendshipStatus(Long fromUserId, Long toUserId) {
+        if (fromUserId.equals(toUserId)) {
+            // 자기 자신과의 관계는 정의하지 않음 (또는 다른 타입으로 정의 가능)
+            return new FriendshipStatusDto(null, null);
+        }
+
+        User fromUser = userRepository.findById(fromUserId).orElseThrow();
+        User toUser = userRepository.findById(toUserId).orElseThrow();
+
+        return friendshipRepository.findFriendshipBetween(fromUser, toUser)
+                .map(friendship -> {
+                    // 관계가 존재할 경우
+                    if (friendship.getStatus() == FriendshipStatus.ACCEPTED) {
+                        return new FriendshipStatusDto(FriendshipStatusType.FRIENDS, friendship.getId());
+                    }
+                    // 내가 신청한 경우 (user가 나)
+                    if (friendship.getUser().getId().equals(fromUserId)) {
+                        return new FriendshipStatusDto(FriendshipStatusType.REQUEST_SENT, friendship.getId());
+                    }
+                    // 내가 신청받은 경우 (friend가 나)
+                    else {
+                        return new FriendshipStatusDto(FriendshipStatusType.REQUEST_RECEIVED, friendship.getId());
+                    }
+                })
+                .orElse(new FriendshipStatusDto(FriendshipStatusType.NOT_FRIENDS, null)); // 관계가 없으면 NOT_FRIENDS
     }
 }

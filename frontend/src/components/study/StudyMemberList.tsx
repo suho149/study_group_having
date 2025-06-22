@@ -29,6 +29,8 @@ import { useAuth } from '../../contexts/AuthContext'; // currentUserId 가져오
 import { useNavigate } from 'react-router-dom';
 import MessageIcon from '@mui/icons-material/Message';
 import PersonAddIcon from '@mui/icons-material/PersonAdd'; // 친구 추가 아이콘
+import FriendActionButton from '../friend/FriendActionButton'; // 새로 만든 컴포넌트 import
+
 
 // 1. Member 인터페이스의 imageUrl을 profile로 변경
 interface Member {
@@ -70,16 +72,6 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
 
   // 강제 탈퇴 확인 다이얼로그 상태
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = React.useState(false);
-
-  const handleFriendRequest = async (toUserId: number) => {
-    try {
-      await api.post(`/api/friends/request/${toUserId}`);
-      alert('친구 신청을 보냈습니다.');
-      // TODO: 버튼 상태를 '신청중'으로 변경하는 로직
-    } catch (error: any) {
-      alert(error.response?.data?.message || '친구 신청에 실패했습니다.');
-    }
-  };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, member: Member) => {
     setAnchorEl(event.currentTarget);
@@ -226,13 +218,8 @@ const StudyMemberList: React.FC<StudyMemberListProps> = ({
 
                             {/* ★★★ 친구 신청 버튼 추가 ★★★ */}
                             {/* 친구가 아니고, 신청 중도 아니고, 본인도 아닐 때만 표시 */}
-                            {member.id !== currentUserId /* && !isFriend && !isPending */ && (
-                                <Tooltip title="친구 신청">
-                                  <IconButton onClick={() => handleFriendRequest(member.id)} size="small">
-                                    <PersonAddIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                            )}
+                            {/* ★★★ 기존 친구 신청 버튼을 FriendActionButton으로 교체 ★★★ */}
+                            {member.id !== currentUserId && <FriendActionButton targetUserId={member.id} />}
 
                             {/* 2. 멤버 관리 메뉴 버튼 (기존 로직) */}
                             {isLeaderView && member.id !== currentUserId &&

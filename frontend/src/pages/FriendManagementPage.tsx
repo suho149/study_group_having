@@ -92,7 +92,7 @@ const FriendManagementPage: React.FC = () => {
                                         handleFriendRequest(option.id);
                                     }}
                                 >
-                                    신청
+                                    친구 신청
                                 </Button>
                             </li>
                         );
