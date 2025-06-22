@@ -6,10 +6,7 @@ import com.studygroup.domain.notification.repository.NotificationRepository;
 import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.study.dto.*;
 import com.studygroup.domain.study.entity.*;
-import com.studygroup.domain.study.repository.StudyGroupRepository;
-import com.studygroup.domain.study.repository.StudyLikeRepository;
-import com.studygroup.domain.study.repository.StudyMemberRepository;
-import com.studygroup.domain.study.repository.TagRepository;
+import com.studygroup.domain.study.repository.*;
 import com.studygroup.domain.user.dto.TagInteractionEvent;
 import com.studygroup.domain.user.dto.UserActivityEvent;
 import com.studygroup.domain.user.entity.ActivityType;
@@ -22,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
@@ -111,6 +109,7 @@ public class StudyGroupService {
                 .maxMembers(request.getMaxMembers())
                 .status(StudyStatus.RECRUITING)
                 .studyType(request.getStudyType())
+                .category(request.getCategory())
                 .location(request.getLocation())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
@@ -154,29 +153,45 @@ public class StudyGroupService {
     }
 
     @Transactional(readOnly = true)
-    public Page<StudyGroupResponse> getStudyGroups(String keyword, Pageable pageable, UserPrincipal currentUserPrincipal) {
-        log.debug("스터디 그룹 목록 조회: keyword={}, pageable={}", keyword, pageable);
-        
+    public Page<StudyGroupResponse> getStudyGroups(String keyword, StudyCategory category, Pageable pageable, UserPrincipal currentUserPrincipal) {
+
+        // 로그에 category도 포함하여 디버깅 용이성 확보
+        log.debug("스터디 그룹 목록 조회: keyword={}, category={}, pageable={}", keyword, category, pageable);
+
         Page<StudyGroup> studyGroups;
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            studyGroups = studyGroupRepository.findByKeywordAndIsBlindedFalse(keyword, pageable);
+        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
+
+        // --- ★★★ 이 부분이 핵심 수정 사항입니다 ★★★ ---
+        // 1. Specification 관련 코드를 모두 제거합니다.
+        // 2. if-else 문으로 4가지 경우의 수를 모두 처리합니다.
+
+        if (hasKeyword && category != null) {
+            // 경우 1: 키워드와 카테고리 둘 다 있을 때
+            studyGroups = studyGroupRepository.findByCategoryAndIsBlindedFalseAndTitleContaining(category, keyword, pageable);
+        } else if (hasKeyword) {
+            // 경우 2: 키워드만 있을 때
+            studyGroups = studyGroupRepository.findByIsBlindedFalseAndTitleContaining(keyword, pageable);
+        } else if (category != null) {
+            // 경우 3: 카테고리만 있을 때
+            studyGroups = studyGroupRepository.findByCategoryAndIsBlindedFalse(category, pageable);
         } else {
+            // 경우 4: 아무 조건도 없을 때 (전체 조회)
             studyGroups = studyGroupRepository.findAllByIsBlindedFalse(pageable);
         }
+        // ---------------------------------------------
 
         User currentUser = null;
         if (currentUserPrincipal != null) {
             currentUser = userRepository.findById(currentUserPrincipal.getId()).orElse(null);
         }
 
-        // 각 StudyGroup에 대해 현재 사용자의 좋아요 여부를 확인하여 DTO 생성
-        User finalCurrentUser = currentUser; // 람다에서 사용하기 위해 final 또는 effectively final
+        User finalCurrentUser = currentUser;
         return studyGroups.map(studyGroup -> {
             boolean isLiked = false;
             if (finalCurrentUser != null) {
                 isLiked = studyLikeRepository.existsByUserAndStudyGroup(finalCurrentUser, studyGroup);
             }
-            return StudyGroupResponse.from(studyGroup, isLiked); // StudyGroupResponse.from 수정 필요
+            return StudyGroupResponse.from(studyGroup, isLiked);
         });
     }
 
@@ -383,6 +398,7 @@ public class StudyGroupService {
             request.getMaxMembers(),
             request.getStatus(),
             request.getStudyType(),
+            request.getCategory(),
             request.getLocation(),
                 request.getLatitude(),
                 request.getLongitude(),

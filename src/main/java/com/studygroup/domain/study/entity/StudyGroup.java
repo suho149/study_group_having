@@ -34,6 +34,10 @@ public class StudyGroup extends BaseTimeEntity {
     @Column(nullable = false)
     private String description;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StudyCategory category;
+
     @Column(nullable = false)
     private int maxMembers;
 
@@ -79,13 +83,14 @@ public class StudyGroup extends BaseTimeEntity {
 
     @Builder
     public StudyGroup(User leader, String title, String description, int maxMembers,
-                     StudyStatus status, StudyType studyType, String location,
+                     StudyStatus status, StudyType studyType, StudyCategory category, String location,
                       Double latitude, Double longitude,
                      LocalDate startDate, LocalDate endDate) {
         this.leader = leader;
         this.title = title;
         this.description = description;
         this.maxMembers = maxMembers;
+        this.category = category;
         this.currentMembers = 1; // 리더를 포함하여 시작
         this.status = status;
         this.studyType = studyType;
@@ -140,7 +145,7 @@ public class StudyGroup extends BaseTimeEntity {
     }
 
     public void update(String title, String description, int maxMembers,
-                     StudyStatus status, StudyType studyType, String location,
+                     StudyStatus status, StudyType studyType, StudyCategory category, String location,
                        Double latitude, Double longitude,
                      LocalDate startDate, LocalDate endDate) {
         this.title = title;
@@ -148,6 +153,7 @@ public class StudyGroup extends BaseTimeEntity {
         this.maxMembers = maxMembers;
         this.status = status;
         this.studyType = studyType;
+        this.category = category;
         this.location = location;
         this.latitude = latitude;     // 추가
         this.longitude = longitude;   // 추가

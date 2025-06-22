@@ -13,7 +13,7 @@ import {
   Chip,
   Stack,
   SelectChangeEvent,
-  Grid, ListItem, List, ListItemText,
+  Grid, ListItem, List, ListItemText, RadioGroup, FormControlLabel, Radio,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -35,6 +35,7 @@ interface FormData {
   description: string;
   maxMembers: string;
   studyType: string; // 'ONLINE', 'OFFLINE', 'HYBRID'
+  category: 'STUDY' | 'PROJECT' | '';
   location: string;  // 오프라인 시 주소, 온라인 시 플랫폼
   latitude?: number | null;  // 위도 (오프라인 시)
   longitude?: number | null; // 경도 (오프라인 시)
@@ -56,6 +57,7 @@ const CreateStudyPage = () => {
     description: '',
     maxMembers: '',
     studyType: '',
+    category: '',
     location: '',
     latitude: null,
     longitude: null,
@@ -258,12 +260,18 @@ const CreateStudyPage = () => {
       alert('오프라인 스터디의 경우 지도에서 장소를 선택해주세요.');
       return;
     }
+    // --- ★★★ 유효성 검사 추가 ★★★ ---
+    if (!formData.category) {
+      alert('모집 구분을 선택해주세요.');
+      return;
+    }
     try {
       const requestPayload = { // 변수명 변경 (formData와 구분)
         title: formData.title,
         description: formData.description,
         maxMembers: parseInt(formData.maxMembers, 10), // 숫자로 변환
         studyType: formData.studyType, // 'ONLINE', 'OFFLINE', 'HYBRID' 문자열
+        category: formData.category,
         location: formData.location,
         latitude: formData.latitude,   // null 또는 숫자
         longitude: formData.longitude, // null 또는 숫자
@@ -303,6 +311,15 @@ const CreateStudyPage = () => {
           </Typography>
           <form onSubmit={handleSubmit}>
             <Stack spacing={3}>
+
+              <FormControl component="fieldset" required>
+                <Typography variant="subtitle1" gutterBottom sx={{fontWeight:'medium'}}>모집 구분</Typography>
+                <RadioGroup row name="category" value={formData.category} onChange={handleChange}>
+                  <FormControlLabel value="STUDY" control={<Radio />} label="스터디" />
+                  <FormControlLabel value="PROJECT" control={<Radio />} label="프로젝트" />
+                </RadioGroup>
+              </FormControl>
+
             <TextField
               name="title"
               label="스터디 제목"

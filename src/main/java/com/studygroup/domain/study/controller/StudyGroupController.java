@@ -1,6 +1,7 @@
 package com.studygroup.domain.study.controller;
 
 import com.studygroup.domain.study.dto.*;
+import com.studygroup.domain.study.entity.StudyCategory;
 import com.studygroup.domain.study.service.StudyGroupService;
 import com.studygroup.global.security.CurrentUser;
 import com.studygroup.global.security.UserPrincipal;
@@ -29,9 +30,10 @@ public class StudyGroupController {
     public ResponseEntity<Page<StudyGroupResponse>> getStudyGroups(
             @PageableDefault(size = 10) Pageable pageable,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) StudyCategory category,
             @CurrentUser UserPrincipal userPrincipal) {
         log.debug("스터디 그룹 목록 조회 요청: keyword={}, pageable={}", keyword, pageable);
-        Page<StudyGroupResponse> response = studyGroupService.getStudyGroups(keyword, pageable, userPrincipal);
+        Page<StudyGroupResponse> response = studyGroupService.getStudyGroups(keyword, category, pageable, userPrincipal);
         return ResponseEntity.ok(response);
     }
 

@@ -121,7 +121,7 @@ const ListView: React.FC<ListViewProps> = ({
                                         {currentTab <= 2 ? (
                                             <PostCard
                                                 id={item.id}
-                                                category={(item as StudyGroupSummary).studyType === 'PROJECT' ? '프로젝트' : '스터디'}
+                                                category={(item as StudyGroupSummary).category}
                                                 title={item.title}
                                                 date={new Date(item.createdAt).toLocaleDateString('ko-KR')}
                                                 currentMembers={(item as StudyGroupSummary).currentMembers}

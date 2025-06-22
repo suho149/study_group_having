@@ -1,22 +1,26 @@
 package com.studygroup.domain.study.repository;
 
-import com.studygroup.domain.study.entity.StudyGroup;
-import com.studygroup.domain.study.entity.StudyStatus;
-import com.studygroup.domain.study.entity.StudyType;
-import com.studygroup.domain.study.entity.Tag;
+import com.studygroup.domain.study.entity.*;
 import com.studygroup.domain.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
+
+    // 1. 키워드와 카테고리로 필터링
+    Page<StudyGroup> findByCategoryAndIsBlindedFalseAndTitleContaining(
+            StudyCategory category, String keyword, Pageable pageable);
+
+    // 2. 키워드로만 필터링
+    Page<StudyGroup> findByIsBlindedFalseAndTitleContaining(String keyword, Pageable pageable);
+
+    // 3. 카테고리로만 필터링
+    Page<StudyGroup> findByCategoryAndIsBlindedFalse(StudyCategory category, Pageable pageable);
 
     // findById를 오버라이딩하여 EntityGraph 적용
     @Override

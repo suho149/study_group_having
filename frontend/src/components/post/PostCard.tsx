@@ -11,7 +11,7 @@ import api from "../../services/api";
 
 interface PostCardProps {
   id: number;
-  category: string;
+  category: 'STUDY' | 'PROJECT' | string;
   title: string;
   date: string;
   currentMembers: number;
@@ -158,6 +158,17 @@ const PostCard: React.FC<PostCardProps> = ({
     }
   };
 
+  // 카테고리 Enum 값에 따라 한글 텍스트와 색상을 반환하는 함수
+  const getCategoryStyle = (cat: 'STUDY' | 'PROJECT' | string) => {
+    if (cat === 'PROJECT') {
+      return { label: '프로젝트', color: 'primary' as const }; // 'primary' 색상 사용
+    }
+    // 기본값은 '스터디'
+    return { label: '스터디', color: 'default' as const };
+  };
+
+  const categoryStyle = getCategoryStyle(category);
+
   return (
     <StyledCard onClick={handleClick} sx={{ cursor: 'pointer' }}>
       <CardContent>
@@ -169,7 +180,11 @@ const PostCard: React.FC<PostCardProps> = ({
           sx={{ mb: 2 }}
         >
           <Box display="flex" alignItems="center" gap={1}>
-            <CategoryChip label={category} size="small" />
+            <CategoryChip
+                label={categoryStyle.label}
+                size="small"
+                color={categoryStyle.color}
+            />
             <StatusChip label={getStatusLabel(status)} size="small" status={status} />
           </Box>
           {isHot && <HotChip label="🔥 인기" size="small" />}

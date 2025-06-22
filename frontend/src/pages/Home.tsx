@@ -36,10 +36,14 @@ const Home: React.FC = () => {
     try {
       const params: any = { keyword: keyword || undefined, page, size: 9 };
       if (tabIndex <= 2) {
-        let studyTypeParam: 'PROJECT' | 'STUDY' | undefined;
-        if (tabIndex === 1) studyTypeParam = 'PROJECT';
-        if (tabIndex === 2) studyTypeParam = 'STUDY';
-        if (studyTypeParam) params.studyType = studyTypeParam;
+        let categoryParam: 'PROJECT' | 'STUDY' | undefined;
+        if (tabIndex === 1) categoryParam = 'PROJECT';
+        if (tabIndex === 2) categoryParam = 'STUDY';
+        // tabIndex 0 (전체) 일 때는 파라미터를 보내지 않음
+
+        if (categoryParam) {
+          params.category = categoryParam;
+        }
 
         const response = await api.get<{ content: StudyGroupSummary[], last: boolean }>('/api/studies', { params });
         if (response.data?.content) {

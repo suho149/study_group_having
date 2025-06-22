@@ -60,7 +60,8 @@ export enum StudyMemberRole {
 export interface StudyGroupSummary {
     id: number;
     title: string;
-    studyType: 'PROJECT' | 'STUDY';
+    studyType: 'ONLINE' | 'OFFLINE' | 'HYBRID'; // studyType은 그대로 유지
+    category: 'STUDY' | 'PROJECT'; // 새로운 category 필드 추가
     tags: string[];
     createdAt: string;
     currentMembers: number;

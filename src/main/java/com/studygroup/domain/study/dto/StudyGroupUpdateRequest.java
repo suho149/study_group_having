@@ -1,5 +1,6 @@
 package com.studygroup.domain.study.dto;
 
+import com.studygroup.domain.study.entity.StudyCategory;
 import com.studygroup.domain.study.entity.StudyStatus;
 import com.studygroup.domain.study.entity.StudyType;
 import jakarta.validation.constraints.Min;
@@ -29,6 +30,9 @@ public class StudyGroupUpdateRequest {
 
     @NotNull(message = "스터디 유형은 필수입니다.")
     private StudyType studyType;
+
+    @NotNull(message = "모집 구분은 필수입니다.")
+    private StudyCategory category;
 
     @NotBlank(message = "장소는 필수입니다.")
     private String location;

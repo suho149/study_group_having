@@ -1,5 +1,6 @@
 package com.studygroup.domain.study.dto;
 
+import com.studygroup.domain.study.entity.StudyCategory;
 import com.studygroup.domain.study.entity.StudyGroup;
 import com.studygroup.domain.study.entity.StudyStatus;
 import com.studygroup.domain.study.entity.StudyType;
@@ -24,6 +25,7 @@ public class StudyGroupDetailResponse {
     private int currentMembers;
     private StudyStatus status;
     private StudyType studyType;
+    private StudyCategory category;
     private String location;
     private LocalDate startDate;
     private LocalDate endDate;
@@ -67,6 +69,7 @@ public class StudyGroupDetailResponse {
                 .currentMembers(studyGroup.getCurrentMembers())
                 .status(studyGroup.getStatus())
                 .studyType(studyGroup.getStudyType())
+                .category(studyGroup.getCategory())
                 .location(studyGroup.getLocation())
                 .startDate(studyGroup.getStartDate())
                 .endDate(studyGroup.getEndDate())
