@@ -60,7 +60,7 @@ public class BoardService {
         log.info("새 게시글 생성 완료: postId={}, authorId={}", savedPost.getId(), authorId);
 
         // --- 게시글 작성 이벤트 발행 ---
-        eventPublisher.publishEvent(new UserActivityEvent(author, ActivityType.CREATE_POST));
+        eventPublisher.publishEvent(new UserActivityEvent(author, ActivityType.CREATE_POST, savedPost.getId()));
 
         return BoardPostResponse.from(savedPost, false, false);
     }

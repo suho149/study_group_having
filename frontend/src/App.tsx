@@ -30,7 +30,8 @@ import AdminPage from './pages/admin/AdminPage'; // 새로 만들 페이지
 import AdminRoute from './components/auth/AdminRoute'; // 관리자만 접근 가능한 라우트
 import ReportManagementPage from './pages/admin/ReportManagementPage'; // 새로 만들 페이지
 import StatisticsPage from './pages/admin/StatisticsPage'; // 새로 만들 페이지
-import FriendManagementPage from './pages/FriendManagementPage'; // 새로 만들 페이지
+import FriendManagementPage from './pages/FriendManagementPage';
+import ActivityFeedPage from "./pages/ActivityFeedPage"; // 새로 만들 페이지
 
 const theme = createTheme({
   palette: {
@@ -102,6 +103,8 @@ function App() {
                   <Route path="participating-studies" element={<ParticipatingStudiesPage />} /> {/* /mypage/participating-studies */}
                   {/* --- 친구 관리 라우트 추가 --- */}
                   <Route path="friends" element={<FriendManagementPage />} />
+                  <Route path="feed" element={<ActivityFeedPage />} />
+                  <Route path="notifications" element={<NotificationPage />} />
                 </Route>
 
                 {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}
@@ -110,7 +113,7 @@ function App() {
                 <Route path="/studies/:id" element={<StudyDetailPage />} />
                 <Route path="/studies/:id/edit" element={<StudyGroupEditPage />} />
                 <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
-                <Route path="/notifications" element={<NotificationPage />} />
+                {/*<Route path="/notifications" element={<NotificationPage />} />*/}
 
                 {/* 채팅방 상세 페이지 라우트 추가 */}
                 <Route path="/chat/room/:roomId" element={<ChatRoomPage />} /> {/* <--- 이 라우트 추가 */}

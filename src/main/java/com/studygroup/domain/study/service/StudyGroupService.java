@@ -148,7 +148,7 @@ public class StudyGroupService {
         log.debug("스터디 그룹 생성 완료: groupId={}, userId={}", savedStudyGroup.getId(), userId);
 
         // --- 스터디 생성 이벤트 발행 로직 추가 ---
-        eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.CREATE_STUDY));
+        eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.CREATE_STUDY, savedStudyGroup.getId()));
 
         return StudyGroupResponse.from(savedStudyGroup, false);
     }

@@ -10,6 +10,7 @@ import GroupsIcon from '@mui/icons-material/Groups';
 import {jwtDecode} from "jwt-decode"; // 참여중인 스터디 아이콘
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import PeopleIcon from '@mui/icons-material/People'; // 친구 아이콘
+import RssFeedIcon from '@mui/icons-material/RssFeed'; // 피드 아이콘
 
 const MyPage: React.FC = () => {
   const navigate = useNavigate();
@@ -78,8 +79,21 @@ const MyPage: React.FC = () => {
                   <ListItemText primary="친구 관리" />
                 </ListItemButton>
                 <Divider />
-                <ListItemButton selected={isSelected('/notifications')} onClick={() => navigate('/notifications')}>
-                  <ListItemIcon sx={{ minWidth: 40 }}><NotificationsIcon color={isSelected('/notifications') ? "primary" : "inherit"} /></ListItemIcon>
+                <ListItemButton selected={isSelected('/mypage/feed')} onClick={() => navigate('/mypage/feed')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <RssFeedIcon color={isSelected('/mypage/feed') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="활동 피드" />
+                </ListItemButton>
+                <Divider />
+                <Divider />
+                <ListItemButton
+                    selected={isSelected('/mypage/notifications')}
+                    onClick={() => navigate('/mypage/notifications')}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <NotificationsIcon color={isSelected('/mypage/notifications') ? "primary" : "inherit"} />
+                  </ListItemIcon>
                   <ListItemText primary="알림 목록" />
                 </ListItemButton>
               </List>
