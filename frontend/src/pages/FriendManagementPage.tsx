@@ -72,24 +72,32 @@ const FriendManagementPage: React.FC = () => {
                     loading={loadingSearch}
                     onInputChange={(_, newInputValue) => searchUsers(newInputValue)}
                     noOptionsText="검색 결과가 없습니다."
-                    renderOption={(props, option) => (
-                        <li {...props} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                <Avatar src={option.profile} sx={{ width: 32, height: 32, mr: 1.5 }}/>
-                                <Typography>{option.name} ({option.email})</Typography>
-                            </Box>
-                            <Button
-                                variant="contained"
-                                size="small"
-                                onClick={(e) => {
-                                    e.stopPropagation(); // li의 클릭 이벤트 방지
-                                    handleFriendRequest(option.id);
-                                }}
-                            >
-                                친구 신청
-                            </Button>
-                        </li>
-                    )}
+                    renderOption={(props, option) => {
+                        // --- ★★★ 이 부분을 수정합니다 ★★★ ---
+                        // 1. props 객체에서 key를 구조 분해 할당으로 분리합니다.
+                        const { key, ...otherProps } = props as any;
+
+                        // 2. li 태그에는 key를 직접 전달하고, 나머지 props만 전개합니다.
+                        return (
+                            <li key={option.id} {...otherProps} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                    <Avatar src={option.profile} sx={{ width: 32, height: 32, mr: 1.5 }}/>
+                                    <Typography>{option.name} ({option.email})</Typography>
+                                </Box>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleFriendRequest(option.id);
+                                    }}
+                                >
+                                    신청
+                                </Button>
+                            </li>
+                        );
+                        // ------------------------------------
+                    }}
                     renderInput={(params) => (
                         <TextField
                             {...params}
