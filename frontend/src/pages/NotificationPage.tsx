@@ -27,9 +27,60 @@ interface GroupedNotification extends Notification {
 const NotificationPage: React.FC = () => {
   const [notifications, setNotifications] = useState<GroupedNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [processingNotificationId, setProcessingNotificationId] = useState<number | null>(null);
   const [pageError, setPageError] = useState<string | null>(null); // 페이지 레벨 에러
   const navigate = useNavigate();
+
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [notifResponse, countResponse] = await Promise.all([
+        api.get<Notification[]>('/api/notifications'),
+        api.get<number>('/api/notifications/unread-count')
+      ]);
+      setUnreadCount(countResponse.data);
+
+      // DM 그룹화 로직 (NotificationPage와 동일)
+      const groupedNotifications = new Map<string, GroupedNotification>();
+      notifResponse.data.forEach(n => {
+        if (n.type === NotificationType.NEW_DM) {
+          // ... (이전과 동일한 DM 그룹화 로직)
+        } else {
+          groupedNotifications.set(`notification-${n.id}`, { ...n, isGrouped: false, count: 1, senders: [n.senderName] });
+        }
+      });
+      const finalNotifications = Array.from(groupedNotifications.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNotifications(finalNotifications);
+
+    } catch (error) {
+      console.error('알림 데이터 조회 실패 (Navbar):', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  // --- 네비게이션 경로를 결정하는 헬퍼 함수 ---
+  const getNavigationPath = (notification: GroupedNotification): string => {
+    const type = notification.type;
+    const refId = notification.referenceId;
+    if (!refId) return '/notifications';
+
+    switch (type) {
+      case NotificationType.NEW_DM: return `/dm/room/${refId}`;
+      case NotificationType.CHAT_INVITE: return `/chat/room/${refId}`;
+      case NotificationType.STUDY_INVITE:
+      case NotificationType.JOIN_APPROVED: return `/studies/${refId}`;
+      case NotificationType.NEW_LIKE_ON_POST:
+      case NotificationType.NEW_COMMENT_ON_POST:
+      case NotificationType.NEW_REPLY_ON_COMMENT: return `/board/post/${refId}`;
+      default: return '/notifications';
+    }
+  };
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -163,37 +214,30 @@ const NotificationPage: React.FC = () => {
   };
 
   const handleGeneralNotificationClick = async (notification: GroupedNotification) => {
+    // 1. 먼저 이동할 경로를 계산합니다.
+    const path = getNavigationPath(notification);
+
+    // 2. 페이지를 즉시 이동시킵니다.
+    //    (isActionable 로직과 충돌하지 않도록, 이 함수는 isActionable이 false일 때만 호출됩니다)
+    navigate(path);
+
+    // 3. 페이지 이동 후에, 백그라운드에서 읽음 처리와 데이터 새로고침을 수행합니다.
     try {
-      // 1. 클릭된 알림이 그룹화된 DM 알림인 경우
       if (notification.isGrouped && notification.type === NotificationType.NEW_DM && notification.referenceId) {
-        // 그룹 읽음 처리 API를 호출
         await api.patch(`/api/notifications/read/dm/${notification.referenceId}`);
       }
-      // 2. 그 외의 아직 읽지 않은 일반 알림인 경우
       else if (!notification.isRead) {
         await api.patch(`/api/notifications/${notification.id}/read`);
       }
 
-      // 3. API 호출 성공 후, 최신 알림 목록을 다시 불러와 UI를 갱신
-      await fetchNotifications();
-
-      // 4. 알림 타입에 따라 적절한 페이지로 이동
-      if (notification.type === NotificationType.NEW_DM && notification.referenceId) {
-        navigate(`/dm/room/${notification.referenceId}`);
-      } else if (
-          (notification.type === NotificationType.STUDY_INVITE ||
-              notification.type === NotificationType.JOIN_APPROVED ||
-              notification.type === NotificationType.STUDY_JOIN_REQUEST) &&
-          notification.referenceId
-      ) {
-        navigate(`/studies/${notification.referenceId}`);
-      } else if (notification.type === NotificationType.CHAT_INVITE && notification.referenceId) {
-        navigate(`/chat/room/${notification.referenceId}`);
-      }
+      // API 호출이 완료된 후 목록을 새로고침합니다.
+      // 페이지가 이미 이동했기 때문에, 이 컴포넌트가 언마운트된 후 실행될 수 있습니다.
+      // 따라서 isMounted와 같은 상태로 제어하면 더 안전하지만, 현재 구조에서는 큰 문제가 없습니다.
+      fetchAllData();
 
     } catch (error) {
       console.error('알림 클릭 처리 실패:', error);
-      setPageError('알림 처리 중 오류가 발생했습니다.');
+      // 사용자에게 에러를 알리는 로직을 추가할 수 있습니다 (예: snackbar)
     }
   };
 

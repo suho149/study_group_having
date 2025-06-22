@@ -164,47 +164,50 @@ const NotificationList: React.FC = () => {
 
   const handleGeneralNotificationClick = async (notification: GroupedNotification) => {
     try {
-      // 1. 클릭된 알림이 그룹화된 DM 알림인 경우
-      if (notification.isGrouped && notification.type === NotificationType.NEW_DM && notification.referenceId) {
-        // 새로 만든 그룹 읽음 처리 API를 호출
-        await api.patch(`/api/notifications/read/dm/${notification.referenceId}`);
+      const type = notification.type;
+      const refId = notification.referenceId;
+      let path = '/notifications'; // 기본 경로
+
+      if (refId) {
+        switch (type) {
+          case NotificationType.NEW_DM:
+            path = `/dm/room/${refId}`; break;
+          case NotificationType.CHAT_INVITE:
+            path = `/chat/room/${refId}`; break;
+          case NotificationType.STUDY_INVITE:
+          case NotificationType.JOIN_APPROVED:
+            path = `/studies/${refId}`; break;
+            // 멘션 기능을 제외한, 게시글로 가야하는 모든 타입
+          case NotificationType.NEW_LIKE_ON_POST:
+          case NotificationType.NEW_COMMENT_ON_POST:
+          case NotificationType.NEW_REPLY_ON_COMMENT:
+            path = `/board/post/${refId}`; break;
+        }
       }
-      // 2. 그 외의 일반 알림인 경우
-      else if (!notification.isRead) {
-        // 기존의 단일 알림 읽음 처리 API를 호출
+
+      // --- ★★★ 핵심 수정: navigate를 먼저 실행합니다. ★★★ ---
+      console.log(`[Navigation] Navigating to: ${path}`);
+      navigate(path);
+
+      // 메뉴나 모달이 열려있다면 닫아줍니다. (NotificationList.tsx에만 해당)
+      if (typeof handleClose === 'function') {
+        handleClose();
+      }
+      // ----------------------------------------------------
+
+      // --- ★★★ 읽음 처리와 데이터 새로고침은 페이지 이동 후에 실행합니다. ★★★ ---
+      if (notification.isGrouped && notification.type === NotificationType.NEW_DM && notification.referenceId) {
+        await api.patch(`/api/notifications/read/dm/${notification.referenceId}`);
+      } else if (!notification.isRead) {
         await api.patch(`/api/notifications/${notification.id}/read`);
       }
 
-      // API 호출 성공 후, 최신 알림 상태를 다시 불러와 UI를 갱신
+      // API 호출이 끝난 후 목록을 새로고침합니다.
       fetchAllData();
-
-      // --- 페이지 이동 로직 수정 ---
-      const type = notification.type;
-      const refId = notification.referenceId;
-
-      if (type === NotificationType.NEW_DM && refId) {
-        navigate(`/dm/room/${refId}`);
-      } else if (type === NotificationType.CHAT_INVITE && refId) {
-        navigate(`/chat/room/${refId}`);
-      } else if (
-          // 게시글로 이동해야 하는 모든 알림 타입을 여기에 추가
-          (type === NotificationType.STUDY_INVITE || // 이 부분은 스터디로 가야함
-              type === NotificationType.JOIN_APPROVED) && refId
-      ) {
-        navigate(`/studies/${refId}`);
-      } else if (
-          // 게시글로 이동해야 하는 알림 타입들
-          (type === NotificationType.NEW_LIKE_ON_POST ||
-              type === NotificationType.NEW_COMMENT_ON_POST ||
-              type === NotificationType.NEW_REPLY_ON_COMMENT) && refId
-      ) {
-        navigate(`/board/post/${refId}`);
-      }
-
-      handleClose(); // 메뉴 닫기
+      // -------------------------------------------------------------------
 
     } catch (error) {
-      console.error('알림 클릭 처리 실패 (Navbar):', error);
+      console.error('알림 클릭 처리 실패:', error);
     }
   };
 
