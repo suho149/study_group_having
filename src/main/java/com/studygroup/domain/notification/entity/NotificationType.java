@@ -13,7 +13,11 @@ public enum NotificationType {
     CHAT_INVITE("채팅방 초대"),
     CHAT_MEMBER_REMOVED("채팅방에서 내보내짐"), // 방장에 의해 내보내진 멤버에게
     CHAT_INVITE_AGAIN("채팅방 재초대"), // 이미 초대했거나 나갔던 멤버를 다시 초대할 경우 (선택적)
-    NEW_DM("새로운 DM 도착"); // DM 관련 타입 추가
+    NEW_DM("새로운 DM 도착"), // DM 관련 타입 추가
+    NEW_LIKE_ON_POST("회원님의 게시글을 좋아합니다."),
+    // NEW_LIKE_ON_COMMENT("회원님의 댓글을 좋아합니다."), // 댓글 좋아요 알림은 너무 많을 수 있어 일단 보류
+    NEW_COMMENT_ON_POST("회원님의 게시글에 새로운 댓글이 달렸습니다."),
+    NEW_REPLY_ON_COMMENT("회원님의 댓글에 새로운 답글이 달렸습니다.");
 
     private final String description;
 

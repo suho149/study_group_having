@@ -3,6 +3,8 @@ package com.studygroup.domain.board.service;
 import com.studygroup.domain.board.dto.*;
 import com.studygroup.domain.board.entity.*;
 import com.studygroup.domain.board.repository.*;
+import com.studygroup.domain.notification.entity.NotificationType;
+import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.user.dto.UserActivityEvent;
 import com.studygroup.domain.user.entity.ActivityType;
 import com.studygroup.domain.user.entity.User;
@@ -40,6 +42,7 @@ public class BoardService {
     private static final int MIN_LIKES_FOR_HOT_POST = 4; // 핫 게시물 최소 추천 수
     private static final int HOT_POST_COUNT = 3;         // 가져올 핫 게시물 개수
     private final ApplicationEventPublisher eventPublisher; // 이벤트 발행기 주입
+    private final NotificationService notificationService;
 
     public BoardPostResponse createPost(BoardPostCreateRequest request, Long authorId) {
         User author = userRepository.findById(authorId)
@@ -170,11 +173,23 @@ public class BoardService {
                     .voteType(requestedVoteType)
                     .build();
             postLikeRepository.save(newVote);
+
             if (requestedVoteType == VoteType.LIKE) {
                 post.incrementLikeCount();
-                // 자신의 글에 투표하는 경우는 제외 (선택)
                 if (!postAuthor.getId().equals(userId)) {
+                    // 포인트 부여 이벤트 발행
                     eventPublisher.publishEvent(new UserActivityEvent(postAuthor, ActivityType.GET_POST_LIKE));
+
+                    // 게시글 작성자에게 '좋아요' 알림 생성
+                    String message = String.format("'%s'님이 회원님의 게시글을 좋아합니다.", user.getName());
+                    notificationService.createNotification(
+                            user,       // 알림 발신자: 좋아요를 누른 사람
+                            postAuthor, // 알림 수신자: 게시글 작성자
+                            message,
+                            NotificationType.NEW_LIKE_ON_POST,
+                            post.getId() // 관련 콘텐츠 ID: 게시글 ID
+                    );
+                    // ------------------------------------
                 }
             } else {
                 post.incrementDislikeCount();
@@ -213,6 +228,35 @@ public class BoardService {
         log.info("새 댓글 생성 완료: commentId={}, postId={}, authorId={}", savedComment.getId(), postId, authorId);
 
         // TODO: 게시글 작성자 또는 부모 댓글 작성자에게 알림 생성 (NotificationService 사용)
+
+        // 자기 자신의 글이나 댓글에 남기는 경우는 알림을 보내지 않습니다.
+        if (parentComment == null) {
+            // 1. 일반 댓글인 경우 -> 게시글 작성자에게 알림
+            User postAuthor = post.getAuthor();
+            if (!postAuthor.getId().equals(authorId)) {
+                String message = String.format("'%s'님이 회원님의 게시글에 댓글을 남겼습니다.", author.getName());
+                notificationService.createNotification(
+                        author,
+                        postAuthor,
+                        message,
+                        NotificationType.NEW_COMMENT_ON_POST,
+                        post.getId()
+                );
+            }
+        } else {
+            // 2. 대댓글인 경우 -> 부모 댓글 작성자에게 알림
+            User parentCommentAuthor = parentComment.getAuthor();
+            if (!parentCommentAuthor.getId().equals(authorId)) {
+                String message = String.format("'%s'님이 회원님의 댓글에 답글을 남겼습니다.", author.getName());
+                notificationService.createNotification(
+                        author,
+                        parentCommentAuthor,
+                        message,
+                        NotificationType.NEW_REPLY_ON_COMMENT,
+                        post.getId() // 알림 클릭 시 이동할 곳은 게시글이므로 post.getId() 사용
+                );
+            }
+        }
 
         // --- 댓글 작성 이벤트 발행 ---
         eventPublisher.publishEvent(new UserActivityEvent(author, ActivityType.CREATE_COMMENT));

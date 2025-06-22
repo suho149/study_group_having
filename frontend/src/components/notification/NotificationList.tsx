@@ -178,17 +178,28 @@ const NotificationList: React.FC = () => {
       // API 호출 성공 후, 최신 알림 상태를 다시 불러와 UI를 갱신
       fetchAllData();
 
-      // --- 페이지 이동 로직 ---
-      if (notification.type === NotificationType.NEW_DM && notification.referenceId) {
-        navigate(`/dm/room/${notification.referenceId}`);
+      // --- 페이지 이동 로직 수정 ---
+      const type = notification.type;
+      const refId = notification.referenceId;
+
+      if (type === NotificationType.NEW_DM && refId) {
+        navigate(`/dm/room/${refId}`);
+      } else if (type === NotificationType.CHAT_INVITE && refId) {
+        navigate(`/chat/room/${refId}`);
       } else if (
-          (notification.type === NotificationType.STUDY_INVITE ||
-              notification.type === NotificationType.JOIN_APPROVED) &&
-          notification.referenceId
+          // 게시글로 이동해야 하는 모든 알림 타입을 여기에 추가
+          (type === NotificationType.STUDY_INVITE || // 이 부분은 스터디로 가야함
+              type === NotificationType.JOIN_APPROVED) && refId
       ) {
-        navigate(`/studies/${notification.referenceId}`);
+        navigate(`/studies/${refId}`);
+      } else if (
+          // 게시글로 이동해야 하는 알림 타입들
+          (type === NotificationType.NEW_LIKE_ON_POST ||
+              type === NotificationType.NEW_COMMENT_ON_POST ||
+              type === NotificationType.NEW_REPLY_ON_COMMENT) && refId
+      ) {
+        navigate(`/board/post/${refId}`);
       }
-      // ... 다른 타입에 대한 네비게이션 로직
 
       handleClose(); // 메뉴 닫기
 
