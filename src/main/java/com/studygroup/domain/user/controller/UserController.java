@@ -44,6 +44,14 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
+    @GetMapping("/{userId}/profile")
+    // 이 API는 다른 사람의 프로필도 조회할 수 있어야 하므로, 인증된 사용자라면 누구나 호출 가능하도록 합니다.
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserProfileResponse> getUserProfileById(@PathVariable Long userId) {
+        UserProfileResponse userProfile = userService.getUserProfile(userId);
+        return ResponseEntity.ok(userProfile);
+    }
+
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserProfileResponse> getCurrentUserProfile(@CurrentUser UserPrincipal userPrincipal) {

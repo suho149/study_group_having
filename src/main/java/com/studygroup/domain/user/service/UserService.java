@@ -5,6 +5,7 @@ import com.studygroup.domain.study.entity.StudyMemberStatus;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.StudyMemberRepository;
 import com.studygroup.domain.user.dto.UserActivitySummaryResponse;
+import com.studygroup.domain.user.dto.UserProfileResponse;
 import com.studygroup.domain.user.dto.UserSearchResponse;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
@@ -39,6 +40,11 @@ public class UserService {
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+    }
+
+    public UserProfileResponse getUserProfile(Long userId) {
+        User user = getUserById(userId); // 기존 메소드 재활용
+        return UserProfileResponse.from(user);
     }
 
     public UserActivitySummaryResponse getUserActivitySummary(Long userId) {
