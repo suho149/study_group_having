@@ -120,6 +120,8 @@ public class AdminService {
     }
 
     // --- 게시글 블라인드 처리 메소드 추가 ---
+    @Transactional
+    @CacheEvict(value = "postDetail", key = "#postId")
     public void blindPost(Long postId) {
         boardPostRepository.blindById(postId);
     }

@@ -12,6 +12,8 @@ import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -103,6 +105,7 @@ public class BoardService {
     }
 
     @Transactional // 조회수 증가로 인해 쓰기 트랜잭션 필요
+    @Cacheable(value = "postDetail", key = "#postId", unless = "#result == null")
     public BoardPostResponse getPostDetail(Long postId, UserPrincipal currentUserPrincipal) {
         BoardPost post = boardPostRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
@@ -359,6 +362,9 @@ public class BoardService {
     // TODO: 게시글 목록 조회, 상세 조회, 수정, 삭제, 추천/비추천, 댓글 관련 서비스 메소드 추가
 
     // 게시글 수정
+    @Transactional
+    // 수정 시, 해당 postId의 캐시를 삭제
+    @CacheEvict(value = "postDetail", key = "#postId")
     public BoardPostResponse updatePost(Long postId, BoardPostUpdateRequest request, Long userId) {
         BoardPost post = boardPostRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
@@ -376,6 +382,8 @@ public class BoardService {
     }
 
     // 게시글 삭제 (소프트 삭제 또는 하드 삭제)
+    @Transactional
+    @CacheEvict(value = "postDetail", key = "#postId")
     public void deletePost(Long postId, Long userId) {
         BoardPost post = boardPostRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("게시글을 찾을 수 없습니다. ID: " + postId));
