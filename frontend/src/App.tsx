@@ -33,6 +33,7 @@ import StatisticsPage from './pages/admin/StatisticsPage'; // 새로 만들 페�
 import FriendManagementPage from './pages/FriendManagementPage';
 import ActivityFeedPage from "./pages/ActivityFeedPage"; // 새로 만들 페이지
 import BoardPostEditPage from "./pages/board/BoardPostEditPage";
+import { PresenceProvider } from './contexts/PresenceContext';
 
 const theme = createTheme({
   palette: {
@@ -76,61 +77,63 @@ function App() {
       <SnackbarProvider maxSnack={3} autoHideDuration={5000}>
         <AuthProvider>
           <ChatProvider>
-            <Router>
-              <NotificationListener />
-              <DmNotificationListener />
-              <Navbar />
-              <Routes>
-                {/* 관리자 페이지 라우트 */}
-                <Route path="/admin" element={
-                  <AdminRoute>
-                    <AdminPage />
-                  </AdminRoute>
-                }>
-                  {/* 자식 라우트들 */}
-                  <Route index element={<StatisticsPage />} /> {/* /admin (기본 경로) */}
-                  <Route path="reports" element={<ReportManagementPage />} /> {/* /admin/reports */}
-                  {/* 다른 관리자 메뉴가 추가되면 여기에 라우트 추가 */}
-                </Route>
+            <PresenceProvider>
+              <Router>
+                <NotificationListener />
+                <DmNotificationListener />
+                <Navbar />
+                <Routes>
+                  {/* 관리자 페이지 라우트 */}
+                  <Route path="/admin" element={
+                    <AdminRoute>
+                      <AdminPage />
+                    </AdminRoute>
+                  }>
+                    {/* 자식 라우트들 */}
+                    <Route index element={<StatisticsPage />} /> {/* /admin (기본 경로) */}
+                    <Route path="reports" element={<ReportManagementPage />} /> {/* /admin/reports */}
+                    {/* 다른 관리자 메뉴가 추가되면 여기에 라우트 추가 */}
+                  </Route>
 
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/mypage" element={<MyPage />}>
-                  {/* 자식 라우트들 */}
-                  <Route index element={<MyProfilePage />} /> {/* /mypage (기본 경로) */}
-                  <Route path="edit-profile" element={<EditProfilePage />} /> {/* 프로필 수정 페이지 라우트 추가 */}
-                  <Route path="liked-posts" element={<LikedPostsPage />} /> {/* /mypage/liked-posts */}
-                  <Route path="liked-studies" element={<LikedStudiesPage />} /> {/* /mypage/liked-studies */}
-                  <Route path="participating-studies" element={<ParticipatingStudiesPage />} /> {/* /mypage/participating-studies */}
-                  {/* --- 친구 관리 라우트 추가 --- */}
-                  <Route path="friends" element={<FriendManagementPage />} />
-                  <Route path="feed" element={<ActivityFeedPage />} />
-                  <Route path="notifications" element={<NotificationPage />} />
-                </Route>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<LoginPage />} />
+                  <Route path="/mypage" element={<MyPage />}>
+                    {/* 자식 라우트들 */}
+                    <Route index element={<MyProfilePage />} /> {/* /mypage (기본 경로) */}
+                    <Route path="edit-profile" element={<EditProfilePage />} /> {/* 프로필 수정 페이지 라우트 추가 */}
+                    <Route path="liked-posts" element={<LikedPostsPage />} /> {/* /mypage/liked-posts */}
+                    <Route path="liked-studies" element={<LikedStudiesPage />} /> {/* /mypage/liked-studies */}
+                    <Route path="participating-studies" element={<ParticipatingStudiesPage />} /> {/* /mypage/participating-studies */}
+                    {/* --- 친구 관리 라우트 추가 --- */}
+                    <Route path="friends" element={<FriendManagementPage />} />
+                    <Route path="feed" element={<ActivityFeedPage />} />
+                    <Route path="notifications" element={<NotificationPage />} />
+                  </Route>
 
-                {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}
-                {/* <Route path="/mypage/edit-profile" element={<EditProfilePage />} /> */}
-                <Route path="/studies/create" element={<CreateStudyPage />} />
-                <Route path="/studies/:id" element={<StudyDetailPage />} />
-                <Route path="/studies/:id/edit" element={<StudyGroupEditPage />} />
-                <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
-                {/*<Route path="/notifications" element={<NotificationPage />} />*/}
+                  {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}
+                  {/* <Route path="/mypage/edit-profile" element={<EditProfilePage />} /> */}
+                  <Route path="/studies/create" element={<CreateStudyPage />} />
+                  <Route path="/studies/:id" element={<StudyDetailPage />} />
+                  <Route path="/studies/:id/edit" element={<StudyGroupEditPage />} />
+                  <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
+                  {/*<Route path="/notifications" element={<NotificationPage />} />*/}
 
-                {/* 채팅방 상세 페이지 라우트 추가 */}
-                <Route path="/chat/room/:roomId" element={<ChatRoomPage />} /> {/* <--- 이 라우트 추가 */}
+                  {/* 채팅방 상세 페이지 라우트 추가 */}
+                  <Route path="/chat/room/:roomId" element={<ChatRoomPage />} /> {/* <--- 이 라우트 추가 */}
 
-                {/* 추가 라우트는 여기에 */}
-                <Route path="/board/create" element={<BoardPostCreatePage />} /> {/* 게시글 작성 페이지 라우트 */}
-                <Route path="/board/post/:postId" element={<BoardPostDetailPage />} /> {/* 게시글 상세 페이지 라우트 */}
-                <Route path="/board/edit/:postId" element={<BoardPostEditPage />} />
-                {/* <Route path="/board" element={<BoardListPage />} /> */}
-                {/* 예: <Route path="*" element={<NotFoundPage />} /> */}
-                {/* roomId가 있는 경우와 없는 경우(partnerId로 생성)를 모두 처리 */}
-                <Route path="/dm" element={<DmListPage />} /> {/* DM 목록 페이지 */}
-                <Route path="/dm/room/:roomId" element={<DmChatPage />} />
-                <Route path="/dm/new/:partnerId" element={<DmChatPage />} />
-              </Routes>
-            </Router>
+                  {/* 추가 라우트는 여기에 */}
+                  <Route path="/board/create" element={<BoardPostCreatePage />} /> {/* 게시글 작성 페이지 라우트 */}
+                  <Route path="/board/post/:postId" element={<BoardPostDetailPage />} /> {/* 게시글 상세 페이지 라우트 */}
+                  <Route path="/board/edit/:postId" element={<BoardPostEditPage />} />
+                  {/* <Route path="/board" element={<BoardListPage />} /> */}
+                  {/* 예: <Route path="*" element={<NotFoundPage />} /> */}
+                  {/* roomId가 있는 경우와 없는 경우(partnerId로 생성)를 모두 처리 */}
+                  <Route path="/dm" element={<DmListPage />} /> {/* DM 목록 페이지 */}
+                  <Route path="/dm/room/:roomId" element={<DmChatPage />} />
+                  <Route path="/dm/new/:partnerId" element={<DmChatPage />} />
+                </Routes>
+              </Router>
+            </PresenceProvider>
           </ChatProvider>
         </AuthProvider>
       </SnackbarProvider>

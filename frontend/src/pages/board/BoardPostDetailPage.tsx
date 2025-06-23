@@ -52,6 +52,9 @@ import ReportIcon from '@mui/icons-material/Report';
 import ReportModal from '../../components/board/ReportModal';
 import { ReportType } from '../../types/report';
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { usePresence } from '../../contexts/PresenceContext'; // ★★★ usePresence 훅으로 변경 ★★★
+import { StompSubscription } from '@stomp/stompjs';
+import PeopleIcon from "@mui/icons-material/People";
 
 const BoardPostDetailPage: React.FC = () => {
     const { postId } = useParams<{ postId: string }>();
@@ -81,6 +84,32 @@ const BoardPostDetailPage: React.FC = () => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
     const handleMenuClose = () => setAnchorEl(null);
+
+    const { isConnected, joinChannel, leaveChannel, subscribeToPresence, unsubscribe } = usePresence();
+    const [viewerCount, setViewerCount] = useState(0);
+    const presenceSubscription = useRef<StompSubscription | null>(null);
+
+    // useEffect 로직은 이제 usePresence에서 가져온 함수들을 사용하므로 수정할 필요가 없습니다.
+    useEffect(() => {
+        if (isConnected && postId) {
+            const channel = `post/${postId}`;
+            joinChannel(channel);
+            const sub = subscribeToPresence(channel, (count) => {
+                console.log("★★★★★ Viewer count received:", count, typeof count);
+                setViewerCount(count);
+            });
+            if (sub) {
+                presenceSubscription.current = sub;
+            }
+            return () => {
+                leaveChannel(channel);
+                if (presenceSubscription.current) {
+                    unsubscribe(presenceSubscription.current);
+                }
+            };
+        }
+    }, [isConnected, postId, joinChannel, leaveChannel, subscribeToPresence, unsubscribe]);
+
 
     // fetchComments 함수를 페이징에 맞게 수정
     const fetchComments = useCallback(async (pageToFetch = 0, initialLoad = false) => {
@@ -334,10 +363,26 @@ const BoardPostDetailPage: React.FC = () => {
                     <Typography variant="caption" sx={{ mr: 2 }}>
                         {format(parseISO(post.createdAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
                     </Typography>
-                    <Box sx={{display:'flex', alignItems:'center', gap:0.5}}>
-                        <VisibilityIcon sx={{fontSize: '1rem'}}/>
+
+                    {/* 1. 기존 조회수 Box */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 2 }}> {/* 오른쪽 마진(mr) 추가 */}
+                        <VisibilityIcon sx={{ fontSize: '1rem' }} />
                         <Typography variant="caption">{post.viewCount}</Typography>
                     </Box>
+
+                    {/* 2. 새로운 동시 접속자 수 UI */}
+                    {viewerCount > 1 && ( // 1명 초과일 때만 표시
+                        <Tooltip title="현재 함께 보는 사람">
+                            <Chip
+                                icon={<PeopleIcon sx={{ fontSize: '1rem', mr: -0.5 }} />}
+                                label={`${viewerCount}`}
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                sx={{ height: 22 }}
+                            />
+                        </Tooltip>
+                    )}
                 </Box>
                 <Divider sx={{ my: 3 }} />
 

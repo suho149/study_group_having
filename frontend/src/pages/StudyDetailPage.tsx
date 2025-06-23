@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useMemo, useCallback} from 'react'; // useMemo 추가
+import React, {useState, useEffect, useMemo, useCallback, useRef} from 'react'; // useMemo 추가
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -24,6 +24,9 @@ import CreateChatRoomModal from '../components/chat/CreateChatRoomModal'; // 모
 import { ChatRoomResponse } from '../types/chat'; // 채팅방 응답 타입
 import { StudyGroupDataType, StudyMember } from '../types/study';
 import StudyCalendar from "../components/study/StudyCalendar"; // StudyMember도 필요시 import
+import { usePresence } from '../contexts/PresenceContext';
+import PeopleIcon from '@mui/icons-material/People';
+import {StompSubscription} from "@stomp/stompjs"; // 접속자 아이콘 import
 
 const StudyDetailPage = () => {
   const { id: studyIdParam } = useParams<{ id: string }>();
@@ -44,6 +47,10 @@ const StudyDetailPage = () => {
   const [chatRooms, setChatRooms] = useState<ChatRoomResponse[]>([]);
   const [loadingChatRooms, setLoadingChatRooms] = useState(false);
   const [isCreateChatModalOpen, setIsCreateChatModalOpen] = useState(false);
+
+  const { isConnected, joinChannel, leaveChannel, subscribeToPresence, unsubscribe } = usePresence();
+  const [viewerCount, setViewerCount] = useState(0);
+  const presenceSubscription = useRef<StompSubscription | null>(null);
 
   const fetchChatRooms = useCallback(async () => { // useCallback으로 감싸기
     if (!studyId || !isLoggedIn || !currentUserId) { // currentUserId 조건 추가
@@ -105,6 +112,32 @@ const StudyDetailPage = () => {
       setLoading(false);
     }
   };
+
+  // 실시간 동시 접속 로직 (useEffect 추가)
+  useEffect(() => {
+    // WebSocket이 연결되고, studyId가 유효할 때만 실행
+    if (isConnected && studyId) {
+      // 채널 이름을 "study/스터디ID" 형태로 정의
+      const channel = `study/${studyId}`;
+
+      joinChannel(channel);
+
+      const sub = subscribeToPresence(channel, (count) => {
+        setViewerCount(count);
+      });
+
+      if (sub) {
+        presenceSubscription.current = sub;
+      }
+
+      return () => {
+        leaveChannel(channel);
+        if (presenceSubscription.current) {
+          unsubscribe(presenceSubscription.current);
+        }
+      };
+    }
+  }, [isConnected, studyId, joinChannel, leaveChannel, subscribeToPresence, unsubscribe]);
 
   useEffect(() => {
     if (studyId) { // studyId가 유효할 때만 fetch
@@ -206,6 +239,7 @@ const StudyDetailPage = () => {
         <Box sx={{ mt: 4, mb: 4 }}>
           <StudyDetail
               study={study}
+              viewerCount={viewerCount}
               isLeader={isLeader}
               onInvite={() => setIsInviteModalOpen(true)}
               onEdit={() => navigate(`/studies/${study.id}/edit`)}

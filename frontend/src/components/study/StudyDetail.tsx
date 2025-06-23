@@ -38,9 +38,11 @@ import {useNavigate} from "react-router-dom";
 import ReportIcon from '@mui/icons-material/Report';
 import ReportModal from '../board/ReportModal'; // 경로 확인
 import { ReportType } from '../../types/report';
+import PeopleIcon from "@mui/icons-material/People";
 
 interface StudyDetailProps {
   study: StudyGroupDataType; // <--- 수정: 타입을 StudyGroupDataType으로 변경
+  viewerCount: number;
   isLeader: boolean;
   onInvite: () => void;
   onEdit: () => void;
@@ -86,6 +88,7 @@ const getStatusText = (status: string) => {
 
 const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이름을 StudyDetailComponent로 변경 (선택 사항)
                                                             study,
+                                                            viewerCount,
                                                             isLeader,
                                                             onInvite,
                                                             onEdit,
@@ -275,9 +278,25 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
                     멤버: {study.currentMembers} / {study.maxMembers} 명
                   </Typography>
                 </Box>
-                <Box display="flex" alignItems="center" mb={1}>
-                  <VisibilityIcon sx={{ mr: 1 }} fontSize="small" />
-                  <Typography variant="body2">조회수 {study.viewCount}</Typography>
+                <Box display="flex" alignItems="center" mb={1} gap={2}>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <VisibilityIcon sx={{ mr: 0.5 }} fontSize="small" />
+                    <Typography variant="body2">조회수 {study.viewCount}</Typography>
+                  </Box>
+
+                  {/* 동시 접속자 수 UI 추가 */}
+                  {viewerCount > 1 && (
+                      <Tooltip title="현재 함께 보는 사람">
+                        <Chip
+                            icon={<PeopleIcon sx={{ fontSize: '1rem', mr: -0.5 }} />}
+                            label={`${viewerCount}`}
+                            size="small"
+                            variant="outlined"
+                            color="primary"
+                            sx={{ height: 22 }}
+                        />
+                      </Tooltip>
+                  )}
                 </Box>
               </Grid>
             </Grid>
