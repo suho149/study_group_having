@@ -17,6 +17,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,8 +26,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -39,10 +43,11 @@ public class BoardService {
     private final BoardCommentRepository boardCommentRepository;
     private final PostLikeRepository postLikeRepository;
     private final CommentLikeRepository commentLikeRepository;
-    private static final int MIN_LIKES_FOR_HOT_POST = 4; // 핫 게시물 최소 추천 수
-    private static final int HOT_POST_COUNT = 3;         // 가져올 핫 게시물 개수
     private final ApplicationEventPublisher eventPublisher; // 이벤트 발행기 주입
     private final NotificationService notificationService;
+    private final StringRedisTemplate redisTemplate;
+    private static final String HOT_POSTS_KEY = "hot_posts";
+    private static final int HOT_POST_COUNT_TO_SHOW = 3; // 실제로 보여줄 개수
 
     public BoardPostResponse createPost(BoardPostCreateRequest request, Long authorId) {
         User author = userRepository.findById(authorId)
@@ -428,27 +433,37 @@ public class BoardService {
     }
 
     // --- 핫 게시물 목록 조회 서비스 메소드 추가 ---
+    @Transactional(readOnly = true) // 읽기 전용 트랜잭션
     public List<BoardPostSummaryResponse> getHotPosts() {
-        // 이번 주 월요일 00:00:00 계산
-        LocalDateTime startOfWeek = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
-        // 지금 이 순간까지 (일요일 23:59:59 대신 현재 시간까지로)
-        LocalDateTime now = LocalDateTime.now();
+        log.debug("Fetching hot posts from Redis cache...");
 
-        // 상위 N개만 가져오기 위한 Pageable 객체 생성
-        Pageable pageable = PageRequest.of(0, HOT_POST_COUNT);
+        ZSetOperations<String, String> zSetOps = redisTemplate.opsForZSet();
 
-        List<BoardPost> hotPosts = boardPostRepository.findHotPosts(
-                MIN_LIKES_FOR_HOT_POST,
-                startOfWeek,
-                now,
-                pageable
-        );
+        // 1. Redis의 ZSET에서 좋아요 수가 많은 순(내림차순)으로 상위 N개의 게시물 ID를 가져옵니다.
+        // zSetOps.reverseRange(key, start, end)
+        Set<String> hotPostIds = zSetOps.reverseRange(HOT_POSTS_KEY, 0, HOT_POST_COUNT_TO_SHOW - 1);
 
-        // DTO로 변환하여 반환
-        // BoardPostSummaryResponse.from() 메소드는 like, comment 수 등을 처리해야 함
-        // (이전 답변에서 기본 구현은 되어 있음)
+        if (hotPostIds == null || hotPostIds.isEmpty()) {
+            return Collections.emptyList(); // 캐시가 없으면 빈 목록 반환
+        }
+
+        // 2. 가져온 ID 목록을 Long 타입으로 변환합니다.
+        List<Long> ids = hotPostIds.stream()
+                .map(Long::valueOf)
+                .collect(Collectors.toList());
+
+        // 3. ID 목록을 사용하여 DB에서 실제 게시물 정보들을 한번의 쿼리로 가져옵니다.
+        //    (주의: findAllById는 ID 순서를 보장하지 않을 수 있습니다.)
+        List<BoardPost> hotPosts = boardPostRepository.findAllById(ids);
+
+        // 4. Redis에서 가져온 순서(좋아요 순)대로 다시 정렬합니다.
+        hotPosts.sort((p1, p2) -> Integer.compare(
+                ids.indexOf(p1.getId()),
+                ids.indexOf(p2.getId())
+        ));
+
         return hotPosts.stream()
-                .map(post -> BoardPostSummaryResponse.from(post /*, isLiked 등 추가 정보 */))
+                .map(post -> BoardPostSummaryResponse.from(post))
                 .collect(Collectors.toList());
     }
 
