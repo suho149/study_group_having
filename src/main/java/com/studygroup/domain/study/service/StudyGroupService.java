@@ -16,6 +16,8 @@ import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -50,7 +52,9 @@ public class StudyGroupService {
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
+    @Cacheable(value = "studyDetail", key = "#id", unless = "#result == null")
     public StudyGroupDetailResponse getStudyGroupDetail(Long id, UserPrincipal currentUserPrincipal) {
+        log.info("Fetching study detail from DB for id: {}", id); // 이 로그가 두 번째 호출부터는 안 찍혀야 함
         StudyGroup studyGroup = studyGroupRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + id));
         
@@ -237,7 +241,9 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#groupId")
     public void deleteStudyGroup(Long groupId, Long userId) {
+        log.info("Evicting cache for studyDetail with id: {}", groupId);
         StudyGroup studyGroup = studyGroupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + groupId));
 
@@ -366,7 +372,9 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#groupId")
     public StudyGroupResponse updateStudyGroup(Long groupId, StudyGroupUpdateRequest request, Long userId) {
+        log.info("Evicting cache for studyDetail with id: {}", groupId);
         StudyGroup studyGroup = studyGroupRepository.findById(groupId)
                 .orElseThrow(() -> new IllegalArgumentException("Study group not found with id: " + groupId));
 

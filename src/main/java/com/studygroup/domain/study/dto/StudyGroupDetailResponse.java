@@ -9,6 +9,7 @@ import com.studygroup.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 @Getter
 @Builder
-public class StudyGroupDetailResponse {
+public class StudyGroupDetailResponse implements Serializable {
     private Long id;
     private String title;
     private String description;
@@ -41,7 +42,7 @@ public class StudyGroupDetailResponse {
 
     @Getter
     @Builder
-    public static class LeaderInfo {
+    public static class LeaderInfo implements Serializable {
         private Long id;
         private String name;
         private String profile;
@@ -50,7 +51,7 @@ public class StudyGroupDetailResponse {
 
     @Getter
     @Builder
-    public static class MemberInfo {
+    public static class MemberInfo implements Serializable {
         private Long id;
         private String name;
         private String email;

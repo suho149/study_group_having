@@ -7,6 +7,7 @@ import com.studygroup.domain.study.entity.StudyType;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Set;
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 
 @Getter
 @Builder
-public class StudyGroupResponse {
+public class StudyGroupResponse implements Serializable {
     private Long id;
     private String title;
     private String description;

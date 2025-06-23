@@ -14,6 +14,7 @@ import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.study.repository.TagRepository;
 import com.studygroup.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -129,6 +130,7 @@ public class AdminService {
     }
 
     // --- 스터디 블라인드 처리 메소드 추가 ---
+    @CacheEvict(value = "studyDetail", key = "#studyGroupId")
     public void blindStudyGroup(Long studyGroupId) {
         studyGroupRepository.blindById(studyGroupId);
     }

@@ -5,11 +5,12 @@ import com.studygroup.domain.board.entity.BoardPost;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Getter
 @Builder
-public class BoardPostResponse {
+public class BoardPostResponse implements Serializable {
     private Long id;
     private BoardCategory category;
     private String title;
