@@ -68,17 +68,19 @@ const NotificationPage: React.FC = () => {
   const getNavigationPath = (notification: GroupedNotification): string => {
     const type = notification.type;
     const refId = notification.referenceId;
-    if (!refId) return '/notifications';
+    if (!refId) return '/mypage/notifications';
 
     switch (type) {
       case NotificationType.NEW_DM: return `/dm/room/${refId}`;
       case NotificationType.CHAT_INVITE: return `/chat/room/${refId}`;
       case NotificationType.STUDY_INVITE:
-      case NotificationType.JOIN_APPROVED: return `/studies/${refId}`;
+      case NotificationType.JOIN_APPROVED:
+      case NotificationType.STUDY_JOIN_REQUEST:
+        return `/studies/${refId}`;
       case NotificationType.NEW_LIKE_ON_POST:
       case NotificationType.NEW_COMMENT_ON_POST:
       case NotificationType.NEW_REPLY_ON_COMMENT: return `/board/post/${refId}`;
-      default: return '/notifications';
+      default: return '/mypage/notifications';
     }
   };
 

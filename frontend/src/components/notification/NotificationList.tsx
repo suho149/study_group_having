@@ -166,7 +166,7 @@ const NotificationList: React.FC = () => {
     try {
       const type = notification.type;
       const refId = notification.referenceId;
-      let path = '/notifications'; // 기본 경로
+      let path = '/mypage/notifications';
 
       if (refId) {
         switch (type) {
@@ -176,6 +176,7 @@ const NotificationList: React.FC = () => {
             path = `/chat/room/${refId}`; break;
           case NotificationType.STUDY_INVITE:
           case NotificationType.JOIN_APPROVED:
+          case NotificationType.STUDY_JOIN_REQUEST:
             path = `/studies/${refId}`; break;
             // 멘션 기능을 제외한, 게시글로 가야하는 모든 타입
           case NotificationType.NEW_LIKE_ON_POST:
@@ -275,7 +276,7 @@ const NotificationList: React.FC = () => {
           <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6">알림</Typography>
             {notifications.length > 0 && ( // 알림이 있을 때만 "모두 보기" 버튼 표시
-                <Button size="small" onClick={() => {navigate('/notifications'); handleClose();}}>모두 보기</Button>
+                <Button size="small" onClick={() => {navigate('/mypage/notifications'); handleClose();}}>모두 보기</Button>
             )}
           </Box>
           <Divider />
