@@ -32,6 +32,7 @@ import ReportManagementPage from './pages/admin/ReportManagementPage'; // 새로
 import StatisticsPage from './pages/admin/StatisticsPage'; // 새로 만들 페이지
 import FriendManagementPage from './pages/FriendManagementPage';
 import ActivityFeedPage from "./pages/ActivityFeedPage"; // 새로 만들 페이지
+import BoardPostEditPage from "./pages/board/BoardPostEditPage";
 
 const theme = createTheme({
   palette: {
@@ -121,6 +122,7 @@ function App() {
                 {/* 추가 라우트는 여기에 */}
                 <Route path="/board/create" element={<BoardPostCreatePage />} /> {/* 게시글 작성 페이지 라우트 */}
                 <Route path="/board/post/:postId" element={<BoardPostDetailPage />} /> {/* 게시글 상세 페이지 라우트 */}
+                <Route path="/board/edit/:postId" element={<BoardPostEditPage />} />
                 {/* <Route path="/board" element={<BoardListPage />} /> */}
                 {/* 예: <Route path="*" element={<NotFoundPage />} /> */}
                 {/* roomId가 있는 경우와 없는 경우(partnerId로 생성)를 모두 처리 */}
