@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
+import org.springframework.data.redis.core.RedisTemplate; // RedisTemplate import
+import java.util.concurrent.TimeUnit; // TimeUnit import
 
 @Slf4j
 @Component
@@ -25,11 +27,14 @@ import java.io.IOException;
 public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final TokenProvider tokenProvider;
-    private final RefreshTokenRepository refreshTokenRepository;
+    private final RedisTemplate<String, String> redisTemplate;
     private final UserRepository userRepository;
 
     @Value("${app.oauth2.redirectUri}")
     private String redirectUri;
+
+    @Value("${jwt.refresh-token-validity}")
+    private long refreshTokenValidityInMilliseconds; // application.properties에서 유효기간 가져오기
 
     @Override
     @Transactional
@@ -50,7 +55,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             throw new IllegalStateException("User ID cannot be null");
         }
 
-        // --- ★★★ 핵심 로직 추가 ★★★ ---
         // DB에서 사용자의 최신 정보를 다시 조회합니다.
         // DataInitializer에 의해 Role이 USER -> ADMIN으로 변경된 경우, 이 조회로 최신 Role을 가져올 수 있습니다.
         User latestUser = userRepository.findById(userId)
@@ -66,26 +70,17 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String accessToken = tokenProvider.createToken(finalAuthentication);
         String refreshTokenValue = tokenProvider.createRefreshToken(finalAuthentication);
 
-        // --- 2. Refresh Token을 DB에 저장 또는 업데이트하는 로직 ---
-        refreshTokenRepository.findByUserId(userId)
-                .ifPresentOrElse(
-                        // 사용자의 리프레시 토큰이 이미 DB에 존재하면,
-                        (refreshTokenEntity) -> {
-                            log.info("Updating existing refresh token for user ID: {}", userId);
-                            refreshTokenEntity.updateToken(refreshTokenValue);
-                            // @Transactional에 의해 메소드 종료 시 자동으로 DB에 반영 (dirty checking)
-                        },
-                        // DB에 없으면 (최초 로그인), 새로 생성하여 저장
-                        () -> {
-                            log.info("Saving new refresh token for user ID: {}", userId);
-                            RefreshToken newRefreshToken = RefreshToken.builder()
-                                    .userId(userId)
-                                    .token(refreshTokenValue)
-                                    .build();
-                            refreshTokenRepository.save(newRefreshToken);
-                        }
-                );
-        // --------------------------------------------------------
+        // 1. Redis에 저장할 Key를 생성합니다. (예: "RT:1")
+        String redisKey = "RT:" + finalPrincipal.getId();
+
+        // 2. Redis에 Refresh Token을 저장하고, 유효기간(TTL)을 설정합니다.
+        redisTemplate.opsForValue().set(
+                redisKey,
+                refreshTokenValue,
+                refreshTokenValidityInMilliseconds,
+                TimeUnit.MILLISECONDS
+        );
+        log.info("Saved/Updated Refresh Token for user ID {} in Redis.", finalPrincipal.getId());
 
         // 3. 프론트엔드로 리다이렉트할 URL 생성
         return UriComponentsBuilder.fromUriString(redirectUri)
