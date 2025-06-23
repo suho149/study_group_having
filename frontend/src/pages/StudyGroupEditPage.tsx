@@ -15,7 +15,7 @@ import {
   Stack,
   Alert,
   CircularProgress,
-  SelectChangeEvent,
+  SelectChangeEvent, RadioGroup, FormControlLabel, Radio,
 } from '@mui/material';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -27,6 +27,7 @@ interface StudyGroupEditForm {
   maxMembers: number;
   status: string;
   studyType: string;
+  category: 'STUDY' | 'PROJECT' | '';
   location: string;
   startDate: Date;
   endDate: Date;
@@ -45,6 +46,7 @@ const StudyGroupEditPage = () => {
     maxMembers: 2,
     status: 'RECRUITING',
     studyType: 'OFFLINE',
+    category: '',
     location: '',
     startDate: new Date(),
     endDate: new Date(),
@@ -62,6 +64,7 @@ const StudyGroupEditPage = () => {
           maxMembers: data.maxMembers,
           status: data.status,
           studyType: data.studyType,
+          category: data.category,
           location: data.location,
           startDate: new Date(data.startDate),
           endDate: new Date(data.endDate),
@@ -83,6 +86,7 @@ const StudyGroupEditPage = () => {
     try {
       await api.put(`/api/studies/${id}`, {
         ...form,
+        category: form.category,
         startDate: form.startDate.toISOString().split('T')[0],
         endDate: form.endDate.toISOString().split('T')[0],
       });
@@ -130,6 +134,13 @@ const StudyGroupEditPage = () => {
           스터디 수정
         </Typography>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+          <FormControl component="fieldset" required margin="normal">
+            <Typography component="legend" variant="body2" sx={{ mb: 1 }}>모집 구분</Typography>
+            <RadioGroup row name="category" value={form.category} onChange={handleChange}>
+              <FormControlLabel value="STUDY" control={<Radio />} label="스터디" />
+              <FormControlLabel value="PROJECT" control={<Radio />} label="프로젝트" />
+            </RadioGroup>
+          </FormControl>
           <TextField
             fullWidth
             label="제목"
