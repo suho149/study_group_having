@@ -100,3 +100,7 @@ bin/
 
 # User uploaded files
 /uploads/
+
+# Spring Boot config files (if they contain secrets)
+/src/main/resources/application-dev.properties
+/src/main/resources/application-docker.properties
