@@ -80,6 +80,7 @@ const NotificationPage: React.FC = () => {
       case NotificationType.NEW_LIKE_ON_POST:
       case NotificationType.NEW_COMMENT_ON_POST:
       case NotificationType.NEW_REPLY_ON_COMMENT: return `/board/post/${refId}`;
+      case NotificationType.NEW_FEED: return `/mypage/feed`;
       default: return '/mypage/notifications';
     }
   };

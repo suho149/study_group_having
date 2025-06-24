@@ -146,8 +146,18 @@ public class StudyGroupService {
         StudyGroup savedStudyGroup = studyGroupRepository.save(studyGroup);
         log.debug("스터디 그룹 생성 완료: groupId={}, userId={}", savedStudyGroup.getId(), userId);
 
+        // --- ★★★ 디버깅 로그 추가 ★★★ ---
+//        log.info("[DEBUG] Event Publishing - Study ID: {}", savedStudyGroup.getId());
+//        log.info("[DEBUG] Event Publishing - Study Title: {}", savedStudyGroup.getTitle());
+
         // --- 스터디 생성 이벤트 발행 로직 추가 ---
-        eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.CREATE_STUDY, savedStudyGroup.getId()));
+        //eventPublisher.publishEvent(new UserActivityEvent(user, ActivityType.CREATE_STUDY, savedStudyGroup.getId()));
+        eventPublisher.publishEvent(new UserActivityEvent(
+                user,
+                ActivityType.CREATE_STUDY,
+                savedStudyGroup.getId(),
+                savedStudyGroup.getTitle() // <-- 제목 전달
+        ));
 
         return StudyGroupResponse.from(savedStudyGroup, false);
     }

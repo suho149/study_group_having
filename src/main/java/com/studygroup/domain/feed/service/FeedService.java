@@ -5,6 +5,8 @@ import com.studygroup.domain.board.repository.BoardPostRepository;
 import com.studygroup.domain.feed.entity.Feed;
 import com.studygroup.domain.feed.repository.FeedRepository;
 import com.studygroup.domain.friend.repository.FriendshipRepository;
+import com.studygroup.domain.notification.entity.NotificationType;
+import com.studygroup.domain.notification.service.NotificationService;
 import com.studygroup.domain.study.entity.StudyGroup;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
 import com.studygroup.domain.user.dto.UserActivityEvent;
@@ -29,6 +31,7 @@ public class FeedService {
     private final FriendshipRepository friendshipRepository;
     private final StudyGroupRepository studyGroupRepository;
     private final BoardPostRepository boardPostRepository;
+    private final NotificationService notificationService;
 
     @Async
     @TransactionalEventListener
@@ -48,8 +51,13 @@ public class FeedService {
         }
 
         // 2. 활동 타입에 따라 피드 내용을 결정합니다.
-        Long referenceId = null;
-        String referenceContent = null;
+        Long referenceId = event.getReferenceId();
+        String referenceContent = event.getReferenceContent();
+
+        if (referenceId == null || referenceContent == null) {
+            log.warn("Feed creation skipped due to missing referenceId or content. ActivityType: {}", event.getActivityType());
+            return;
+        }
 
         switch (event.getActivityType()) {
             case CREATE_STUDY:
@@ -73,6 +81,18 @@ public class FeedService {
 
         if (referenceId == null) return; // 관련 콘텐츠 정보가 없으면 피드 생성 중단
 
+        String notificationMessage;
+        switch (event.getActivityType()) {
+            case CREATE_STUDY:
+                notificationMessage = String.format("친구 '%s'님이 새로운 스터디를 시작했습니다.", actor.getName());
+                break;
+            case CREATE_POST:
+                notificationMessage = String.format("친구 '%s'님이 새로운 게시글을 작성했습니다.", actor.getName());
+                break;
+            default:
+                return;
+        }
+
         // 3. 각 친구에 대해 피드 엔티티를 생성하고 저장합니다.
         for (User friend : friends) {
             Feed feed = Feed.builder()
@@ -83,6 +103,14 @@ public class FeedService {
                     .referenceContent(referenceContent)
                     .build();
             feedRepository.save(feed);
+
+            notificationService.createNotification(
+                    actor,
+                    friend,
+                    notificationMessage,
+                    NotificationType.NEW_FEED,
+                    actor.getId()
+            );
         }
 
         log.info("Created {} feeds for friends of user {}", friends.size(), actor.getId());

@@ -20,7 +20,8 @@ public enum NotificationType {
     NEW_REPLY_ON_COMMENT("회원님의 댓글에 새로운 답글이 달렸습니다."),
     // --- 친구 관련 알림 타입 추가 ---
     FRIEND_REQUEST("님이 회원님에게 친구 신청을 보냈습니다."),
-    FRIEND_ACCEPTED("님이 친구 신청을 수락했습니다.");
+    FRIEND_ACCEPTED("님이 친구 신청을 수락했습니다."),
+    NEW_FEED("새로운 친구 활동 소식이 있습니다.");
 
     private final String description;
 
