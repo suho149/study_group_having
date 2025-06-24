@@ -104,3 +104,6 @@ bin/
 # Spring Boot config files (if they contain secrets)
 /src/main/resources/application-dev.properties
 /src/main/resources/application-docker.properties
+
+# Docker Compose configuration file
+docker-compose.yml

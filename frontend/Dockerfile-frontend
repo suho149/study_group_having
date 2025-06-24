@@ -1,0 +1,31 @@
+# 1. Node.js 환경을 기반으로 하는 빌드 스테이지
+FROM node:18-alpine as builder
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# package.json과 package-lock.json을 먼저 복사하여 의존성 레이어 캐싱 활용
+COPY package.json package-lock.json ./
+
+# 의존성 설치
+# RUN npm install
+RUN npm install --legacy-peer-deps
+
+# 프론트엔드 소스 코드 복사
+COPY . .
+
+# 프로덕션용으로 빌드하여 정적 파일 생성 (/app/build 디렉토리에 생성됨)
+RUN npm run build
+
+# 2. 정적 파일을 서비스하기 위한 Nginx 웹 서버 스테이지
+FROM nginx:1.21-alpine
+
+# 빌드 스테이지에서 생성된 정적 파일들을 Nginx의 기본 웹 루트 디렉토리로 복사
+COPY --from=builder /app/build /usr/share/nginx/html
+
+# Nginx가 React Router를 제대로 처리하도록 설정 파일 복사
+# (이 설정 파일은 아래에서 생성합니다)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 80번 포트를 외부에 노출
+EXPOSE 80
