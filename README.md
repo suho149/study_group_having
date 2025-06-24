@@ -20,7 +20,7 @@
 ## ✨ 주요 기능 (Features)
 
 <details>
-<strong>📚 스터디 및 프로젝트 그룹 관리</strong>
+<summary><strong>📚 스터디 및 프로젝트 그룹 관리</strong></summary>
 
 - **모집 유형 구분**: 학습 목적의 '스터디'와 결과물 제작 목적의 '프로젝트'를 명확히 구분하여 생성 및 필터링
 - **그룹 생성 및 검색**: 원하는 주제와 유형의 그룹을 만들거나 키워드, 태그 기반으로 검색
@@ -32,7 +32,7 @@
 </details>
 
 <details>
-<strong>💬 실시간 소통 기능</strong>
+<summary><strong>💬 실시간 소통 기능</strong></summary>
 
 - **그룹/개인 채팅**: 스터디 전용 그룹 채팅방 및 사용자 간 1:1 DM(다이렉트 메시지) 기능 제공
 - **실시간 메시징**: `WebSocket`과 `STOMP` 프로토콜 기반의 실시간 양방향 통신 구현
@@ -42,7 +42,7 @@
 </Deteils>
 
 <details>
-<strong>📝 커뮤니티 게시판</strong>
+<summary><strong>📝 커뮤니티 게시판</strong></summary>
 
 - **콘텐츠 에디터**: TOAST UI Editor를 도입하여 Markdown과 WYSIWYG 모드를 모두 지원하고, 이미지 첨부 기능 제공
 - **추천/비추천 시스템**: 유용한 게시물이나 댓글에 대한 긍정/부정 피드백 시스템
@@ -52,7 +52,7 @@
 </details>
 
 <details>
-<strong>🤝 소셜 및 알림 시스템</strong>
+<summary><strong>🤝 소셜 및 알림 시스템</strong></summary>
 
 - **친구 시스템**: 사용자 간 친구 신청, 수락/거절, 친구 목록 관리 기능
 - **활동 피드**: 친구의 새로운 스터디/게시글 작성 소식을 받아보는 뉴스피드 기능
@@ -62,7 +62,7 @@
 </details>
 
 <details>
-<strong>👤 사용자 및 관리자 기능</strong>
+<summary><strong>👤 사용자 및 관리자 기능</strong></summary>
 
 - **소셜 로그인**: Google OAuth2를 이용한 간편하고 안전한 로그인 지원
 - **JWT 기반 인증**: Stateless 아키텍처를 위한 Access/Refresh Token 기반의 API 접근 제어
