@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DataInitializer implements ApplicationRunner {
 
     private final UserRepository userRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
     @Value("${app.admin.email}")
     private String adminEmail;
@@ -31,6 +33,11 @@ public class DataInitializer implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
         log.info("Running Data Initializer for 'dev' profile...");
+
+        // ddl-auto: create 환경에서는 Redis 데이터도 함께 초기화
+        log.info("Flushing all data from Redis for 'dev' environment...");
+        redisTemplate.getConnectionFactory().getConnection().flushAll();
+        log.info("Redis data flushed successfully.");
 
         // 1. 설정된 이메일로 관리자 계정이 있는지 확인합니다.
         userRepository.findByEmail(adminEmail).ifPresentOrElse(

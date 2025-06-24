@@ -14,6 +14,7 @@ import com.studygroup.domain.user.entity.InteractionType;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.security.UserPrincipal;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -22,11 +23,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
 import jakarta.servlet.http.HttpSession;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -200,6 +203,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#studyId")
     public void likeStudy(Long studyId, Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
@@ -225,6 +229,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#studyId")
     public void unlikeStudy(Long studyId, Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
@@ -302,6 +307,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#groupId")
     public void handleInviteResponse(Long groupId, Long userId, boolean accept) {
 
         log.info("스터디 초대 응답 처리 시작: groupId={}, userId={}, accept={}", groupId, userId, accept);
@@ -418,6 +424,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#groupId")
     public void applyToStudyGroup(Long groupId, Long applicantUserId) {
         log.info("스터디 참여 신청 처리 시작: groupId={}, applicantUserId={}", groupId, applicantUserId);
 
@@ -485,6 +492,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#studyId")
     public void updateStudyMemberStatus(Long studyId, Long memberUserId, StudyMemberStatus newStatus, Long currentUserId) {
         log.debug("멤버 상태 업데이트 서비스 시작: studyId={}, memberUserId={}, newStatus={}, currentUserId={}",
                 studyId, memberUserId, newStatus, currentUserId);
@@ -579,6 +587,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#studyId")
     public void leaveStudyGroup(Long studyId, Long memberUserId) {
         log.info("스터디 탈퇴 처리 시작: studyId={}, memberUserId={}", studyId, memberUserId);
 
@@ -630,6 +639,7 @@ public class StudyGroupService {
     }
 
     @Transactional
+    @CacheEvict(value = "studyDetail", key = "#studyId")
     public void removeMemberByLeader(Long studyId, Long memberUserIdToRemove, Long leaderUserId) {
         log.info("스터디장에 의한 멤버 강제 탈퇴 처리 시작: studyId={}, memberUserIdToRemove={}, leaderUserId={}",
                 studyId, memberUserIdToRemove, leaderUserId);
