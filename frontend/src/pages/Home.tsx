@@ -119,7 +119,7 @@ const Home: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Box>
             <Typography variant="h4" component="h1" gutterBottom>Having</Typography>
-            <Typography variant="subtitle1" color="text.secondary" gutterBottom>함께 성장하는 IT 스터디 플랫폼</Typography>
+            <Typography variant="subtitle1" color="text.secondary" gutterBottom>함께 성장하는 스터디 플랫폼</Typography>
           </Box>
           {isLoggedIn && <CreateStudyButton />}
         </Box>

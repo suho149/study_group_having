@@ -305,7 +305,7 @@ const StudyDetailComponent: React.FC<StudyDetailProps> = ({ // 컴포넌트 이�
 
         <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column' }}>
           <Paper sx={{ p: 3, flex: 1, borderRadius: 2 }}>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>스터디 멤버</Typography>
+            {/*<Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>스터디 멤버</Typography>*/}
             {/* StudyMemberList에 members props가 어떻게 전달되고 사용되는지 확인 필요.
               onMemberUpdate는 멤버 상태 변경(승인/거절) UI가 StudyMemberList 내부에 있을 경우 사용됨.
               현재 요청은 참여 신청 알림까지이므로, 스터디장이 알림을 보고 멤버 관리 페이지로 이동하여 처리하는 흐름을 가정.
