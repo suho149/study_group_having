@@ -5,14 +5,13 @@ import com.studygroup.domain.chat.dto.UserSummaryDto;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Getter
 @Builder
-public class CommentResponseDto implements Serializable {
+public class CommentResponseDto {
     private Long id;
     private String content;
     private UserSummaryDto author;

@@ -4,11 +4,9 @@ import com.studygroup.domain.user.entity.User;
 import lombok.Builder;
 import lombok.Getter;
 
-import java.io.Serializable;
-
 @Getter
 @Builder
-public class UserSummaryDto implements Serializable {
+public class UserSummaryDto {
     private Long id;
     private String name;
     private String profileImageUrl; // 프론트 타입과 이름 맞춤 (profile -> profileImageUrl)
