@@ -136,10 +136,9 @@ RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 
 먼저, 터미널을 열고 원하는 디렉토리에서 아래 명령어를 실행하여 GitHub 레포지토리를 복제합니다.
 
 ```bash
-git clone https://github.com/[YOUR_GITHUB_ID]/having.git
+git clone https://github.com/[YOUR_GITHUB_ID]/having.git](https://github.com/suho149/study_group_having.git
 cd having
 ```
-*(위 주소는 예시이며, 실제 GitHub 레포지토리 주소로 변경해주세요.)*
 
 <br>
 
