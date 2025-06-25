@@ -120,27 +120,38 @@ RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 
 
 <br>
 
-🚀 시작하기 (Getting Started)
-"Having" 애플리케이션은 Docker를 사용하여 어떤 개발 환경에서든 명령어 하나로 쉽게 전체 서비스를 실행할 수 있도록 구성되었습니다. 로컬 컴퓨터에 Java, Node.js, MariaDB, Redis를 직접 설치할 필요가 없습니다.
-Prerequisites (필수 요구사항)
-Docker Desktop (최신 버전 설치 권장)
-Git
-Installation & Run
-1단계: 프로젝트 소스 코드 복제 (Clone)
+## 🚀 시작하기 (Getting Started)
+
+"Having" 애플리케이션은 **Docker**를 사용하여 어떤 개발 환경에서든 명령어 하나로 쉽게 전체 서비스를 실행할 수 있도록 구성되었습니다. 로컬 컴퓨터에 Java, Node.js, MariaDB, Redis를 직접 설치할 필요가 없습니다.
+
+### Prerequisites (필수 요구사항)
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (최신 버전 설치 권장)
+- [Git](https://git-scm.com/)
+
+### Installation & Run
+
+#### 1단계: 프로젝트 소스 코드 복제 (Clone)
+
 먼저, 터미널을 열고 원하는 디렉토리에서 아래 명령어를 실행하여 GitHub 레포지토리를 복제합니다.
-Generated bash
+
+```bash
 git clone https://github.com/[YOUR_GITHUB_ID]/having.git
 cd having
-Use code with caution.
-Bash
-(위 주소는 예시이며, 실제 GitHub 레포지토리 주소로 변경해주세요.)
+```
+*(위 주소는 예시이며, 실제 GitHub 레포지토리 주소로 변경해주세요.)*
+
 <br>
-2단계: 환경 변수 설정 (.env 파일 생성)
-프로젝트를 실행하기 위해서는 데이터베이스 비밀번호, 구글 OAuth2 클라이언트 ID/Secret, JWT 시크릿 키 등 민감한 정보들이 필요합니다. 이러한 정보들은 보안을 위해 .env 파일에서 관리합니다.
-프로젝트의 루트 디렉토리(최상위 폴더)에 .env 라는 이름으로 새 파일을 생성합니다.
-아래 코드 블록 전체를 복사하여 새로 만든 .env 파일에 붙여넣습니다.
-#으로 설명된 부분을 참고하여, your_... 로 표시된 곳을 자신의 실제 값으로 모두 채워주세요.
-Generated dotenv
+
+#### 2단계: 환경 변수 설정 (`.env` 파일 생성)
+
+프로젝트를 실행하기 위해서는 데이터베이스 비밀번호, 구글 OAuth2 클라이언트 ID/Secret, JWT 시크릿 키 등 민감한 정보들이 필요합니다. 이러한 정보들은 보안을 위해 `.env` 파일에서 관리합니다.
+
+1. 프로젝트의 루트 디렉토리(최상위 폴더)에 `.env` 라는 이름으로 새 파일을 생성합니다.
+2. 아래 **코드 블록 전체**를 복사하여 새로 만든 `.env` 파일에 붙여넣습니다.
+3. `#`으로 설명된 부분을 참고하여, `your_...` 로 표시된 곳을 **자신의 실제 값으로 모두 채워주세요.**
+
+```dotenv
 # .env
 
 # --- Docker Compose에서 사용할 데이터베이스 비밀번호 ---
@@ -164,42 +175,68 @@ COMPOSE_REACT_APP_KAKAO_MAP_API_KEY=your_kakao_maps_javascript_api_key
 # 2단계 인증을 사용하는 경우 '앱 비밀번호'를 발급받아 사용해야 합니다.
 COMPOSE_GMAIL_USERNAME=your_gmail_address@gmail.com
 COMPOSE_GMAIL_APP_PASSWORD=your_gmail_app_password
-Use code with caution.
-Dotenv
+```
+
 <br>
-3단계: 애플리케이션 실행
+
+#### 3단계: 애플리케이션 실행
+
 모든 설정이 완료되었습니다. 터미널에서 아래 명령어 하나만 실행하면, Docker가 모든 서비스(백엔드, 프론트엔드, DB, Redis)를 자동으로 빌드하고 실행합니다.
-Generated bash
+
+```bash
 docker-compose up --build
-Use code with caution.
-Bash
-참고: 최초 실행 시에는 --build 옵션으로 이미지를 생성해야 하며, 몇 분 정도 소요될 수 있습니다. 이후 다시 실행할 때는 docker-compose up만 입력하면 기존 이미지를 재사용하여 더 빠르게 시작할 수 있습니다.
+```
+> **참고:** 최초 실행 시에는 `--build` 옵션으로 이미지를 생성해야 하며, 몇 분 정도 소요될 수 있습니다. 이후 다시 실행할 때는 `docker-compose up`만 입력하면 기존 이미지를 재사용하여 더 빠르게 시작할 수 있습니다.
+
 여러 서비스의 로그가 터미널에 출력되다가, 에러 없이 안정화되면 모든 준비가 완료된 것입니다.
+
 <br>
-4단계: 서비스 접속
+
+#### 4단계: 서비스 접속
+
 웹 브라우저를 열고 아래 주소로 접속하여 "Having" 서비스를 확인해보세요.
-http://localhost:3000
+
+- **`http://localhost:3000`**
+
 <br>
-애플리케이션 종료
-프로젝트 실행을 종료하고 싶을 때는, docker-compose up 명령어를 실행했던 터미널에서 Ctrl + C를 누릅니다. 모든 컨테이너가 함께 안전하게 종료됩니다. 만약 백그라운드에서 실행했다면(-d 옵션), docker-compose down 명령어로 종료할 수 있습니다.
-※ 참고: API 키 발급 가이드
-1. Google OAuth 2.0 클라이언트 ID 및 시크릿 발급 방법
-Google Cloud Console에 접속하여 새 프로젝트를 생성합니다.
-API 및 서비스 > 사용자 인증 정보 메뉴로 이동합니다.
-+ 사용자 인증 정보 만들기 > OAuth 클라이언트 ID를 선택합니다.
-애플리케이션 유형을 웹 애플리케이션으로 선택합니다.
-승인된 리디렉션 URI 섹션에서 + URI 추가 버튼을 누르고 아래 주소를 입력합니다.
-http://localhost:8080/login/oauth2/code/google
-만들기 버튼을 누르면 클라이언트 ID와 클라이언트 보안 비밀이 발급됩니다. 이 값들을 .env 파일에 각각 입력합니다.
-2. Kakao Maps API JavaScript 키 발급 방법
-Kakao Developers에 로그인하고 내 애플리케이션으로 이동합니다.
-+ 애플리케이션 추가하기를 통해 새 앱을 생성합니다.
-생성된 앱을 선택하고, 앱 설정 > 플랫폼 메뉴로 이동합니다.
-Web 플랫폼 등록 버튼을 누르고, 사이트 도메인에 http://localhost:3000을 등록합니다.
-앱 설정 > 요약 정보 메뉴로 이동하여, JavaScript 키를 복사합니다.
-복사한 키를 .env 파일의 COMPOSE_REACT_APP_KAKAO_MAP_API_KEY 값으로 입력합니다.
-Q&A
-Q: docker-compose.yml 파일은 왜 GitHub에 올라가 있나요?
-A: docker-compose.yml 파일은 여러 서비스(백엔드, 프론트엔드, DB 등)를 어떻게 구성하고 연결할지에 대한 **"설계도"**와 같습니다. 이 파일 자체에는 민감한 정보가 없으며, ${...} 형태로 .env 파일의 변수를 참조하도록 만들어져 있어 안전합니다. 이 설계도 파일이 있어야 다른 사람도 docker-compose up 명령어로 프로젝트를 쉽게 실행할 수 있습니다.
-Q: .env 파일은 왜 직접 만들어야 하나요?
-A: .env 파일에는 DB 비밀번호, API 시크릿 키 등 절대 외부에 노출되어서는 안 되는 민감한 정보가 들어갑니다. 따라서 이 파일은 .gitignore에 등록하여 GitHub에 올라가지 않도록 하고, 각 사용자가 자신의 로컬 환경에 직접 생성하여 사용하도록 하는 것이 표준적인 보안 방식입니다.
+
+### 애플리케이션 종료
+
+프로젝트 실행을 종료하고 싶을 때는, `docker-compose up` 명령어를 실행했던 터미널에서 `Ctrl + C`를 누릅니다. 모든 컨테이너가 함께 안전하게 종료됩니다. 만약 백그라운드에서 실행했다면(`-d` 옵션), `docker-compose down` 명령어로 종료할 수 있습니다.
+
+---
+
+### ※ 참고: API 키 발급 가이드
+
+#### Google OAuth 2.0 클라이언트 ID 및 시크릿 발급 방법
+
+1. [Google Cloud Console](https://console.cloud.google.com/)에 접속하여 새 프로젝트를 생성합니다.
+2. `API 및 서비스` > `사용자 인증 정보` 메뉴로 이동합니다.
+3. `+ 사용자 인증 정보 만들기` > `OAuth 클라이언트 ID`를 선택합니다.
+4. 애플리케이션 유형을 `웹 애플리케이션`으로 선택합니다.
+5. `승인된 리디렉션 URI` 섹션에서 `+ URI 추가` 버튼을 누르고 아래 주소를 입력합니다.
+    - `http://localhost:8080/login/oauth2/code/google`
+6. `만들기` 버튼을 누르면 **클라이언트 ID**와 **클라이언트 보안 비밀**이 발급됩니다. 이 값들을 `.env` 파일에 각각 입력합니다.
+
+<br>
+
+#### Kakao Maps API JavaScript 키 발급 방법
+
+1. [Kakao Developers](https://developers.kakao.com/)에 로그인하고 `내 애플리케이션`으로 이동합니다.
+2. `+ 애플리케이션 추가하기`를 통해 새 앱을 생성합니다.
+3. 생성된 앱을 선택하고, `앱 설정` > `플랫폼` 메뉴로 이동합니다.
+4. `Web 플랫폼 등록` 버튼을 누르고, `사이트 도메인`에 `http://localhost:3000`을 등록합니다.
+5. `앱 설정` > `요약 정보` 메뉴로 이동하여, **JavaScript 키**를 복사합니다.
+6. 복사한 키를 `.env` 파일의 `COMPOSE_REACT_APP_KAKAO_MAP_API_KEY` 값으로 입력합니다.
+
+---
+
+### Q&A
+
+**Q: `docker-compose.yml` 파일은 왜 GitHub에 올라가 있나요?**
+
+A: `docker-compose.yml` 파일은 여러 서비스(백엔드, 프론트엔드, DB 등)를 어떻게 구성하고 연결할지에 대한 **"설계도"**와 같습니다. 이 파일 자체에는 민감한 정보가 없으며, `${...}` 형태로 `.env` 파일의 변수를 참조하도록 만들어져 있어 안전합니다. 이 설계도 파일이 있어야 다른 사람도 `docker-compose up` 명령어로 프로젝트를 쉽게 실행할 수 있습니다.
+
+**Q: `.env` 파일은 왜 직접 만들어야 하나요?**
+
+A: `.env` 파일에는 DB 비밀번호, API 시크릿 키 등 절대 외부에 노출되어서는 안 되는 민감한 정보가 들어갑니다. 따라서 이 파일은 `.gitignore`에 등록하여 GitHub에 올라가지 않도록 하고, 각 사용자가 자신의 로컬 환경에 직접 생성하여 사용하도록 하는 것이 표준적인 보안 방식입니다.
