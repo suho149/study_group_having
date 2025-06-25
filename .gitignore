@@ -106,4 +106,4 @@ bin/
 /src/main/resources/application-docker.properties
 
 # Docker Compose configuration file
-docker-compose.yml
+#docker-compose.yml
