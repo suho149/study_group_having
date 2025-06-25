@@ -120,47 +120,63 @@ RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 
 
 <br>
 
-## 🚀 시작하기 (Getting Started)
+🚀 시작하기 (Getting Started)
+"Having" 애플리케이션은 Docker를 사용하여 어떤 개발 환경에서든 명령어 하나로 쉽게 전체 서비스를 실행할 수 있도록 구성되었습니다. 로컬 컴퓨터에 Java, Node.js, MariaDB, Redis를 직접 설치할 필요가 없습니다.
+Prerequisites (필수 요구사항)
+Docker Desktop (최신 버전 설치 권장)
+Git
+Installation & Run
+1단계: 프로젝트 소스 코드 복제 (Clone)
+먼저, 터미널을 열고 원하는 디렉토리에서 아래 명령어를 실행하여 GitHub 레포지토리를 복제합니다.
+Generated bash
+git clone https://github.com/[YOUR_GITHUB_ID]/having.git
+cd having
+Use code with caution.
+Bash
+(위 주소는 예시이며, 실제 GitHub 레포지토리 주소로 변경해주세요.)
+2단계: 환경 변수 설정 (.env 파일 생성)
+프로젝트를 실행하기 위해서는 데이터베이스 비밀번호, 구글 OAuth2 클라이언트 ID/Secret, JWT 시크릿 키 등 민감한 정보들이 필요합니다. 이러한 정보들은 보안을 위해 .env 파일에서 관리합니다.
+프로젝트의 루트 디렉토리(최상위 폴더)에 .env 라는 이름으로 새 파일을 생성합니다.
+아래 내용을 복사하여 새로 만든 .env 파일에 붙여넣습니다.
+#으로 설명된 부분을 참고하여, your_... 로 표시된 곳을 자신의 실제 값으로 모두 채워주세요.
+Generated dotenv
+# .env
 
-### Prerequisites
-- Java 17
-- Node.js (v18.x 이상)
-- MariaDB
-- Redis
-- Docker (권장)
+# --- Docker Compose에서 사용할 데이터베이스 비밀번호 ---
+# MariaDB 컨테이너의 root 계정 비밀번호로 사용됩니다.
+COMPOSE_DB_PASSWORD=your_strong_db_password
 
-### Installation & Run
+# --- JWT(JSON Web Token) 시크릿 키 ---
+# 64바이트 이상의 매우 긴 무작위 문자열을 권장합니다.
+COMPOSE_JWT_SECRET=your_super_long_and_random_jwt_secret_key
 
-1.  **Backend**
-    ```bash
-    # 1. 레포지토리 클론
-    git clone https://github.com/[YOUR_GITHUB_ID]/having-backend.git
-    cd having-backend
+# --- Google OAuth2 클라이언트 정보 ---
+# (아래 가이드 참고하여 발급)
+COMPOSE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+COMPOSE_GOOGLE_CLIENT_SECRET=your_google_client_secret_code
 
-    # 2. application-dev.properties 생성 및 설정 (application.properties 참조)
-    # DB, Redis, OAuth2, JWT 관련 환경변수 설정
-    
-    # 3. 애플리케이션 실행
-    ./gradlew bootRun
-    ```
+# --- 프론트엔드에서 사용할 카카오맵 API 키 ---
+# (아래 가이드 참고하여 발급)
+COMPOSE_REACT_APP_KAKAO_MAP_API_KEY=your_kakao_maps_javascript_api_key
 
-2.  **Frontend**
-    ```bash
-    # 1. 레포지토리 클론
-    git clone https://github.com/[YOUR_GITHUB_ID]/having-frontend.git
-    cd having-frontend
-
-    # 2. 의존성 설치
-    npm install
-
-    # 3. 개발 서버 실행
-    npm start
-    ```
-
+# --- 이메일 발송을 위한 Gmail 계정 정보 (선택 사항) ---
+# 2단계 인증을 사용하는 경우 '앱 비밀번호'를 발급받아 사용해야 합니다.
+COMPOSE_GMAIL_USERNAME=your_gmail_address@gmail.com
+COMPOSE_GMAIL_APP_PASSWORD=your_gmail_app_password
+Use code with caution.
+Dotenv
+3단계: 애플리케이션 실행
+모든 설정이 완료되었습니다. 터미널에서 아래 명령어 하나만 실행하면, Docker가 모든 서비스(백엔드, 프론트엔드, DB, Redis)를 자동으로 빌드하고 실행합니다.
+Generated bash
+docker-compose up --build
+Use code with caution.
+Bash
+--build: 최초 실행 시에는 반드시 이 옵션을 사용하여 로컬 소스 코드로 새로운 Docker 이미지를 생성합니다.
+이후 다시 실행할 때는 docker-compose up만 입력하면 기존 이미지를 재사용하여 더 빠르게 시작할 수 있습니다.
+최초 빌드는 몇 분 정도 소요될 수 있습니다. 여러 서비스의 로그가 터미널에 출력되다가, 에러 없이 안정화되면 모든 준비가 완료된 것입니다.
+4단계: 서비스 접속
+웹 브라우저를 열고 아래 주소로 접속하여 "Having" 서비스를 확인해보세요.
+http://localhost:3000
+애플리케이션 종료
+프로젝트 실행을 종료하고 싶을 때는, docker-compose up 명령어를 실행했던 터미널에서 Ctrl + C를 누릅니다. 모든 컨테이너가 함께 안전하게 종료됩니다. 만약 백그라운드에서 실행했다면(-d 옵션), docker-compose down 명령어로 종료할 수 있습니다.
 <br>
-
-## 👨‍💻 팀원 (Contributors)
-
-- **[당신의 이름]** - Full-Stack Developer
-  - GitHub: `https://github.com/[YOUR_GITHUB_ID]`
-  - Email: `your-email@example.com`
