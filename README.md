@@ -121,70 +121,68 @@ RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 
 <br>
 
 🚀 시작하기 (Getting Started)
+"Having" 애플리케이션은 Docker를 사용하여 어떤 개발 환경에서든 명령어 하나로 쉽게 전체 서비스를 실행할 수 있도록 구성되었습니다. 로컬 컴퓨터에 Java, Node.js, MariaDB, Redis를 직접 설치할 필요가 없습니다.
 Prerequisites (필수 요구사항)
 Docker Desktop (최신 버전 설치 권장)
 Git
-💻 Installation & Run
+Installation & Run
 1단계: 프로젝트 소스 코드 복제 (Clone)
 먼저, 터미널을 열고 원하는 디렉토리에서 아래 명령어를 실행하여 GitHub 레포지토리를 복제합니다.
-
-Bash
-
+Generated bash
 git clone https://github.com/[YOUR_GITHUB_ID]/having.git
 cd having
-Note: 위 주소의 [YOUR_GITHUB_ID] 부분은 실제 GitHub 사용자 ID로 변경해주세요.
-
+Use code with caution.
+Bash
+(위 주소는 예시이며, 실제 GitHub 레포지토리 주소로 변경해주세요.)
+<br>
 2단계: 환경 변수 설정 (.env 파일 생성)
 프로젝트를 실행하기 위해서는 데이터베이스 비밀번호, 구글 OAuth2 클라이언트 ID/Secret, JWT 시크릿 키 등 민감한 정보들이 필요합니다. 이러한 정보들은 보안을 위해 .env 파일에서 관리합니다.
-
-프로젝트의 루트 디렉토리(최상위 폴더)에 .env 라는 이름으로 새 파일을 생성하고, 아래 내용을 복사하여 붙여넣으세요. #으로 설명된 부분을 참고하여, <...> 로 표시된 곳을 자신의 실제 값으로 모두 채워주세요.
-
-코드 스니펫
-
+프로젝트의 루트 디렉토리(최상위 폴더)에 .env 라는 이름으로 새 파일을 생성합니다.
+아래 코드 블록 전체를 복사하여 새로 만든 .env 파일에 붙여넣습니다.
+#으로 설명된 부분을 참고하여, your_... 로 표시된 곳을 자신의 실제 값으로 모두 채워주세요.
+Generated dotenv
 # .env
 
 # --- Docker Compose에서 사용할 데이터베이스 비밀번호 ---
 # MariaDB 컨테이너의 root 계정 비밀번호로 사용됩니다.
-COMPOSE_DB_PASSWORD=<your_strong_db_password>
+COMPOSE_DB_PASSWORD=your_strong_db_password
 
 # --- JWT(JSON Web Token) 시크릿 키 ---
 # 64바이트 이상의 매우 긴 무작위 문자열을 권장합니다.
-COMPOSE_JWT_SECRET=<your_super_long_and_random_jwt_secret_key>
+COMPOSE_JWT_SECRET=your_super_long_and_random_jwt_secret_key
 
 # --- Google OAuth2 클라이언트 정보 ---
 # (아래 가이드 참고하여 발급)
-COMPOSE_GOOGLE_CLIENT_ID=<your_google_client_id.apps.googleusercontent.com>
-COMPOSE_GOOGLE_CLIENT_SECRET=<your_google_client_secret_code>
+COMPOSE_GOOGLE_CLIENT_ID=your_google_client_id.apps.googleusercontent.com
+COMPOSE_GOOGLE_CLIENT_SECRET=your_google_client_secret_code
 
 # --- 프론트엔드에서 사용할 카카오맵 API 키 ---
 # (아래 가이드 참고하여 발급)
-COMPOSE_REACT_APP_KAKAO_MAP_API_KEY=<your_kakao_maps_javascript_api_key>
+COMPOSE_REACT_APP_KAKAO_MAP_API_KEY=your_kakao_maps_javascript_api_key
 
 # --- 이메일 발송을 위한 Gmail 계정 정보 (선택 사항) ---
 # 2단계 인증을 사용하는 경우 '앱 비밀번호'를 발급받아 사용해야 합니다.
-COMPOSE_GMAIL_USERNAME=<your_gmail_address@gmail.com>
-COMPOSE_GMAIL_APP_PASSWORD=<your_gmail_app_password>
+COMPOSE_GMAIL_USERNAME=your_gmail_address@gmail.com
+COMPOSE_GMAIL_APP_PASSWORD=your_gmail_app_password
+Use code with caution.
+Dotenv
+<br>
 3단계: 애플리케이션 실행
 모든 설정이 완료되었습니다. 터미널에서 아래 명령어 하나만 실행하면, Docker가 모든 서비스(백엔드, 프론트엔드, DB, Redis)를 자동으로 빌드하고 실행합니다.
-
-Bash
-
+Generated bash
 docker-compose up --build
---build: 최초 실행 시에는 반드시 이 옵션을 사용하여 로컬 소스 코드로 새로운 Docker 이미지를 생성합니다.
-이후 다시 실행할 때는 docker-compose up만 입력하면 기존 이미지를 재사용하여 더 빠르게 시작할 수 있습니다.
-최초 빌드는 환경에 따라 몇 분 정도 소요될 수 있습니다. 여러 서비스의 로그가 터미널에 출력되다가, 에러 없이 안정화되면 모든 준비가 완료된 것입니다.
-
+Use code with caution.
+Bash
+참고: 최초 실행 시에는 --build 옵션으로 이미지를 생성해야 하며, 몇 분 정도 소요될 수 있습니다. 이후 다시 실행할 때는 docker-compose up만 입력하면 기존 이미지를 재사용하여 더 빠르게 시작할 수 있습니다.
+여러 서비스의 로그가 터미널에 출력되다가, 에러 없이 안정화되면 모든 준비가 완료된 것입니다.
+<br>
 4단계: 서비스 접속
 웹 브라우저를 열고 아래 주소로 접속하여 "Having" 서비스를 확인해보세요.
-
-👉 http://localhost:3000
-
-⏹️ 애플리케이션 종료
-프로젝트 실행을 종료하고 싶을 때는, docker-compose up 명령어를 실행했던 터미널에서 Ctrl + C를 누릅니다. 모든 컨테이너가 함께 안전하게 종료됩니다.
-
-만약 백그라운드에서 실행했다면 (-d 옵션), docker-compose down 명령어로 종료할 수 있습니다.
-
-🔑 참고: API 키 발급 가이드
+http://localhost:3000
+<br>
+애플리케이션 종료
+프로젝트 실행을 종료하고 싶을 때는, docker-compose up 명령어를 실행했던 터미널에서 Ctrl + C를 누릅니다. 모든 컨테이너가 함께 안전하게 종료됩니다. 만약 백그라운드에서 실행했다면(-d 옵션), docker-compose down 명령어로 종료할 수 있습니다.
+※ 참고: API 키 발급 가이드
 1. Google OAuth 2.0 클라이언트 ID 및 시크릿 발급 방법
 Google Cloud Console에 접속하여 새 프로젝트를 생성합니다.
 API 및 서비스 > 사용자 인증 정보 메뉴로 이동합니다.
@@ -200,11 +198,8 @@ Kakao Developers에 로그인하고 내 애플리케이션으로 이동합니다
 Web 플랫폼 등록 버튼을 누르고, 사이트 도메인에 http://localhost:3000을 등록합니다.
 앱 설정 > 요약 정보 메뉴로 이동하여, JavaScript 키를 복사합니다.
 복사한 키를 .env 파일의 COMPOSE_REACT_APP_KAKAO_MAP_API_KEY 값으로 입력합니다.
-❓ Q&amp;A
-Q: docker-compose.yml 파일을 GitHub에 올려도 괜찮나요?
-
-A: 네, 괜찮습니다. docker-compose.yml 파일은 여러 서비스(백엔드, 프론트엔드, DB 등)를 어떻게 구성하고 연결할지에 대한 **"설계도"**와 같습니다. 이 파일 자체에는 민감한 정보가 없으며, ${...} 형태로 .env 파일의 변수를 참조하도록 만들어져 있어 안전합니다. 이 설계도 파일이 있어야 다른 사람도 docker-compose up 명령어로 프로젝트를 쉽게 실행할 수 있습니다.
-
-Q: .env 파일은 왜 .gitignore에 추가해야 하나요?
-
+Q&A
+Q: docker-compose.yml 파일은 왜 GitHub에 올라가 있나요?
+A: docker-compose.yml 파일은 여러 서비스(백엔드, 프론트엔드, DB 등)를 어떻게 구성하고 연결할지에 대한 **"설계도"**와 같습니다. 이 파일 자체에는 민감한 정보가 없으며, ${...} 형태로 .env 파일의 변수를 참조하도록 만들어져 있어 안전합니다. 이 설계도 파일이 있어야 다른 사람도 docker-compose up 명령어로 프로젝트를 쉽게 실행할 수 있습니다.
+Q: .env 파일은 왜 직접 만들어야 하나요?
 A: .env 파일에는 DB 비밀번호, API 시크릿 키 등 절대 외부에 노출되어서는 안 되는 민감한 정보가 들어갑니다. 따라서 이 파일은 .gitignore에 등록하여 GitHub에 올라가지 않도록 하고, 각 사용자가 자신의 로컬 환경에 직접 생성하여 사용하도록 하는 것이 표준적인 보안 방식입니다.
