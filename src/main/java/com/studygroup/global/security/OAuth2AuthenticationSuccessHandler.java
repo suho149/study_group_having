@@ -1,7 +1,5 @@
 package com.studygroup.global.security;
 
-import com.studygroup.domain.auth.entity.RefreshToken;
-import com.studygroup.domain.auth.repository.RefreshTokenRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.jwt.TokenProvider;
@@ -10,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -18,8 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
-import org.springframework.data.redis.core.RedisTemplate; // RedisTemplate import
-import java.util.concurrent.TimeUnit; // TimeUnit import
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component

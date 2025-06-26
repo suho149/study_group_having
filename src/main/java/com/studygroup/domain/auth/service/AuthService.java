@@ -1,8 +1,6 @@
 package com.studygroup.domain.auth.service;
 
 import com.studygroup.domain.auth.dto.TokenResponse;
-import com.studygroup.domain.auth.entity.RefreshToken;
-import com.studygroup.domain.auth.repository.RefreshTokenRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.jwt.TokenProvider;
