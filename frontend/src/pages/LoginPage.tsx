@@ -50,16 +50,14 @@ const LoginPage = () => {
     // const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
     // window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
 
-    // 1. 배포 환경에서는 Nginx를 통해 API가 같은 출처(origin)에서 서비스됩니다.
-    //    따라서 호스트 부분을 생략하고 상대 경로로 호출합니다.
+    // 1. 최종 도착지(로그인 성공 후 돌아올 곳)를 현재 도메인 기준으로 정합니다.
+    const redirectUriAfterLogin = `${window.location.origin}/oauth2/redirect`;
+
+    // 2. 백엔드의 로그인 시작점은 상대 경로로 지정합니다.
     const googleLoginUrl = `/oauth2/authorization/google`;
 
-    // 2. 로그인 후 돌아올 최종 리디렉션 주소를 파라미터로 명시적으로 전달합니다.
-    //    window.location.origin은 현재 접속한 주소(예: http://having.duckdns.org:3000)를 자동으로 가져옵니다.
-    const redirectUri = `${window.location.origin}/oauth2/redirect`;
-
-    // 3. 최종 URL을 조립하여 이동합니다.
-    window.location.href = `${googleLoginUrl}?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    // 3. 두 정보를 합쳐서 최종 URL을 만듭니다.
+    window.location.href = `${googleLoginUrl}?redirect_uri=${encodeURIComponent(redirectUriAfterLogin)}`;
   };
 
   const handleKakaoLogin = () => {
