@@ -25,8 +25,8 @@ jobs:
       # Docker Compose의 build, push 명령어를 사용하면 여러 이미지를 쉽게 관리 가능
       - name: Build and push Docker images
         run: |
-          docker-compose -f docker-compose.yml build
-          docker-compose -f docker-compose.yml push
+          docker compose -f docker-compose.yml build
+          docker compose -f docker-compose.yml push
         # 참고: docker-compose.yml 파일에 image 이름을 명시해야 push가 동작합니다.
         # 예: image: suho1/having-backend:latest
 
