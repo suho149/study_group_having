@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-backend
+    image: suho1/having-backend:latest
     container_name: having-backend
     ports:
       - "8080:8080" # 백엔드 API 포트
@@ -29,6 +30,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile-frontend
+    image: suho1/having-frontend:latest
     container_name: having-frontend
     ports:
       - "3000:80" # 내 컴퓨터 3000번 포트를 Nginx의 80번 포트와 연결
