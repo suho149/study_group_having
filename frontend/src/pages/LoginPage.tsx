@@ -47,8 +47,16 @@ const KakaoLoginButton = styled(LoginButton)({
 
 const LoginPage = () => {
   const handleGoogleLogin = () => {
-    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
-    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+    // const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+    // window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
+    // 1. 프론트엔드의 현재 주소를 기준으로 리디렉션 될 최종 경로를 만듭니다.
+    const redirectUriAfterLogin = `${window.location.origin}/oauth2/redirect`;
+
+    // 2. 백엔드의 로그인 시작 URL에, 위에서 만든 경로를 'redirect_uri' 파라미터로 추가합니다.
+    const googleLoginUrl = `http://having.duckdns.org:8080/oauth2/authorization/google?redirect_uri=${encodeURIComponent(redirectUriAfterLogin)}`;
+
+    // 3. 이 최종 URL로 이동합니다.
+    window.location.href = googleLoginUrl;
   };
 
   const handleKakaoLogin = () => {
