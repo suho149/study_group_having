@@ -55,23 +55,6 @@ public class SecurityConfig {
                                 // 기본 경로: /oauth2/authorization/{registrationId}
                                 // 기본 리다이렉션 URI: /login/oauth2/code/{registrationId} (application.properties에서 설정한 값 우선)
 
-                                .redirectionEndpoint(redirectionEndpointConfig ->
-                                        // 이 부분은 application.properties의 redirect-uri 설정과 연관됩니다.
-                                        // Spring Boot가 application.properties의 redirect-uri를 우선적으로 사용하므로
-                                        // 여기서는 생략하거나, 일치시켜야 합니다.
-                                        // 일반적으로는 application.properties에서 관리하는 것이 더 좋습니다.
-                                        // 만약 application.properties에 명시적인 redirect-uri가 없다면,
-                                        // 여기서 설정한 baseUri + "/{registrationId}" (예: /login/oauth2/code/google)로 사용됩니다.
-                                        // 현재 application.properties에 `app.oauth2.redirectUri`가 있지만,
-                                        // Spring Security OAuth2 클라이언트의 표준 redirect-uri 패턴은
-                                        // `spring.security.oauth2.client.registration.{id}.redirect-uri` 입니다.
-                                        // 혼동을 피하기 위해 표준 프로퍼티를 사용하거나, 여기서 명시적으로 설정할 수 있습니다.
-                                        // 여기서는 우선 application.properties의 값을 신뢰하고 기본 동작에 맡기거나,
-                                        // 명시적으로 설정한다면 일치시켜야 합니다.
-                                        // 기본 동작에 맡기려면 이 .redirectionEndpoint() 설정도 제거하는 것을 고려해볼 수 있습니다.
-                                        // 하지만 현재는 /login/oauth2/code/* 로 되어 있으니 일단 유지합니다.
-                                        redirectionEndpointConfig.baseUri("/login/oauth2/code/*")
-                                )
                                 .userInfoEndpoint(userInfo -> userInfo
                                         .userService(customOAuth2UserService)
                                 )
