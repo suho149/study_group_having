@@ -50,13 +50,18 @@ const LoginPage = () => {
     // const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
     // window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
 
-    // 1. 최종 도착지(로그인 성공 후 돌아올 곳)를 현재 도메인 기준으로 정합니다.
+    // // 1. 최종 도착지(로그인 성공 후 돌아올 곳)를 현재 도메인 기준으로 정합니다.
+    // const redirectUriAfterLogin = `${window.location.origin}/oauth2/redirect`;
+    //
+    // // 2. 백엔드의 로그인 시작점은 상대 경로로 지정합니다.
+    // const googleLoginUrl = `/oauth2/authorization/google`;
+    //
+    // // 3. 두 정보를 합쳐서 최종 URL을 만듭니다.
+    // window.location.href = `${googleLoginUrl}?redirect_uri=${encodeURIComponent(redirectUriAfterLogin)}`;
+
+    // 이제 3000번 포트가 없으므로 window.location.origin을 그대로 사용해도 됨
     const redirectUriAfterLogin = `${window.location.origin}/oauth2/redirect`;
-
-    // 2. 백엔드의 로그인 시작점은 상대 경로로 지정합니다.
     const googleLoginUrl = `/oauth2/authorization/google`;
-
-    // 3. 두 정보를 합쳐서 최종 URL을 만듭니다.
     window.location.href = `${googleLoginUrl}?redirect_uri=${encodeURIComponent(redirectUriAfterLogin)}`;
   };
 

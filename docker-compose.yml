@@ -41,7 +41,8 @@ services:
     image: suho1/having-frontend:latest
     container_name: having-frontend
     ports:
-      - "3000:80" # 내 컴퓨터 3000번 포트를 Nginx의 80번 포트와 연결
+      #- "3000:80" # 내 컴퓨터 3000번 포트를 Nginx의 80번 포트와 연결
+      - "80:80" # 3000번 대신 80번 포트 사용
     depends_on:
       - backend
     restart: always
