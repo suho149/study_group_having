@@ -47,7 +47,8 @@ const KakaoLoginButton = styled(LoginButton)({
 
 const LoginPage = () => {
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:8080/oauth2/authorization/google';
+    const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080';
+    window.location.href = `${API_BASE_URL}/oauth2/authorization/google`;
   };
 
   const handleKakaoLogin = () => {

@@ -74,7 +74,7 @@ const CreateStudyPage = () => {
   const [selectedPlace, setSelectedPlace] = useState<any>(null); // 선택된 장소 정보
   const [mapApiLoaded, setMapApiLoaded] = useState(false); // 카카오맵 API 로드 완료 상태
 
-  const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env 파일에서 키 가져오기
+  const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env.development 파일에서 키 가져오기
 
   // 카카오맵 API 로드 완료 감지
   useEffect(() => {
