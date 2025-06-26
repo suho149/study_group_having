@@ -21,7 +21,7 @@ const OAuth2RedirectHandler = () => {
 
       // AuthContext의 login 함수를 호출하여 로그인 상태를 설정합니다.
       // login 함수는 내부적으로 토큰에서 사용자 ID를 추출하고, isLoggedIn을 true로 설정합니다.
-        login(token, refreshToken);  // <--- 수정: setIsLoggedIn(true) 대신 login(token) 호출
+        login();  // <--- 수정: setIsLoggedIn(true) 대신 login(token) 호출
 
       // checkAuth는 login 함수 호출 후 추가적으로 인증 상태를 검증하거나
       // 사용자 정보를 가져오는 데 사용할 수 있습니다.

@@ -33,7 +33,7 @@ export interface AuthContextType {
   currentUserId: number | null;
   isLoading: boolean;
   checkAuth: () => Promise<void>; // 인증 상태 수동 갱신
-  login: (token: string, refreshToken: string) => void; // 로그인 처리 (토큰만 받아도 ID 추출 가능)
+  login: () => void; // 로그인 처리 (토큰만 받아도 ID 추출 가능)
   logout: () => void;
   // setIsLoggedIn, setCurrentUserId는 내부 관리용으로 숨기거나, 필요시 노출
   token?: string | null;
@@ -67,14 +67,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const login = (token: string, refreshToken: string) => {
-    localStorage.setItem('token', token);
-    localStorage.setItem('refreshToken', refreshToken);
-    const userId = extractUserIdFromToken(token);
-    if (userId) {
-      setIsLoggedIn(true);
-      setCurrentUserId(userId);
-    }
+  const login = async () => {
+    // 쿠키가 설정되었으므로, checkAuth를 호출하여 서버로부터 사용자 정보를 가져와 로그인 상태를 갱신합니다.
+    await checkAuth();
   };
 
   const logout = () => {

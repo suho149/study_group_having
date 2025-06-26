@@ -3,6 +3,7 @@ package com.studygroup.global.security;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.jwt.TokenProvider;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -38,17 +39,21 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Transactional
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) throws IOException {
-        String targetUrl = determineTargetUrl(request, response, authentication);
-        clearAuthenticationAttributes(request);
-        getRedirectStrategy().sendRedirect(request, response, targetUrl);
+        try {
+            String targetUrl = determineTargetUrl(request, response, authentication);
+            clearAuthenticationAttributes(request);
+
+            log.info("OAuth2 인증 성공, 리다이렉트 URL: {}", targetUrl);
+            getRedirectStrategy().sendRedirect(request, response, targetUrl);
+        } catch (Exception e) {
+            log.error("OAuth2 인증 성공 처리 중 오류 발생", e);
+            // 오류 발생 시 에러 페이지로 리다이렉트
+            response.sendRedirect("http://having.duckdns.org/login?error=auth_failed");
+        }
     }
 
     protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) {
-        // 로그인 후 최종 도착지 주소 (프론트엔드 홈페이지)
-        String targetUrl = "http://having.duckdns.org"; // 포트 번호 없는 최종 서비스 주소
-        // ------------------------------------
-
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Long userId = userPrincipal.getId();
 
@@ -67,6 +72,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String accessToken = tokenProvider.createToken(finalAuthentication);
         String refreshTokenValue = tokenProvider.createRefreshToken(finalAuthentication);
 
+        // Redis에 리프레시 토큰 저장
         String redisKey = "RT:" + finalPrincipal.getId();
         redisTemplate.opsForValue().set(
                 redisKey,
@@ -76,11 +82,30 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         );
         log.info("Saved/Updated Refresh Token for user ID {} in Redis.", finalPrincipal.getId());
 
-        // --- ★★★ 2. 리디렉션 URL을 생성하는 부분을 수정합니다 ★★★ ---
-        // 토큰을 쿼리 파라미터에 담아 위에서 정의한 targetUrl로 보냅니다.
-        return UriComponentsBuilder.fromUriString(targetUrl)
-                .queryParam("token", accessToken)
-                .queryParam("refreshToken", refreshTokenValue)
-                .build().toUriString();
+        // ★★★ 방법 1: 쿠키를 사용한 토큰 전달 (권장) ★★★
+        setTokenCookies(response, accessToken, refreshTokenValue);
+        return "http://having.duckdns.org/login/success";
+    }
+
+    private void setTokenCookies(HttpServletResponse response, String accessToken, String refreshToken) {
+        // Access Token 쿠키 설정 (1시간)
+        Cookie accessTokenCookie = new Cookie("accessToken", accessToken);
+        accessTokenCookie.setHttpOnly(true);
+        accessTokenCookie.setSecure(false); // HTTPS 환경에서는 true로 설정
+        accessTokenCookie.setPath("/");
+        accessTokenCookie.setMaxAge(3600); // 1시간
+        accessTokenCookie.setDomain("having.duckdns.org");
+        response.addCookie(accessTokenCookie);
+
+        // Refresh Token 쿠키 설정 (7일)
+        Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setSecure(false); // HTTPS 환경에서는 true로 설정
+        refreshTokenCookie.setPath("/");
+        refreshTokenCookie.setMaxAge(604800); // 7일
+        refreshTokenCookie.setDomain("having.duckdns.org");
+        response.addCookie(refreshTokenCookie);
+
+        log.info("토큰 쿠키가 설정되었습니다.");
     }
 }
