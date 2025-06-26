@@ -15,13 +15,18 @@ services:
       - redis
     environment:
       # Docker 환경용 프로필 활성화
-      - SPRING_PROFILES_ACTIVE=docker,dev
+      - SPRING_PROFILES_ACTIVE=dev
       # application-docker.properties에서 사용하는 변수들
+      - DB_URL=jdbc:mariadb://db:3306/studygroup
       - DB_USERNAME=root
-      - DB_PASSWORD=${COMPOSE_DB_PASSWORD} # MariaDB에 설정할 비밀번호
-      - JWT_SECRET=${COMPOSE_JWT_SECRET} # 실제 시크릿 키
+      - DB_PASSWORD=${COMPOSE_DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${COMPOSE_JWT_SECRET}
       - GOOGLE_CLIENT_ID=${COMPOSE_GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${COMPOSE_GOOGLE_CLIENT_SECRET}
+      - GMAIL_USERNAME=${COMPOSE_GMAIL_USERNAME}
+      - GMAIL_APP_PASSWORD=${COMPOSE_GMAIL_APP_PASSWORD}
       # ... 기타 필요한 환경 변수 ...
     restart: always
 
