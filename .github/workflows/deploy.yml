@@ -41,35 +41,32 @@ jobs:
             # 서버에서 실행될 스크립트
             # 1. 프로젝트 디렉토리 변수 설정
             PROJECT_DIR=~/having
-          
-            # 2. 프로젝트 디렉토리가 존재하는지 확인
+            
+            # 2. 프로젝트 디렉토리로 이동합니다. 없다면 clone 받습니다.
             if [ -d "$PROJECT_DIR" ]; then
-            # 디렉토리가 있으면, 해당 디렉토리로 이동하여 최신 코드를 pull 받습니다.
-            echo "Project directory exists. Pulling latest changes..."
-            cd $PROJECT_DIR
-            git pull origin dev
+              cd $PROJECT_DIR
+              echo "Pulling latest changes..."
+              git pull origin dev
             else
-            # 디렉토리가 없으면, 홈 디렉토리에서 새로 clone 받습니다.
-            echo "Project directory not found. Cloning repository..."
-            cd ~
-            git clone https://github.com/suho1/having.git # 실제 레포지토리 주소로 변경
-            cd $PROJECT_DIR
+              cd ~
+              git clone https://github.com/suho149/study_group_having.git
+              cd $PROJECT_DIR
             fi
             
-            # 3. .env 파일 생성 (항상 최신 Secret으로 덮어쓰기)
-            echo "Creating .env file..."
+            # 3. .env 파일 생성
+            echo "Creating .env file from GitHub Secrets..."
             echo "${{ secrets.ENV_FILE }}" > .env
             
             # 4. Docker Hub에서 최신 이미지 pull
-            echo "Pulling latest images from Docker Hub..."
+            echo "Pulling latest images..."
             docker compose pull
             
             # 5. 최신 이미지로 컨테이너 재시작
-            echo "Restarting containers with new images..."
+            echo "Restarting containers..."
             docker compose up -d
             
             # 6. 불필요한 Docker 이미지 정리
-            echo "Pruning unused Docker images..."
+            echo "Pruning unused images..."
             docker image prune -f
             
             echo "Deployment successful!"
