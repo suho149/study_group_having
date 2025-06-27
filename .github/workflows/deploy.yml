@@ -26,6 +26,7 @@ jobs:
       - name: Build and push Docker images
         env:
           REACT_APP_API_BASE_URL: http://having.duckdns.org
+          REACT_APP_KAKAO_MAP_API_KEY: ${{ secrets.REACT_APP_KAKAO_MAP_API_KEY }}
         run: |
           docker compose -f docker-compose.yml build
           docker compose -f docker-compose.yml push
