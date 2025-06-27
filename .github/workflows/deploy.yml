@@ -24,6 +24,8 @@ jobs:
       # 4. 백엔드/프론트엔드 이미지 빌드 및 Docker Hub에 푸시
       # Docker Compose의 build, push 명령어를 사용하면 여러 이미지를 쉽게 관리 가능
       - name: Build and push Docker images
+        env:
+          REACT_APP_API_BASE_URL: http://having.duckdns.org
         run: |
           docker compose -f docker-compose.yml build
           docker compose -f docker-compose.yml push
