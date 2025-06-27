@@ -28,8 +28,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private final RedisTemplate<String, String> redisTemplate;
     private final UserRepository userRepository;
 
-//    @Value("${app.oauth2.redirectUri}")
-//    private String redirectUri;
+    @Value("${app.oauth2.redirectUri}")
+    private String redirectUri;
 
     @Value("${jwt.refresh-token-validity}")
     private long refreshTokenValidityInMilliseconds; // application.properties에서 유효기간 가져오기
