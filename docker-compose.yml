@@ -48,7 +48,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile-frontend
       args:
-        - REACT_APP_API_BASE_URL=http://having.duckdns.org
+        - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
     image: suho1/having-frontend:latest
     container_name: having-frontend
     ports:
