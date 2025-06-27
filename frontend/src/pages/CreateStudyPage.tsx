@@ -78,90 +78,71 @@ const CreateStudyPage = () => {
 
   // 카카오맵 API 로드 완료 감지
   useEffect(() => {
-    const checkKakaoMapLoaded = () => {
-      if (window.kakao && window.kakao.maps && window.kakao.maps.services) {
-        setMapApiLoaded(true);
-        console.log("카카오맵 API 로드 완료됨.");
-      } else {
-        console.log("카카오맵 API 로딩 중...");
-        setTimeout(checkKakaoMapLoaded, 100); // 0.1초 후 다시 확인
-      }
-    };
-    // 스터디 유형이 오프라인일 때만 API 로드 상태 확인 시작
-    if (formData.studyType === 'OFFLINE') {
-      checkKakaoMapLoaded();
+    // 오프라인 스터디가 아니거나, 지도가 이미 생성되었으면 아무것도 하지 않습니다.
+    if (formData.studyType !== 'OFFLINE' || map) {
+      return;
     }
-  }, [formData.studyType]); // 스터디 유형이 변경될 때마다 실행
 
-  // 카카오맵 API 로드 감지 및 명시적 로드 요청
-  useEffect(() => {
-    if (formData.studyType === 'OFFLINE' && !mapApiLoaded) {
-      const kakaoMapScriptCheck = () => {
-        if (window.kakao && window.kakao.maps) { // kakao.maps 객체까지는 존재해야 load 함수 호출 가능
-          console.log("window.kakao.maps 객체 확인됨. services 라이브러리 로드 시도...");
-          window.kakao.maps.load(() => { // services 라이브러리 로드 요청
-            if (window.kakao.maps.services) { // services까지 로드 완료 확인
-              console.log("카카오맵 API (services 포함) 로드 완료됨.");
-              setMapApiLoaded(true);
-            } else {
-              console.error("kakao.maps.load() 콜백 후에도 services 라이브러리 로드 실패.");
-              // 사용자에게 알림 또는 재시도 로직 추가 가능
-            }
-          });
-        } else {
-          console.log("카카오맵 API 기본 객체(window.kakao.maps) 로딩 중... 100ms 후 재시도.");
-          setTimeout(kakaoMapScriptCheck, 100); // API 스크립트 자체 로드를 기다림
+    // index.html에서 &autoload=false로 설정했기 때문에, 여기서 명시적으로 로드해야 합니다.
+    // window.kakao.maps.load() 함수는 카카오맵 API 스크립트가 완전히 로드된 후에 실행될 콜백 함수를 등록합니다.
+    if (window.kakao && window.kakao.maps) {
+      console.log("kakao.maps.load() 함수를 호출하여 지도 생성을 시작합니다.");
+      window.kakao.maps.load(() => {
+        // 이 콜백 함수는 services 라이브러리까지 모두 로드된 후에 호출됩니다.
+
+        // 지도를 담을 컨테이너가 없으면 실행하지 않습니다.
+        if (!mapContainer.current) {
+          console.error("지도를 담을 컨테이너(mapContainer)를 찾을 수 없습니다.");
+          return;
         }
-      };
-      kakaoMapScriptCheck();
-    }
-  }, [formData.studyType, mapApiLoaded]); // mapApiLoaded를 의존성에 넣어 true가 되면 더 이상 실행 안 함
 
-  // 카카오맵 초기화 (API 로드가 완료된 후)
-  useEffect(() => {
-    // mapApiLoaded가 true이고, mapContainer가 있으며, 아직 map 인스턴스가 없을 때만 실행
-    if (formData.studyType === 'OFFLINE' && mapApiLoaded && mapContainer.current && !map) {
-      console.log("카카오맵 API 로드 완료, 지도 초기화 시도...");
-      try {
-        const mapOption = {
-          center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
-          level: 3,
-        };
-        const newMap = new window.kakao.maps.Map(mapContainer.current!, mapOption);
-        const newMarker = new window.kakao.maps.Marker({ position: newMap.getCenter() });
-        newMarker.setMap(newMap);
+        console.log("지도 생성 시작...");
+        try {
+          const mapOption = {
+            center: new window.kakao.maps.LatLng(37.566826, 126.9786567), // 서울 시청
+            level: 3,
+          };
+          const newMap = new window.kakao.maps.Map(mapContainer.current, mapOption);
+          const newMarker = new window.kakao.maps.Marker({ position: newMap.getCenter() });
 
-        window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
-          const latlng = mouseEvent.latLng;
-          newMarker.setPosition(latlng);
-          const newLat = latlng.getLat();
-          const newLng = latlng.getLng();
-          setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
+          newMarker.setMap(newMap);
 
-          const geocoder = new window.kakao.maps.services.Geocoder();
-          geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
-            if (status === window.kakao.maps.services.Status.OK && result[0]) {
-              const roadAddress = result[0].road_address ? result[0].road_address.address_name : result[0].address.address_name;
-              setFormData(prev => ({ ...prev, location: roadAddress }));
-              setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
-            } else {
-              console.warn("좌표를 주소로 변환하는데 실패했습니다.", status);
-              setFormData(prev => ({ ...prev, location: "주소 정보 없음" })); // 주소 변환 실패 시
-              setSelectedPlace(null);
-            }
+          // 지도 클릭 이벤트 리스너 설정
+          window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
+            const latlng = mouseEvent.latLng;
+            newMarker.setPosition(latlng);
+            const newLat = latlng.getLat();
+            const newLng = latlng.getLng();
+
+            setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
+
+            const geocoder = new window.kakao.maps.services.Geocoder();
+            geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
+              if (status === window.kakao.maps.services.Status.OK && result[0]) {
+                const roadAddress = result[0].road_address ? result[0].road_address.address_name : result[0].address.address_name;
+                setFormData(prev => ({ ...prev, location: roadAddress }));
+                setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
+              } else {
+                setFormData(prev => ({ ...prev, location: "주소 정보 없음" }));
+                setSelectedPlace(null);
+              }
+            });
           });
-        });
 
-        setMap(newMap);
-        setMarker(newMarker);
-        console.log("카카오맵 초기화 및 이벤트 리스너 설정 완료.");
-      } catch (e) {
-        console.error("카카오맵 초기화 중 에러:", e);
-        alert("지도 초기화 중 오류가 발생했습니다. 페이지를 새로고침하거나 다시 시도해주세요.");
-      }
+          setMap(newMap);
+          setMarker(newMarker);
+          console.log("카카오맵 초기화 및 이벤트 리스너 설정 완료.");
+
+        } catch (e) {
+          console.error("카카오맵 초기화 중 에러:", e);
+        }
+      });
+    } else {
+      console.error("카카오맵 API 스크립트가 로드되지 않았습니다. index.html을 확인해주세요.");
     }
-    // mapApiLoaded가 true로 바뀐 후, mapContainer.current가 설정된 후, map이 아직 null일 때 실행
-  }, [formData.studyType, mapApiLoaded, mapContainer.current, map]); // mapContainer.current도 의존성에 추가
+
+    // 스터디 유형이 'OFFLINE'으로 바뀌거나, map 객체가 아직 없을 때만 이 로직을 실행합니다.
+  }, [formData.studyType, map]);
 
   const handleChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string> // SelectChangeEvent 타입 명시
