@@ -6,6 +6,7 @@ import com.studygroup.global.security.CustomOAuth2UserService;
 import com.studygroup.global.security.OAuth2AuthenticationSuccessHandler;
 import jakarta.servlet.http.HttpServletResponse; // 추가
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod; // 추가
@@ -31,6 +32,9 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     // private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOrigins;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -119,7 +123,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // 프론트엔드 출처
+        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type", "Accept", "Origin", "X-Requested-With")); // 필요한 헤더 추가
         configuration.setExposedHeaders(Arrays.asList("Authorization")); // 클라이언트가 접근할 수 있도록 노출할 헤더
@@ -127,9 +131,9 @@ public class SecurityConfig {
         configuration.setMaxAge(3600L); // 1시간
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration); // /api/** 경로에 적용
+//        source.registerCorsConfiguration("/api/**", configuration); // /api/** 경로에 적용
         // 필요시 다른 경로에도 적용 가능
-        // source.registerCorsConfiguration("/**", configuration); // 모든 경로에 적용 (주의)
+        source.registerCorsConfiguration("/**", configuration); // 모든 경로에 적용 (주의)
         return source;
     }
 }

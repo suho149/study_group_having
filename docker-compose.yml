@@ -28,6 +28,8 @@ services:
       - GMAIL_USERNAME=${COMPOSE_GMAIL_USERNAME}
       - GMAIL_APP_PASSWORD=${COMPOSE_GMAIL_APP_PASSWORD}
       - APP_OAUTH2_REDIRECT_URI=${COMPOSE_APP_OAUTH2_REDIRECT_URI}
+      - APP_OAUTH2_REDIRECT_URI=http://having.duckdns.org/oauth2/redirect
+      - APP_CORS_ALLOWED_ORIGINS=http://having.duckdns.org
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       # ... 기타 필요한 환경 변수 ...
@@ -38,6 +40,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile-frontend
+      args:
+        - REACT_APP_API_BASE_URL=http://having.duckdns.org
     image: suho1/having-frontend:latest
     container_name: having-frontend
     ports:

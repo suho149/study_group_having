@@ -4,6 +4,12 @@ FROM node:18-alpine as builder
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# docker-compose.yml의 build.args에서 전달받을 인자를 선언
+ARG REACT_APP_API_BASE_URL
+
+# 전달받은 인자를 환경 변수로 설정
+ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+
 # package.json과 package-lock.json을 먼저 복사하여 의존성 레이어 캐싱 활용
 COPY package.json package-lock.json ./
 
