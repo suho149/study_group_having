@@ -37,8 +37,13 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
 
             console.log('ChatContext: Initializing STOMP client...');
+
+            // API 기본 주소에서 프로토콜(http -> ws)과 경로를 조합하여 WebSocket URL을 만듭니다.
+            const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://having.duckdns.org';
+            const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws-stomp';
+
             client = new Client({
-                webSocketFactory: () => new SockJS('http://localhost:8080/ws-stomp'),
+                webSocketFactory: () => new SockJS(wsUrl),
                 connectHeaders: {
                     Authorization: `Bearer ${currentToken}`,
                 },

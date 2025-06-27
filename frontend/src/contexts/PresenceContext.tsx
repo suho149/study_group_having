@@ -27,8 +27,11 @@ export const PresenceProvider: React.FC<{ children: ReactNode }> = ({ children }
 
             if (stompClientRef.current) return;
 
+            const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://having.duckdns.org';
+            const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws-stomp';
+
             const client = new Client({
-                webSocketFactory: () => new SockJS('http://localhost:8080/ws-stomp'),
+                webSocketFactory: () => new SockJS(wsUrl),
                 connectHeaders: { Authorization: `Bearer ${token}` },
                 reconnectDelay: 10000,
                 debug: (str) => { console.log(`PRESENCE_STOMP: ${str}`); }, // 로그 접두사 변경

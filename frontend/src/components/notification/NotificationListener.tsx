@@ -56,7 +56,9 @@ const NotificationListener: React.FC = () => {
 
             // --- 이 부분이 핵심 수정 사항입니다 ---
             // URL에 쿼리 파라미터로 토큰을 추가합니다.
-            eventSource = new EventSource(`http://localhost:8080/api/notifications/subscribe?token=${token}`);
+            // API 서버 주소를 환경 변수에서 가져오도록 수정합니다.
+            const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://having.duckdns.org';
+            eventSource = new EventSource(`${baseUrl}/api/notifications/subscribe?token=${token}`);
 
             eventSource.onopen = () => console.log('SSE: Connection opened.');
 
