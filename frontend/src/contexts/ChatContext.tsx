@@ -40,10 +40,11 @@ export const ChatProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // API 기본 주소에서 프로토콜(http -> ws)과 경로를 조합하여 WebSocket URL을 만듭니다.
             const baseUrl = process.env.REACT_APP_API_BASE_URL || 'http://having.duckdns.org';
-            const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws-stomp';
+            // SockJS는 http(s) 프로토콜을 사용해야 하므로, '/ws-stomp' 경로만 붙여줍니다.
+            const sockjsUrl = `${baseUrl}/ws-stomp`;
 
             client = new Client({
-                webSocketFactory: () => new SockJS(wsUrl),
+                webSocketFactory: () => new SockJS(sockjsUrl),
                 connectHeaders: {
                     Authorization: `Bearer ${currentToken}`,
                 },
