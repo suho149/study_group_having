@@ -14,24 +14,31 @@ services:
       - db
       - redis
     environment:
-      # Docker 환경용 프로필 활성화
-      - SPRING_PROFILES_ACTIVE=dev
-      # application-docker.properties에서 사용하는 변수들
-      - DB_URL=jdbc:mariadb://db:3306/studygroup
-      - DB_USERNAME=root
-      - DB_PASSWORD=${COMPOSE_DB_PASSWORD}
-#      - REDIS_HOST=redis
-#      - REDIS_PORT=6379
-      - JWT_SECRET=${COMPOSE_JWT_SECRET}
-      - GOOGLE_CLIENT_ID=${COMPOSE_GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${COMPOSE_GOOGLE_CLIENT_SECRET}
-      - GMAIL_USERNAME=${COMPOSE_GMAIL_USERNAME}
-      - GMAIL_APP_PASSWORD=${COMPOSE_GMAIL_APP_PASSWORD}
-      - APP_OAUTH2_REDIRECT_URI=${COMPOSE_APP_OAUTH2_REDIRECT_URI}
-      - APP_OAUTH2_REDIRECT_URI=http://having.duckdns.org/oauth2/redirect
-      - APP_CORS_ALLOWED_ORIGINS=http://having.duckdns.org
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
+      # --- Database Settings ---
+      SPRING_DATASOURCE_URL: ${COMPOSE_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${COMPOSE_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${COMPOSE_DB_PASSWORD}
+
+      # --- Redis Settings ---
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
+      # --- JWT Settings ---
+      JWT_SECRET: ${COMPOSE_JWT_SECRET}
+
+      # --- OAuth2 Settings ---
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: ${COMPOSE_GOOGLE_CLIENT_ID}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: ${COMPOSE_GOOGLE_CLIENT_SECRET}
+      APP_OAUTH2_REDIRECT_URI: ${COMPOSE_APP_OAUTH2_REDIRECT_URI}
+
+      APP_CORS_ALLOWED_ORIGINS: ${COMPOSE_APP_CORS_ALLOWED_ORIGINS}
+
+      # --- Email Settings ---
+      SPRING_MAIL_USERNAME: ${COMPOSE_GMAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${COMPOSE_GMAIL_APP_PASSWORD}
+
+      # --- Spring Profile ---
+      SPRING_PROFILES_ACTIVE: dev
       # ... 기타 필요한 환경 변수 ...
     restart: always
 
