@@ -45,10 +45,6 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response,
                                         Authentication authentication) {
-        // 로그인 후 최종 도착지 주소 (프론트엔드 홈페이지)
-        String targetUrl = "http://having.duckdns.org"; // 포트 번호 없는 최종 서비스 주소
-        // ------------------------------------
-
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         Long userId = userPrincipal.getId();
 
@@ -57,17 +53,25 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             throw new IllegalStateException("User ID cannot be null");
         }
 
+        // DB에서 사용자의 최신 정보를 다시 조회합니다.
+        // DataInitializer에 의해 Role이 USER -> ADMIN으로 변경된 경우, 이 조회로 최신 Role을 가져올 수 있습니다.
         User latestUser = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("User not found in DB during token creation."));
 
+        // 최신 정보를 담은 새로운 UserPrincipal과 Authentication 객체를 생성합니다.
         UserPrincipal finalPrincipal = UserPrincipal.create(latestUser, userPrincipal.getAttributes());
         Authentication finalAuthentication = new UsernamePasswordAuthenticationToken(
                 finalPrincipal, null, finalPrincipal.getAuthorities());
+        // -----------------------------
 
+        // 1. 토큰 쌍 생성
         String accessToken = tokenProvider.createToken(finalAuthentication);
         String refreshTokenValue = tokenProvider.createRefreshToken(finalAuthentication);
 
+        // 1. Redis에 저장할 Key를 생성합니다. (예: "RT:1")
         String redisKey = "RT:" + finalPrincipal.getId();
+
+        // 2. Redis에 Refresh Token을 저장하고, 유효기간(TTL)을 설정합니다.
         redisTemplate.opsForValue().set(
                 redisKey,
                 refreshTokenValue,
@@ -76,9 +80,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         );
         log.info("Saved/Updated Refresh Token for user ID {} in Redis.", finalPrincipal.getId());
 
-        // --- ★★★ 2. 리디렉션 URL을 생성하는 부분을 수정합니다 ★★★ ---
-        // 토큰을 쿼리 파라미터에 담아 위에서 정의한 targetUrl로 보냅니다.
-        return UriComponentsBuilder.fromUriString(targetUrl)
+        // 3. 프론트엔드로 리다이렉트할 URL 생성
+        return UriComponentsBuilder.fromUriString(redirectUri)
                 .queryParam("token", accessToken)
                 .queryParam("refreshToken", refreshTokenValue)
                 .build().toUriString();

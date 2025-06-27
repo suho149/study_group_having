@@ -1,5 +1,5 @@
-import React, {useEffect} from 'react';
-import {BrowserRouter as Router, Routes, Route, useSearchParams, useNavigate} from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Navbar from './components/layout/Navbar';
@@ -9,7 +9,7 @@ import MyPage from './pages/MyPage';
 import CreateStudyPage from './pages/CreateStudyPage';
 import StudyDetailPage from './pages/StudyDetailPage';
 import OAuth2RedirectHandler from './components/auth/OAuth2RedirectHandler';
-import {AuthProvider, useAuth} from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import NotificationPage from './pages/NotificationPage';
 import StudyGroupEditPage from './pages/StudyGroupEditPage';
 import { ChatProvider } from './contexts/ChatContext';
@@ -70,28 +70,6 @@ const theme = createTheme({
   },
 });
 
-const AuthTokenProcessor: React.FC = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { login } = useAuth();
-
-  useEffect(() => {
-    const token = searchParams.get('token');
-    const refreshToken = searchParams.get('refreshToken');
-
-    if (token && refreshToken) {
-      console.log("Token received from URL, processing login...");
-      login(token, refreshToken); // AuthContext에 토큰 저장 및 로그인 상태 변경
-      // URL에서 토큰 정보를 제거하여 주소창을 깨끗하게 만듭니다.
-      searchParams.delete('token');
-      searchParams.delete('refreshToken');
-      navigate({ search: searchParams.toString() }, { replace: true });
-    }
-  }, [searchParams, login, navigate, setSearchParams]);
-
-  return null; // 이 컴포넌트는 UI를 렌더링하지 않습니다.
-};
-
 function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -101,7 +79,6 @@ function App() {
           <ChatProvider>
             <PresenceProvider>
               <Router>
-                <AuthTokenProcessor />
                 <NotificationListener />
                 <DmNotificationListener />
                 <Navbar />
