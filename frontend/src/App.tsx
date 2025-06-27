@@ -34,7 +34,6 @@ import FriendManagementPage from './pages/FriendManagementPage';
 import ActivityFeedPage from "./pages/ActivityFeedPage"; // 새로 만들 페이지
 import BoardPostEditPage from "./pages/board/BoardPostEditPage";
 import { PresenceProvider } from './contexts/PresenceContext';
-import LoginSuccessPage from './pages/LoginSuccessPage';
 
 const theme = createTheme({
   palette: {
@@ -82,7 +81,7 @@ const AuthTokenProcessor: React.FC = () => {
 
     if (token && refreshToken) {
       console.log("Token received from URL, processing login...");
-      login(); // AuthContext에 토큰 저장 및 로그인 상태 변경
+      login(token, refreshToken); // AuthContext에 토큰 저장 및 로그인 상태 변경
       // URL에서 토큰 정보를 제거하여 주소창을 깨끗하게 만듭니다.
       searchParams.delete('token');
       searchParams.delete('refreshToken');
@@ -133,7 +132,7 @@ function App() {
                     <Route path="feed" element={<ActivityFeedPage />} />
                     <Route path="notifications" element={<NotificationPage />} />
                   </Route>
-                  <Route path="/login/success" element={<LoginSuccessPage />} />
+
                   {/* 추가적인 마이페이지 하위 라우트 (예: 프로필 수정) */}
                   {/* <Route path="/mypage/edit-profile" element={<EditProfilePage />} /> */}
                   <Route path="/studies/create" element={<CreateStudyPage />} />

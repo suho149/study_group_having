@@ -44,9 +44,7 @@ public class SecurityConfig {
                                 // "/oauth2/**", // <--- 이 부분을 더 세밀하게 제어하거나, oauth2Login()이 처리하도록 함
                                 "/login/**",
                                 "/oauth2/authorization/**", // 명시적으로 허용 (기본 경로)
-                                "/api/notifications/subscribe", // SSE 구독 경로를 인증 예외에 추가
-                                "/login/success", // 로그인 성공 페이지 추가
-                                "/static/**", "/public/**" // 정적 리소스 허용
+                                "/api/notifications/subscribe" // SSE 구독 경로를 인증 예외에 추가
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/studies", "/api/studies/*").permitAll()
                         .requestMatchers("/api/**").authenticated()
@@ -104,11 +102,9 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000", "http://having.duckdns.org")); // 프론트엔드 출처
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // 프론트엔드 출처
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        //configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type", "Accept", "Origin", "X-Requested-With")); // 필요한 헤더 추가
-        configuration.setAllowedHeaders(Arrays.asList("*")); // 모든 헤더 허용
-        configuration.setAllowCredentials(true); // 쿠키를 주고받기 위해 필수
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type", "Accept", "Origin", "X-Requested-With")); // 필요한 헤더 추가
         configuration.setExposedHeaders(Arrays.asList("Authorization")); // 클라이언트가 접근할 수 있도록 노출할 헤더
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L); // 1시간
