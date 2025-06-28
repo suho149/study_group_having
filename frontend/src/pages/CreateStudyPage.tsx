@@ -170,26 +170,23 @@ const CreateStudyPage = () => {
       alert("검색어를 입력해주세요.");
       return;
     }
-    // API 로드 여부 및 services 라이브러리 존재 확인
-    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services || !window.kakao.maps.services.Places) {
-      alert('지도 서비스가 아직 로드되지 않았거나, 장소 검색 기능을 사용할 수 없습니다. 잠시 후 다시 시도해주세요.');
-      console.error("Kakao Maps Places service is not available.");
-      return;
-    }
-    console.log("장소 검색 호출:", searchKeyword);
-    const ps = new window.kakao.maps.services.Places();
-    ps.keywordSearch(searchKeyword, (data: any[], status: any, pagination: any) => { // data 타입을 any[]로 명시
-      console.log("장소 검색 결과 상태:", status);
-      if (status === window.kakao.maps.services.Status.OK) {
-        console.log("검색 결과:", data);
-        setSearchResults(data);
-      } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
-        alert('검색 결과가 존재하지 않습니다.');
-        setSearchResults([]);
-      } else {
-        alert('장소 검색 중 오류가 발생했습니다. (오류 코드: ' + status + ')');
-        setSearchResults([]);
-      }
+
+    // kakao.maps.load를 다시 사용하여 'services' 라이브러리가 로드되었음을 보장합니다.
+    window.kakao.maps.load(() => {
+      // 이 콜백 함수 안에서는 kakao.maps.services.Places가 반드시 존재합니다.
+      const ps = new window.kakao.maps.services.Places();
+
+      ps.keywordSearch(searchKeyword, (data: any[], status: any) => {
+        if (status === window.kakao.maps.services.Status.OK) {
+          setSearchResults(data);
+        } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
+          alert('검색 결과가 존재하지 않습니다.');
+          setSearchResults([]);
+        } else {
+          alert('장소 검색 중 오류가 발생했습니다.');
+          setSearchResults([]);
+        }
+      });
     });
   };
 
