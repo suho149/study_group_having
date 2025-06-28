@@ -74,52 +74,45 @@ const CreateStudyPage = () => {
   const [selectedPlace, setSelectedPlace] = useState<any>(null); // 선택된 장소 정보
   const [mapApiLoaded, setMapApiLoaded] = useState(false); // 카카오맵 API 로드 완료 상태
 
-  const mapRef = useRef<any>(null); // map 상태 대신 ref 사용
-  const markerRef = useRef<any>(null); // marker 상태 대신 ref 사용
-
   const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env.development 파일에서 키 가져오기
 
   // 카카오맵 API 로드 및 지도 생성
-  // 지도 생성 로직
   useEffect(() => {
-    if (formData.studyType !== 'OFFLINE' || !mapContainer.current) {
+    // 오프라인 스터디가 아니면 지도를 표시할 필요가 없으므로 함수를 종료합니다.
+    if (formData.studyType !== 'OFFLINE') {
       return;
     }
 
-    // kakao 객체가 아직 로드되지 않았다면 아무것도 하지 않음
-    if (!window.kakao || !window.kakao.maps) {
-      console.log("Kakao script not loaded yet.");
+    // 지도를 담을 컨테이너가 없으면 함수를 종료합니다.
+    if (!mapContainer.current) {
       return;
     }
 
-    window.kakao.maps.load(() => {
-      const container = mapContainer.current;
-      if (!container || mapRef.current) return; // 컨테이너가 없거나 지도가 이미 있으면 종료
-
+    // 최종 지도 생성 로직
+    const initMap = () => {
+      // 이 시점에는 kakao.maps.load가 완료되어 kakao 객체가 존재합니다.
+      const container = mapContainer.current!;
       const mapOption = {
         center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
         level: 3,
       };
+      const newMap = new window.kakao.maps.Map(container, mapOption);
+      const newMarker = new window.kakao.maps.Marker({ position: newMap.getCenter() });
+      newMarker.setMap(newMap);
 
-      const map = new window.kakao.maps.Map(container, mapOption);
-      const marker = new window.kakao.maps.Marker({ position: map.getCenter() });
-      marker.setMap(map);
-
-      mapRef.current = map;
-      markerRef.current = marker;
-
-      window.kakao.maps.event.addListener(map, 'click', (mouseEvent: any) => {
+      // 지도 클릭 이벤트 리스너 추가
+      window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
         const latlng = mouseEvent.latLng;
-        marker.setPosition(latlng);
-
+        newMarker.setPosition(latlng);
         const newLat = latlng.getLat();
         const newLng = latlng.getLng();
+
         setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
 
         const geocoder = new window.kakao.maps.services.Geocoder();
         geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
           if (status === window.kakao.maps.services.Status.OK && result[0]) {
-            const roadAddress = result[0].road_address?.address_name || result[0].address.address_name;
+            const roadAddress = result[0].road_address ? result[0].road_address.address_name : result[0].address.address_name;
             setFormData(prev => ({ ...prev, location: roadAddress }));
             setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
           } else {
@@ -128,9 +121,26 @@ const CreateStudyPage = () => {
           }
         });
       });
-    });
 
-  }, [formData.studyType]);
+      setMap(newMap);
+      setMarker(newMarker);
+    };
+
+    // ★★★★★★★★★★★★★★★★★★★★★★★★★★
+    // ★★★ 이 부분이 모든 문제의 해결책입니다 ★★★
+    // ★★★★★★★★★★★★★★★★★★★★★★★★★★
+    // window.kakao 객체가 존재하고, maps.load 함수가 준비되었다면 즉시 실행
+    if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
+      window.kakao.maps.load(initMap);
+    } else {
+      // 만약 스크립트가 아직 로드되지 않았다면, 로드 완료 이벤트를 감지합니다.
+      const script = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]');
+      if (script) {
+        script.addEventListener('load', () => window.kakao.maps.load(initMap));
+      }
+    }
+
+  }, [formData.studyType]); // studyType이 변경될 때마다 이 로직이 실행됩니다.
 
   const handleChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string> // SelectChangeEvent 타입 명시
@@ -161,15 +171,11 @@ const CreateStudyPage = () => {
       return;
     }
 
-    // kakao 객체가 없으면 오류 메시지 표시
-    if (!window.kakao || !window.kakao.maps) {
-      alert('지도 API가 로드되지 않았습니다. 페이지를 새로고침 해주세요.');
-      return;
-    }
-
-    // 'services' 라이브러리가 로드될 때까지 기다렸다가 검색 실행
+    // kakao.maps.load를 다시 사용하여 'services' 라이브러리가 로드되었음을 보장합니다.
     window.kakao.maps.load(() => {
+      // 이 콜백 함수 안에서는 kakao.maps.services.Places가 반드시 존재합니다.
       const ps = new window.kakao.maps.services.Places();
+
       ps.keywordSearch(searchKeyword, (data: any[], status: any) => {
         if (status === window.kakao.maps.services.Status.OK) {
           setSearchResults(data);
@@ -392,25 +398,9 @@ const CreateStudyPage = () => {
                     <Box
                         ref={mapContainer}
                         id="kakao-map-container"
-                        sx={{
-                          width: '100%',
-                          height: '300px',
-                          mt: 2,
-                          border: '1px solid #ccc',
-                          borderRadius: 1,
-                          // 지도가 로딩되기 전까지 사용자에게 안내 메시지를 보여주기 위한 가상 요소(pseudo-element)
-                          position: 'relative', // 가상 요소의 기준점
-                          '&:empty::before': { // 자식 요소가 없을 때만 (지도가 로딩되기 전)
-                            content: '"지도 로딩 중..."',
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            color: 'text.secondary',
-                          }
-                        }}
+                        sx={{ width: '100%', height: '300px', mt: 2, border: '1px solid #ccc', borderRadius: 1 }}
                     >
-                      {/* 이 안은 비워둡니다. 카카오맵 API가 여기에 직접 지도를 그립니다. */}
+                      {!map && <Typography sx={{textAlign:'center', lineHeight:'300px', color:'text.secondary'}}>지도 로딩 중...</Typography>}
                     </Box>
                     {/* location 필드는 자동으로 채워지거나, 사용자가 직접 수정할 수 있도록 함 */}
                     <TextField
