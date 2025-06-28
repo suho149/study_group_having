@@ -1,6 +1,7 @@
 package com.studygroup.global.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -42,6 +43,20 @@ public class SseEmitterService {
 
         log.info("New SSE subscriber: userId={}", userId);
         return emitter;
+    }
+
+    // 주기적으로 하트비트를 보내는 스케줄러 추가
+    @Scheduled(fixedRate = 30000) // 30초마다 실행
+    public void sendHeartbeat() {
+        emitters.forEach((userId, emitter) -> {
+            try {
+                // "heartbeat" 라는 이름의 더미 이벤트를 보냄
+                emitter.send(SseEmitter.event().name("heartbeat").data("keep-alive"));
+            } catch (IOException e) {
+                log.warn("Failed to send heartbeat to userId: {}. Removing emitter.", userId);
+                emitters.remove(userId);
+            }
+        });
     }
 
     // 특정 사용자에게 이벤트를 전송하는 메소드
