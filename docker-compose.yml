@@ -49,6 +49,7 @@ services:
       dockerfile: Dockerfile-frontend
       args:
         - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+        - REACT_APP_KAKAO_MAP_API_KEY=${REACT_APP_KAKAO_MAP_API_KEY}
     image: suho1/having-frontend:latest
     container_name: having-frontend
     ports:
