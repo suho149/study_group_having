@@ -76,43 +76,35 @@ const CreateStudyPage = () => {
 
   const mapRef = useRef<any>(null); // map 상태 대신 ref 사용
   const markerRef = useRef<any>(null); // marker 상태 대신 ref 사용
-  const [isMapVisible, setIsMapVisible] = useState(false); // 지도를 보여줄지 여부를 결정하는 상태 추가
 
   const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env.development 파일에서 키 가져오기
 
   // 카카오맵 API 로드 및 지도 생성
   // 지도 생성 로직
   useEffect(() => {
-    // '오프라인' 유형이 아니면, 지도 관련 상태를 모두 초기화하고 종료
-    if (formData.studyType !== 'OFFLINE') {
-      setIsMapVisible(false); // 지도 숨기기
-      // 필요하다면 mapRef.current = null; 등으로 지도 객체를 완전히 제거할 수도 있습니다.
+    if (formData.studyType !== 'OFFLINE' || !mapContainer.current) {
       return;
     }
 
-    // '오프라인' 유형이 선택되면, 지도를 표시하도록 상태 변경
-    setIsMapVisible(true);
+    // kakao 객체가 아직 로드되지 않았다면 아무것도 하지 않음
+    if (!window.kakao || !window.kakao.maps) {
+      console.log("Kakao script not loaded yet.");
+      return;
+    }
 
-    // 지도를 그릴 컨테이너가 준비되지 않았다면 종료
-    if (!mapContainer.current) return;
-
-    // kakao.maps.load를 사용하여 API 준비를 기다림
     window.kakao.maps.load(() => {
       const container = mapContainer.current;
-      // 컨테이너가 없거나, 이미 지도가 그려져 있다면 다시 그리지 않음
-      if (!container || mapRef.current) return;
-
-      console.log(">>>> Map initialization starts now! <<<<"); // 지도 생성 시작 로그
+      if (!container || mapRef.current) return; // 컨테이너가 없거나 지도가 이미 있으면 종료
 
       const mapOption = {
         center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
         level: 3,
       };
+
       const map = new window.kakao.maps.Map(container, mapOption);
       const marker = new window.kakao.maps.Marker({ position: map.getCenter() });
       marker.setMap(map);
 
-      // 생성된 지도와 마커를 ref에 저장
       mapRef.current = map;
       markerRef.current = marker;
 
