@@ -28,6 +28,8 @@ jobs:
           REACT_APP_API_BASE_URL: http://having.duckdns.org
           REACT_APP_KAKAO_MAP_API_KEY: ${{ secrets.REACT_APP_KAKAO_MAP_API_KEY }}
         run: |
+          echo "Replacing KAKAO_MAP_API_KEY in index.html"
+          sed -i 's|%REACT_APP_KAKAO_MAP_API_KEY%|${{ secrets.REACT_APP_KAKAO_MAP_API_KEY }}|g' ./frontend/public/index.html
           docker compose -f docker-compose.yml build
           docker compose -f docker-compose.yml push
         # 참고: docker-compose.yml 파일에 image 이름을 명시해야 push가 동작합니다.
