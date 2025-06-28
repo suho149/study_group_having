@@ -78,83 +78,68 @@ const CreateStudyPage = () => {
 
   // 카카오맵 API 로드 완료 감지
   useEffect(() => {
-    // 오프라인 스터디가 아니면 바로 종료
+    // 오프라인 스터디가 아니면 아무것도 하지 않습니다.
     if (formData.studyType !== 'OFFLINE') {
-      // 오프라인이 아닌 유형으로 변경 시, 지도 관련 상태를 초기화합니다. (선택적이지만 좋은 습관)
-      if (map) {
-        setMap(null);
-        setMarker(null);
+      return;
+    }
+
+    // mapContainer가 아직 준비되지 않았다면 아무것도 하지 않습니다.
+    if (!mapContainer.current) {
+      return;
+    }
+
+    // kakao.maps.load()를 사용하여 지도를 초기화합니다.
+    // 이 함수는 카카오맵 API가 완전히 준비되면 콜백 함수를 실행해줍니다.
+    window.kakao.maps.load(() => {
+      // 이 시점에서는 mapContainer.current가 null이 아님을 보장합니다.
+      const container = mapContainer.current!;
+
+      // 만약 지도가 이미 생성되었다면 다시 생성하지 않습니다.
+      if (container.children.length > 0) {
+        return;
       }
-      return;
-    }
 
-    // 지도가 이미 생성되었다면 바로 종료
-    if (map) {
-      return;
-    }
+      const mapOption = {
+        center: new window.kakao.maps.LatLng(37.566826, 126.9786567), // 서울시청
+        level: 3,
+      };
 
-    // ★★★★★ 이 함수가 핵심입니다 ★★★★★
-    const initMap = () => {
-      // kakao.maps.load()는 스크립트가 완전히 로드된 후 콜백을 실행합니다.
-      window.kakao.maps.load(() => {
-        if (!mapContainer.current) return;
-
-        console.log("지도 생성 시작...");
-        const mapOption = {
-          center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
-          level: 3,
-        };
-        const newMap = new window.kakao.maps.Map(mapContainer.current, mapOption);
-        // ... (이하 지도 생성 및 이벤트 리스너 로직은 기존과 동일) ...
-        const newMarker = new window.kakao.maps.Marker({ position: newMap.getCenter() });
-        newMarker.setMap(newMap);
-        window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
-          const latlng = mouseEvent.latLng;
-          newMarker.setPosition(latlng);
-          const newLat = latlng.getLat();
-          const newLng = latlng.getLng();
-
-          setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
-
-          const geocoder = new window.kakao.maps.services.Geocoder();
-          geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
-            if (status === window.kakao.maps.services.Status.OK && result[0]) {
-              const roadAddress = result[0].road_address ? result[0].road_address.address_name : result[0].address.address_name;
-              setFormData(prev => ({ ...prev, location: roadAddress }));
-              setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
-            } else {
-              setFormData(prev => ({ ...prev, location: "주소 정보 없음" }));
-              setSelectedPlace(null);
-            }
-          });
-        });
-
-        setMap(newMap);
-        setMarker(newMarker);
+      const newMap = new window.kakao.maps.Map(container, mapOption);
+      const newMarker = new window.kakao.maps.Marker({
+        position: newMap.getCenter(),
       });
-    };
+      newMarker.setMap(newMap);
 
-    // window.kakao 객체가 로드되었는지 확인하고, 로드되었으면 지도를 초기화합니다.
-    // 만약 아직 로드되지 않았다면, 짧은 시간 후에 다시 시도합니다.
-    if (window.kakao && window.kakao.maps) {
-      initMap();
-    } else {
-      // 스크립트가 로드될 때까지 100ms 간격으로 최대 10번 재시도
-      let attempts = 0;
-      const interval = setInterval(() => {
-        if (window.kakao && window.kakao.maps) {
-          clearInterval(interval);
-          initMap();
-        } else if (attempts > 10) {
-          clearInterval(interval);
-          console.error("카카오맵 API 스크립트를 로드하는 데 실패했습니다.");
-        }
-        attempts++;
-      }, 100);
-    }
+      // 지도 클릭 이벤트 리스너 추가
+      window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
+        const latlng = mouseEvent.latLng;
+        newMarker.setPosition(latlng);
 
-    // formData.studyType이 변경될 때마다 이 로직을 다시 실행합니다.
-  }, [formData.studyType, map]); // 의존성은 그대로 유지
+        const newLat = latlng.getLat();
+        const newLng = latlng.getLng();
+        setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
+
+        // 좌표를 주소로 변환
+        const geocoder = new window.kakao.maps.services.Geocoder();
+        geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
+          if (status === window.kakao.maps.services.Status.OK && result[0]) {
+            const roadAddress = result[0].road_address
+                ? result[0].road_address.address_name
+                : result[0].address.address_name;
+            setFormData(prev => ({ ...prev, location: roadAddress }));
+            setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
+          } else {
+            setFormData(prev => ({ ...prev, location: "주소 정보 없음" }));
+            setSelectedPlace(null);
+          }
+        });
+      });
+
+      setMap(newMap);
+      setMarker(newMarker);
+    });
+
+  }, [formData.studyType]); // 의존성 배열에서 map을 제거하여, studyType 변경 시에만 실행되도록 합니다.
 
   const handleChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string> // SelectChangeEvent 타입 명시
