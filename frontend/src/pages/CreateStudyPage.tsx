@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Container,
   Paper,
@@ -74,48 +74,45 @@ const CreateStudyPage = () => {
   const [selectedPlace, setSelectedPlace] = useState<any>(null); // 선택된 장소 정보
   const [mapApiLoaded, setMapApiLoaded] = useState(false); // 카카오맵 API 로드 완료 상태
 
-  const mapRef = useRef<any>(null); // map 상태 대신 ref 사용
-  const markerRef = useRef<any>(null); // marker 상태 대신 ref 사용
-  const [isMapVisible, setIsMapVisible] = useState(false); // 지도를 보여줄지 여부를 결정하는 상태 추가
+  const mapRef = useRef<any>(null);
+  const markerRef = useRef<any>(null);
 
   const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env.development 파일에서 키 가져오기
 
-  // 카카오맵 API 로드 및 지도 생성
-  // 지도 생성 로직
+  // 지도 생성 및 관리 로직
   useEffect(() => {
-    // '오프라인' 유형이 아니면, 지도 관련 상태를 모두 초기화하고 종료
     if (formData.studyType !== 'OFFLINE') {
-      setIsMapVisible(false); // 지도 숨기기
-      // 필요하다면 mapRef.current = null; 등으로 지도 객체를 완전히 제거할 수도 있습니다.
+      return;
+    }
+    if (!mapContainer.current) {
+      return;
+    }
+    if (!window.kakao || !window.kakao.maps) {
+      console.log("Kakao script not loaded yet.");
       return;
     }
 
-    // '오프라인' 유형이 선택되면, 지도를 표시하도록 상태 변경
-    setIsMapVisible(true);
-
-    // 지도를 그릴 컨테이너가 준비되지 않았다면 종료
-    if (!mapContainer.current) return;
-
-    // kakao.maps.load를 사용하여 API 준비를 기다림
     window.kakao.maps.load(() => {
-      const container = mapContainer.current;
-      // 컨테이너가 없거나, 이미 지도가 그려져 있다면 다시 그리지 않음
-      if (!container || mapRef.current) return;
+      // 지도가 이미 생성되었다면 다시 생성하지 않습니다.
+      if (mapRef.current) {
+        return;
+      }
 
-      console.log(">>>> Map initialization starts now! <<<<"); // 지도 생성 시작 로그
-
+      const container = mapContainer.current!;
       const mapOption = {
         center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
         level: 3,
       };
+
       const map = new window.kakao.maps.Map(container, mapOption);
       const marker = new window.kakao.maps.Marker({ position: map.getCenter() });
       marker.setMap(map);
 
-      // 생성된 지도와 마커를 ref에 저장
+      // 생성된 인스턴스를 ref에 저장합니다.
       mapRef.current = map;
       markerRef.current = marker;
 
+      // 지도 클릭 이벤트
       window.kakao.maps.event.addListener(map, 'click', (mouseEvent: any) => {
         const latlng = mouseEvent.latLng;
         marker.setPosition(latlng);
@@ -130,9 +127,6 @@ const CreateStudyPage = () => {
             const roadAddress = result[0].road_address?.address_name || result[0].address.address_name;
             setFormData(prev => ({ ...prev, location: roadAddress }));
             setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
-          } else {
-            setFormData(prev => ({ ...prev, location: "주소 정보 없음" }));
-            setSelectedPlace(null);
           }
         });
       });
@@ -163,53 +157,39 @@ const CreateStudyPage = () => {
   };
 
   // 장소 검색 함수
-  const handlePlaceSearch = () => {
-    if (!searchKeyword.trim()) {
-      alert("검색어를 입력해주세요.");
+  // 장소 검색 함수
+  const handlePlaceSearch = useCallback(() => {
+    if (!searchKeyword.trim()) return;
+    if (!window.kakao || !window.kakao.maps?.services?.Places) {
+      alert('지도 서비스가 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
       return;
     }
-
-    // kakao 객체가 없으면 오류 메시지 표시
-    if (!window.kakao || !window.kakao.maps) {
-      alert('지도 API가 로드되지 않았습니다. 페이지를 새로고침 해주세요.');
-      return;
-    }
-
-    // 'services' 라이브러리가 로드될 때까지 기다렸다가 검색 실행
-    window.kakao.maps.load(() => {
-      const ps = new window.kakao.maps.services.Places();
-      ps.keywordSearch(searchKeyword, (data: any[], status: any) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          setSearchResults(data);
-        } else if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
-          alert('검색 결과가 존재하지 않습니다.');
-          setSearchResults([]);
-        } else {
-          alert('장소 검색 중 오류가 발생했습니다.');
-          setSearchResults([]);
-        }
-      });
+    const ps = new window.kakao.maps.services.Places();
+    ps.keywordSearch(searchKeyword, (data: React.SetStateAction<any[]>, status: any) => {
+      if (status === window.kakao.maps.services.Status.OK) setSearchResults(data);
+      else if (status === window.kakao.maps.services.Status.ZERO_RESULT) alert('검색 결과가 없습니다.');
+      else alert('검색 중 오류가 발생했습니다.');
     });
-  };
+  }, [searchKeyword]);
 
-  // 검색 결과에서 장소 선택 시
-  const handleSelectPlace = (place: any) => {
+  // ★★★ 검색 결과 클릭 함수를 ref를 사용하도록 수정합니다. ★★★
+  const handleSelectPlace = useCallback((place: any) => {
     setSelectedPlace(place);
     setFormData(prev => ({
       ...prev,
       location: place.place_name,
-      latitude: parseFloat(place.y), // 위도
-      longitude: parseFloat(place.x), // 경도
+      latitude: parseFloat(place.y),
+      longitude: parseFloat(place.x),
     }));
-    setSearchResults([]); // 검색 결과 목록 숨기기
-    setSearchKeyword(place.place_name); // 검색창에 선택한 장소 이름 표시
+    setSearchResults([]);
+    setSearchKeyword(place.place_name);
 
-    if (map && marker) {
+    if (mapRef.current && markerRef.current) {
       const moveLatLon = new window.kakao.maps.LatLng(place.y, place.x);
-      map.setCenter(moveLatLon);
-      marker.setPosition(moveLatLon);
+      mapRef.current.setCenter(moveLatLon);
+      markerRef.current.setPosition(moveLatLon);
     }
-  };
+  }, []);
 
   const handleTagInputKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && tagInput.trim()) {
@@ -348,89 +328,32 @@ const CreateStudyPage = () => {
               {/* 스터디 유형이 OFFLINE일 때만 지도 및 장소 검색 UI 표시 */}
               {formData.studyType === 'OFFLINE' && (
                   <Box>
-                    <Typography variant="subtitle2" gutterBottom sx={{mt:1, mb:1, fontWeight:'medium'}}>장소 선택 (오프라인)</Typography>
+                    <Typography variant="subtitle2" gutterBottom>장소 선택 (오프라인)</Typography>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} sm={8}>
-                        <TextField
-                            fullWidth
-                            variant="outlined"
-                            label="장소 검색"
-                            value={searchKeyword}
-                            onChange={(e) => setSearchKeyword(e.target.value)}
-                            placeholder="예: 강남역 스타벅스"
-                        />
+                        <TextField fullWidth label="장소 검색" value={searchKeyword} onChange={(e) => setSearchKeyword(e.target.value)} />
                       </Grid>
                       <Grid item xs={12} sm={4}>
-                        <Button
-                            fullWidth
-                            variant="outlined"
-                            onClick={handlePlaceSearch}
-                            disabled={!searchKeyword.trim()}
-                        >
-                          검색
-                        </Button>
+                        <Button fullWidth variant="outlined" onClick={handlePlaceSearch} disabled={!searchKeyword.trim()}>검색</Button>
                       </Grid>
                     </Grid>
-                    {/* 검색 결과 목록 */}
                     {searchResults.length > 0 && (
-                        <Paper elevation={1} sx={{ maxHeight: 200, overflow: 'auto', mt: 1, border:'1px solid #eee' }}>
+                        <Paper elevation={1} sx={{ maxHeight: 200, overflow: 'auto', mt: 1 }}>
                           <List dense>
                             {searchResults.map((place) => (
-                                <ListItem
-                                    key={place.id}
-                                    button
-                                    onClick={() => handleSelectPlace(place)}
-                                >
-                                  <ListItemText
-                                      primary={place.place_name}
-                                      secondary={place.road_address_name || place.address_name}
-                                  />
+                                <ListItem key={place.id} button onClick={() => handleSelectPlace(place)}>
+                                  <ListItemText primary={place.place_name} secondary={place.road_address_name || place.address_name} />
                                 </ListItem>
                             ))}
                           </List>
                         </Paper>
                     )}
-                    {/* 선택된 장소 표시 */}
-                    {selectedPlace && (
-                        <Typography variant="body2" sx={{mt:1, color:'primary.main'}}>
-                          선택된 장소: {selectedPlace.place_name}
-                        </Typography>
-                    )}
-                    {/* 카카오맵 표시 영역 */}
-                    <Box
-                        ref={mapContainer}
-                        id="kakao-map-container"
-                        sx={{
-                          width: '100%',
-                          height: '300px',
-                          mt: 2,
-                          border: '1px solid #ccc',
-                          borderRadius: 1,
-                          // 지도가 로딩되기 전까지 사용자에게 안내 메시지를 보여주기 위한 가상 요소(pseudo-element)
-                          position: 'relative', // 가상 요소의 기준점
-                          '&:empty::before': { // 자식 요소가 없을 때만 (지도가 로딩되기 전)
-                            content: '"지도 로딩 중..."',
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            color: 'text.secondary',
-                          }
-                        }}
-                    >
-                      {/* 이 안은 비워둡니다. 카카오맵 API가 여기에 직접 지도를 그립니다. */}
-                    </Box>
-                    {/* location 필드는 자동으로 채워지거나, 사용자가 직접 수정할 수 있도록 함 */}
-                    <TextField
-                        name="location"
-                        label="선택된 장소 주소 (오프라인)"
-                        fullWidth
-                        value={formData.location} // 선택된 장소 주소로 자동 채워짐
-                        onChange={handleChange} // 필요시 수동 입력/수정 가능
-                        InputProps={{ readOnly: true }} // 지도 선택으로만 입력받도록 (선택적)
-                        sx={{mt:1}}
-                        helperText={formData.latitude && formData.longitude ? `위도: ${formData.latitude.toFixed(6)}, 경도: ${formData.longitude.toFixed(6)}` : "지도에서 장소를 클릭하거나 검색하여 선택하세요."}
-                    />
+                    {selectedPlace && <Typography variant="body2" sx={{ mt: 1, color: 'primary.main' }}>선택된 장소: {selectedPlace.place_name}</Typography>}
+
+                    {/* 지도 컨테이너 */}
+                    <Box ref={mapContainer} sx={{ width: '100%', height: '300px', mt: 2, bgcolor: '#f0f0f0' }} />
+
+                    <TextField name="location" label="선택된 장소 주소" fullWidth value={formData.location} InputProps={{ readOnly: true }} sx={{ mt: 1 }} />
                   </Box>
               )}
 
