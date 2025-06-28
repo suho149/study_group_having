@@ -76,43 +76,56 @@ const CreateStudyPage = () => {
 
   const kakaoMapApiKey = process.env.REACT_APP_KAKAO_MAP_API_KEY; // .env.development 파일에서 키 가져오기
 
-  // 카카오맵 API 로드 및 지도 생성
+  // 카카오맵 API 로드 완료 감지
   useEffect(() => {
-    // 오프라인 스터디가 아니면 지도를 표시할 필요가 없으므로 함수를 종료합니다.
+    // 오프라인 스터디가 아니면 아무것도 하지 않습니다.
     if (formData.studyType !== 'OFFLINE') {
       return;
     }
 
-    // 지도를 담을 컨테이너가 없으면 함수를 종료합니다.
+    // mapContainer가 아직 준비되지 않았다면 아무것도 하지 않습니다.
     if (!mapContainer.current) {
       return;
     }
 
-    // 최종 지도 생성 로직
-    const initMap = () => {
-      // 이 시점에는 kakao.maps.load가 완료되어 kakao 객체가 존재합니다.
+    // kakao.maps.load()를 사용하여 지도를 초기화합니다.
+    // 이 함수는 카카오맵 API가 완전히 준비되면 콜백 함수를 실행해줍니다.
+    window.kakao.maps.load(() => {
+      // 이 시점에서는 mapContainer.current가 null이 아님을 보장합니다.
       const container = mapContainer.current!;
+
+      // 만약 지도가 이미 생성되었다면 다시 생성하지 않습니다.
+      if (container.children.length > 0) {
+        return;
+      }
+
       const mapOption = {
-        center: new window.kakao.maps.LatLng(37.566826, 126.9786567),
+        center: new window.kakao.maps.LatLng(37.566826, 126.9786567), // 서울시청
         level: 3,
       };
+
       const newMap = new window.kakao.maps.Map(container, mapOption);
-      const newMarker = new window.kakao.maps.Marker({ position: newMap.getCenter() });
+      const newMarker = new window.kakao.maps.Marker({
+        position: newMap.getCenter(),
+      });
       newMarker.setMap(newMap);
 
       // 지도 클릭 이벤트 리스너 추가
       window.kakao.maps.event.addListener(newMap, 'click', (mouseEvent: any) => {
         const latlng = mouseEvent.latLng;
         newMarker.setPosition(latlng);
+
         const newLat = latlng.getLat();
         const newLng = latlng.getLng();
-
         setFormData(prev => ({ ...prev, latitude: newLat, longitude: newLng }));
 
+        // 좌표를 주소로 변환
         const geocoder = new window.kakao.maps.services.Geocoder();
         geocoder.coord2Address(newLng, newLat, (result: any, status: any) => {
           if (status === window.kakao.maps.services.Status.OK && result[0]) {
-            const roadAddress = result[0].road_address ? result[0].road_address.address_name : result[0].address.address_name;
+            const roadAddress = result[0].road_address
+                ? result[0].road_address.address_name
+                : result[0].address.address_name;
             setFormData(prev => ({ ...prev, location: roadAddress }));
             setSelectedPlace({ place_name: roadAddress, x: newLng, y: newLat });
           } else {
@@ -124,23 +137,9 @@ const CreateStudyPage = () => {
 
       setMap(newMap);
       setMarker(newMarker);
-    };
+    });
 
-    // ★★★★★★★★★★★★★★★★★★★★★★★★★★
-    // ★★★ 이 부분이 모든 문제의 해결책입니다 ★★★
-    // ★★★★★★★★★★★★★★★★★★★★★★★★★★
-    // window.kakao 객체가 존재하고, maps.load 함수가 준비되었다면 즉시 실행
-    if (window.kakao && window.kakao.maps && typeof window.kakao.maps.load === 'function') {
-      window.kakao.maps.load(initMap);
-    } else {
-      // 만약 스크립트가 아직 로드되지 않았다면, 로드 완료 이벤트를 감지합니다.
-      const script = document.querySelector('script[src*="dapi.kakao.com/v2/maps/sdk.js"]');
-      if (script) {
-        script.addEventListener('load', () => window.kakao.maps.load(initMap));
-      }
-    }
-
-  }, [formData.studyType]); // studyType이 변경될 때마다 이 로직이 실행됩니다.
+  }, [formData.studyType]); // 의존성 배열에서 map을 제거하여, studyType 변경 시에만 실행되도록 합니다.
 
   const handleChange = (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string> // SelectChangeEvent 타입 명시
