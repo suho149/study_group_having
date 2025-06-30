@@ -1,5 +1,6 @@
 package com.studygroup.domain.study.dto;
 
+import com.studygroup.domain.study.entity.StudyCategory;
 import com.studygroup.domain.study.entity.StudyStatus;
 import com.studygroup.domain.study.entity.StudyType;
 import jakarta.validation.constraints.Min;
@@ -29,6 +30,9 @@ public class StudyGroupRequest {
     @NotNull(message = "스터디 유형은 필수입니다.")
     private StudyType studyType;
 
+    @NotNull(message = "모집 구분은 필수입니다.")
+    private StudyCategory category;
+
     private String location;
 
     @NotNull(message = "시작 날짜는 필수입니다.")
@@ -38,15 +42,21 @@ public class StudyGroupRequest {
 
     private Set<String> tags;
 
-    @Builder
+    private Double latitude;  // 위도 (소수점 포함 가능)
+
+    private Double longitude; // 경도 (소수점 포함 가능)
+
+    @Builder // 만약 생성자 대신 빌더를 사용한다면
     public StudyGroupRequest(String title, String description, Integer maxMembers,
-                           StudyType studyType, String location,
-                           LocalDate startDate, LocalDate endDate, Set<String> tags) {
+                             StudyType studyType, String location, Double latitude, Double longitude,
+                             LocalDate startDate, LocalDate endDate, Set<String> tags) {
         this.title = title;
         this.description = description;
         this.maxMembers = maxMembers;
         this.studyType = studyType;
         this.location = location;
+        this.latitude = latitude;   // 추가
+        this.longitude = longitude; // 추가
         this.startDate = startDate;
         this.endDate = endDate;
         this.tags = tags;

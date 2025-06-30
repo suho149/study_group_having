@@ -59,7 +59,7 @@ yarn-error.log*
 # React
 /frontend/build
 /frontend/dist
-/frontend/.env
+/frontend/.env.development
 /frontend/.env.local
 /frontend/.env.development.local
 /frontend/.env.test.local
@@ -97,3 +97,13 @@ bin/
 # config local DB
 ### .env ###
 .env*
+
+# User uploaded files
+/uploads/
+
+# Spring Boot config files (if they contain secrets)
+/src/main/resources/application-dev.properties
+/src/main/resources/application-docker.properties
+
+# Docker Compose configuration file
+#docker-compose.yml

@@ -7,6 +7,7 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -29,8 +30,13 @@ public class StudyGroup extends BaseTimeEntity {
     @Column(nullable = false)
     private String title;
 
+    @Lob // CLOB, TEXT 타입으로 생성되도록
     @Column(nullable = false)
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StudyCategory category;
 
     @Column(nullable = false)
     private int maxMembers;
@@ -47,6 +53,10 @@ public class StudyGroup extends BaseTimeEntity {
 
     private String location;
 
+    // --- 위도, 경도 필드 추가 ---
+    private Double latitude; // 위도
+    private Double longitude; // 경도
+
     @Column(nullable = false)
     private LocalDate startDate;
 
@@ -58,20 +68,38 @@ public class StudyGroup extends BaseTimeEntity {
     @OneToMany(mappedBy = "studyGroup", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<StudyMember> members = new HashSet<>();
 
+    private int viewCount = 0;
+
+    @Column(nullable = false, columnDefinition = "INT DEFAULT 0")
+    private int likeCount = 0; // 좋아요 수, 기본값 0
+
+    @Column(nullable = false)
+    @ColumnDefault("false")
+    private boolean isBlinded = false;
+
+    public void blind() {
+        this.isBlinded = true;
+    }
+
     @Builder
     public StudyGroup(User leader, String title, String description, int maxMembers,
-                     StudyStatus status, StudyType studyType, String location,
+                     StudyStatus status, StudyType studyType, StudyCategory category, String location,
+                      Double latitude, Double longitude,
                      LocalDate startDate, LocalDate endDate) {
         this.leader = leader;
         this.title = title;
         this.description = description;
         this.maxMembers = maxMembers;
+        this.category = category;
         this.currentMembers = 1; // 리더를 포함하여 시작
         this.status = status;
         this.studyType = studyType;
         this.location = location;
+        this.latitude = latitude;     // 추가
+        this.longitude = longitude;   // 추가
         this.startDate = startDate;
         this.endDate = endDate;
+        this.viewCount = 0;
     }
 
     // 태그 추가 메서드
@@ -81,19 +109,65 @@ public class StudyGroup extends BaseTimeEntity {
     }
 
     // 멤버 추가 메서드
+    // 멤버를 추가하고, 만약 승인된 멤버라면 currentMembers를 1 증가시킴
     public void addMember(StudyMember member) {
-        this.members.add(member);
-        this.currentMembers++;
+        if (!this.members.contains(member)) {
+            this.members.add(member);
+            if (member.getStatus() == StudyMemberStatus.APPROVED) {
+                this.currentMembers++;
+            }
+        }
     }
 
     // 멤버 제거 메서드
+    // 멤버를 제거하고, 만약 승인된 멤버였다면 currentMembers를 1 감소시킴
     public void removeMember(StudyMember member) {
-        this.members.remove(member);
-        this.currentMembers--;
+        if (this.members.remove(member)) {
+            if (member.getStatus() == StudyMemberStatus.APPROVED) {
+                this.currentMembers--;
+            }
+        }
     }
 
     // 스터디 상태 변경 메서드
     public void updateStatus(StudyStatus status) {
         this.status = status;
+    }
+
+    public int getCurrentMembers() {
+        return (int) members.stream()
+                .filter(member -> member.getStatus() == StudyMemberStatus.APPROVED)
+                .count();
+    }
+
+    public void incrementViewCount() {
+        this.viewCount++;
+    }
+
+    public void update(String title, String description, int maxMembers,
+                     StudyStatus status, StudyType studyType, StudyCategory category, String location,
+                       Double latitude, Double longitude,
+                     LocalDate startDate, LocalDate endDate) {
+        this.title = title;
+        this.description = description;
+        this.maxMembers = maxMembers;
+        this.status = status;
+        this.studyType = studyType;
+        this.category = category;
+        this.location = location;
+        this.latitude = latitude;     // 추가
+        this.longitude = longitude;   // 추가
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
+    public void incrementLikeCount() {
+        this.likeCount++;
+    }
+
+    public void decrementLikeCount() {
+        if (this.likeCount > 0) {
+            this.likeCount--;
+        }
     }
 } 

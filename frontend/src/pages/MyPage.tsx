@@ -1,97 +1,110 @@
+// src/pages/MyPage.tsx
 import React from 'react';
-import { Container, Paper, Typography, Box, Avatar, Divider } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { Container, Grid, Paper, List, ListItem, ListItemIcon, ListItemText, Divider, ListItemButton } from '@mui/material';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import PersonIcon from '@mui/icons-material/Person';
+import NotificationsIcon from '@mui/icons-material/Notifications';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import BookmarksIcon from '@mui/icons-material/Bookmarks'; // 좋아요 한 스터디 아이콘
+import GroupsIcon from '@mui/icons-material/Groups';
+import {jwtDecode} from "jwt-decode"; // 참여중인 스터디 아이콘
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import PeopleIcon from '@mui/icons-material/People'; // 친구 아이콘
+import RssFeedIcon from '@mui/icons-material/RssFeed'; // 피드 아이콘
 
-const ProfileContainer = styled(Paper)({
-  padding: '40px',
-  borderRadius: '12px',
-  marginTop: '40px',
-});
+const MyPage: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-const ProfileHeader = styled(Box)({
-  display: 'flex',
-  alignItems: 'center',
-  marginBottom: '32px',
-});
+  // --- 관리자 여부 확인 로직 추가 ---
+  const token = localStorage.getItem('token');
+  let isAdmin = false;
+  if (token) {
+    try {
+      const decodedToken: { authorities?: string } = jwtDecode(token);
+      isAdmin = decodedToken.authorities?.includes('ROLE_ADMIN') || false;
+    } catch (e) {
+      console.error("Invalid token in MyPage", e);
+    }
+  }
 
-const ProfileAvatar = styled(Avatar)({
-  width: '80px',
-  height: '80px',
-  marginRight: '24px',
-});
-
-const ProfileInfo = styled(Box)({
-  flex: 1,
-});
-
-const InfoSection = styled(Box)({
-  marginTop: '24px',
-  '& + &': {
-    marginTop: '24px',
-  },
-});
-
-const SectionTitle = styled(Typography)({
-  fontSize: '18px',
-  fontWeight: 'bold',
-  marginBottom: '16px',
-  color: '#333',
-});
-
-const MyPage = () => {
-  // 실제로는 서버에서 사용자 정보를 가져와야 합니다
-  const userInfo = {
-    name: '사용자',
-    email: 'user@example.com',
-    joinDate: '2024.03.15',
-  };
+  // 현재 경로에 따라 선택된 메뉴를 판단하는 함수
+  const isSelected = (path: string) => location.pathname === path;
 
   return (
-    <Container maxWidth="md">
-      <ProfileContainer elevation={1}>
-        <ProfileHeader>
-          <ProfileAvatar src="/images/default-avatar.png" />
-          <ProfileInfo>
-            <Typography variant="h5" fontWeight="bold">
-              {userInfo.name}님의 프로필
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              {userInfo.email}
-            </Typography>
-          </ProfileInfo>
-        </ProfileHeader>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={3}>
+            <Paper elevation={1} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+              <List component="nav" sx={{ p: 0 }}>
+                {/* --- 관리자일 경우에만 이 메뉴를 렌더링합니다 --- */}
+                {isAdmin && (
+                    <>
+                      <ListItemButton selected={isSelected('/admin')} onClick={() => navigate('/admin')}>
+                        <ListItemIcon sx={{ minWidth: 40 }}>
+                          <AdminPanelSettingsIcon color={isSelected('/admin') ? "primary" : "inherit"} />
+                        </ListItemIcon>
+                        <ListItemText primary="관리자 대시보드" />
+                      </ListItemButton>
+                      <Divider />
+                    </>
+                )}
+                {/* ------------------------------------------- */}
 
-        <Divider />
-
-        <InfoSection>
-          <SectionTitle>계정 정보</SectionTitle>
-          <Box>
-            <Typography variant="body1" gutterBottom>
-              <strong>이메일:</strong> {userInfo.email}
-            </Typography>
-            <Typography variant="body1" gutterBottom>
-              <strong>가입일:</strong> {userInfo.joinDate}
-            </Typography>
-          </Box>
-        </InfoSection>
-
-        <InfoSection>
-          <SectionTitle>활동 내역</SectionTitle>
-          <Box>
-            <Typography variant="body1" gutterBottom>
-              <strong>작성한 게시글:</strong> 0개
-            </Typography>
-            <Typography variant="body1" gutterBottom>
-              <strong>참여중인 스터디:</strong> 0개
-            </Typography>
-            <Typography variant="body1" gutterBottom>
-              <strong>참여중인 프로젝트:</strong> 0개
-            </Typography>
-          </Box>
-        </InfoSection>
-      </ProfileContainer>
-    </Container>
+                <ListItemButton selected={isSelected('/mypage') && location.pathname === '/mypage'} onClick={() => navigate('/mypage')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}><PersonIcon color={isSelected('/mypage') && location.pathname === '/mypage' ? "primary" : "inherit"} /></ListItemIcon>
+                  <ListItemText primary="내 프로필" />
+                </ListItemButton>
+                <Divider />
+                <ListItemButton selected={isSelected('/mypage/liked-posts')} onClick={() => navigate('/mypage/liked-posts')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}><FavoriteIcon color={isSelected('/mypage/liked-posts') ? "primary" : "inherit"} /></ListItemIcon>
+                  <ListItemText primary="좋아요 한 글" />
+                </ListItemButton>
+                <Divider />
+                <ListItemButton selected={isSelected('/mypage/liked-studies')} onClick={() => navigate('/mypage/liked-studies')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}><BookmarksIcon color={isSelected('/mypage/liked-studies') ? "primary" : "inherit"} /></ListItemIcon>
+                  <ListItemText primary="좋아요 한 스터디" />
+                </ListItemButton>
+                <Divider />
+                <ListItemButton selected={isSelected('/mypage/participating-studies')} onClick={() => navigate('/mypage/participating-studies')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}><GroupsIcon color={isSelected('/mypage/participating-studies') ? "primary" : "inherit"} /></ListItemIcon>
+                  <ListItemText primary="참여중인 스터디" />
+                </ListItemButton>
+                <Divider />
+                {/* --- 친구 관리 메뉴 추가 --- */}
+                <ListItemButton selected={isSelected('/mypage/friends')} onClick={() => navigate('/mypage/friends')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <PeopleIcon color={isSelected('/mypage/friends') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="친구 관리" />
+                </ListItemButton>
+                <Divider />
+                <ListItemButton selected={isSelected('/mypage/feed')} onClick={() => navigate('/mypage/feed')}>
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <RssFeedIcon color={isSelected('/mypage/feed') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="활동 피드" />
+                </ListItemButton>
+                <Divider />
+                <Divider />
+                <ListItemButton
+                    selected={isSelected('/mypage/notifications')}
+                    onClick={() => navigate('/mypage/notifications')}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <NotificationsIcon color={isSelected('/mypage/notifications') ? "primary" : "inherit"} />
+                  </ListItemIcon>
+                  <ListItemText primary="알림 목록" />
+                </ListItemButton>
+              </List>
+            </Paper>
+          </Grid>
+          <Grid item xs={12} md={9}>
+            <Outlet />
+          </Grid>
+        </Grid>
+      </Container>
   );
 };
 
-export default MyPage; 
+export default MyPage;
