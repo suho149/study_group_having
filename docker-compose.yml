@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # 백엔드 서비스
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile-backend
+    image: suho1/having-backend:latest
+    container_name: having-backend
+    ports:
+      - "8080:8080" # 백엔드 API 포트
+    depends_on:
+      - db
+      - redis
+    environment:
+      # --- Database Settings ---
+      SPRING_DATASOURCE_URL: ${COMPOSE_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${COMPOSE_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${COMPOSE_DB_PASSWORD}
+
+      # --- Redis Settings ---
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+
+      # --- JWT Settings ---
+      JWT_SECRET: ${COMPOSE_JWT_SECRET}
+
+      # --- OAuth2 Settings ---
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_ID: ${COMPOSE_GOOGLE_CLIENT_ID}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_GOOGLE_CLIENT_SECRET: ${COMPOSE_GOOGLE_CLIENT_SECRET}
+      APP_OAUTH2_REDIRECT_URI: ${COMPOSE_APP_OAUTH2_REDIRECT_URI}
+
+      APP_CORS_ALLOWED_ORIGINS: ${COMPOSE_APP_CORS_ALLOWED_ORIGINS}
+
+      # --- Email Settings ---
+      SPRING_MAIL_USERNAME: ${COMPOSE_GMAIL_USERNAME}
+      SPRING_MAIL_PASSWORD: ${COMPOSE_GMAIL_APP_PASSWORD}
+
+      # --- Spring Profile ---
+      SPRING_PROFILES_ACTIVE: dev
+      # ... 기타 필요한 환경 변수 ...
+    restart: always
+
+  # 프론트엔드 서비스
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile-frontend
+      args:
+        - REACT_APP_API_BASE_URL=${REACT_APP_API_BASE_URL}
+        - REACT_APP_KAKAO_MAP_API_KEY=${REACT_APP_KAKAO_MAP_API_KEY}
+    image: suho1/having-frontend:latest
+    container_name: having-frontend
+    ports:
+      #- "3000:80" # 내 컴퓨터 3000번 포트를 Nginx의 80번 포트와 연결
+      - "80:80" # 3000번 대신 80번 포트 사용
+    depends_on:
+      - backend
+    restart: always
+
+  # 데이터베이스 서비스
+  db:
+    image: mariadb:10.6
+    container_name: having-db
+    environment:
+      - MARIADB_ROOT_PASSWORD=${COMPOSE_DB_PASSWORD} # 위와 동일한 비밀번호
+      - MARIADB_DATABASE=studygroup
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: always
+
+  # Redis 서비스
+  redis:
+    image: redis:6.2-alpine
+    container_name: having-redis
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  db_data:
+  redis_data:

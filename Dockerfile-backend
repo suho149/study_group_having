@@ -1,0 +1,32 @@
+# 1. 빌드 스테이지: amazoncorretto의 JDK 이미지를 사용합니다.
+# 'alpine' 태그는 여러 플랫폼을 지원합니다.
+FROM amazoncorretto:17-alpine as builder
+
+WORKDIR /app
+
+COPY build.gradle settings.gradle ./
+COPY gradlew ./gradlew
+COPY gradle ./gradle
+RUN chmod +x ./gradlew
+RUN ./gradlew dependencies
+COPY src ./src
+
+# bootJar 태스크를 실행하여 실행 가능한 JAR 파일을 생성합니다.
+RUN ./gradlew bootJar
+
+# 2. 런타임 스테이지: ★★★ 이 부분을 수정합니다 ★★★
+# amazoncorretto의 JRE만 포함된 경량 이미지를 사용합니다.
+# '17-alpine' 태그는 JDK 전체를 포함하므로, JRE만 있는 '17.0.11-jre'와 같은
+# 명시적인 버전을 사용하거나, 더 간단하게 빌드 스테이지와 동일한 이미지를 사용할 수 있습니다.
+# 여기서는 가장 간단하고 확실한 방법으로, 빌드 스테이지와 동일한 이미지를 사용하되, 실행은 JRE로 합니다.
+# 또는 더 작은 이미지를 원한다면 아래와 같이 JRE 전용 이미지를 사용합니다.
+FROM amazoncorretto:17-alpine
+
+WORKDIR /app
+
+# 빌드 스테이지에서 생성된 JAR 파일을 복사합니다.
+COPY --from=builder /app/build/libs/*.jar app.jar
+
+EXPOSE 8080
+
+ENTRYPOINT ["java", "-jar", "app.jar"]

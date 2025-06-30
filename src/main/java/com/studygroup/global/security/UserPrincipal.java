@@ -1,7 +1,6 @@
 package com.studygroup.global.security;
 
 import com.studygroup.domain.user.entity.User;
-import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,47 +8,58 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
-@Getter
 public class UserPrincipal implements OAuth2User, UserDetails {
-    private final Long id;
-    private final String email;
-    private final String name;
-    private final String profile;
-    private final Collection<? extends GrantedAuthority> authorities;
+    private Long id;
+    private String email;
+    private String password;
+    private Collection<? extends GrantedAuthority> authorities;
     private Map<String, Object> attributes;
+    private User user;
 
-    public UserPrincipal(User user, Map<String, Object> attributes) {
+    public UserPrincipal(User user, Collection<? extends GrantedAuthority> authorities) {
         this.id = user.getId();
         this.email = user.getEmail();
-        this.name = user.getName();
-        this.profile = user.getProfile();
-        this.authorities = Collections.singletonList(new SimpleGrantedAuthority(user.getRole().getKey()));
-        this.attributes = attributes;
+        this.password = "";
+        this.authorities = authorities;
+        this.user = user;
     }
 
-    public UserPrincipal(Long id, String email, String name, String profile, Collection<? extends GrantedAuthority> authorities) {
-        this.id = id;
-        this.email = email;
-        this.name = name;
-        this.profile = profile;
-        this.authorities = authorities;
+    public static UserPrincipal create(User user) {
+        // DB에서 가져온 user.getRole()을 바탕으로 권한 목록을 생성합니다.
+        List<GrantedAuthority> authorities = Collections.singletonList(
+                new SimpleGrantedAuthority("ROLE_" + user.getRole().name())
+        );
+        return new UserPrincipal(user, authorities);
     }
 
     public static UserPrincipal create(User user, Collection<? extends GrantedAuthority> authorities) {
-        return new UserPrincipal(
-            user.getId(),
-            user.getEmail(),
-            user.getName(),
-            user.getProfile(),
-            authorities
-        );
+        return new UserPrincipal(user, authorities);
+    }
+
+    public static UserPrincipal create(User user, Map<String, Object> attributes) {
+        UserPrincipal userPrincipal = create(user);
+        userPrincipal.setAttributes(attributes);
+        return userPrincipal;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public User getUser() {
+        return user;
     }
 
     @Override
     public String getPassword() {
-        return null;
+        return password;
     }
 
     @Override
@@ -78,13 +88,17 @@ public class UserPrincipal implements OAuth2User, UserDetails {
     }
 
     @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return authorities;
+    }
+
+    @Override
     public Map<String, Object> getAttributes() {
         return attributes;
     }
 
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return authorities;
+    public void setAttributes(Map<String, Object> attributes) {
+        this.attributes = attributes;
     }
 
     @Override

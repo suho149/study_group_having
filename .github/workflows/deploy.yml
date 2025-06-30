@@ -1,0 +1,77 @@
+name: Java & React CI/CD with Docker
+
+# 1. 워크플로우 실행 조건: dev 브랜치에 push가 발생했을 때
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # 이 작업은 GitHub가 제공하는 가상 서버에서 실행됨
+
+    steps:
+      # 2. 소스 코드 체크아웃
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # 3. Docker Hub 로그인
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 4. 백엔드/프론트엔드 이미지 빌드 및 Docker Hub에 푸시
+      # Docker Compose의 build, push 명령어를 사용하면 여러 이미지를 쉽게 관리 가능
+      - name: Build and push Docker images
+        env:
+          REACT_APP_API_BASE_URL: http://having.duckdns.org
+          REACT_APP_KAKAO_MAP_API_KEY: ${{ secrets.REACT_APP_KAKAO_MAP_API_KEY }}
+        run: |
+          echo "Replacing KAKAO_MAP_API_KEY in index.html"
+          sed -i 's|%REACT_APP_KAKAO_MAP_API_KEY%|${{ secrets.REACT_APP_KAKAO_MAP_API_KEY }}|g' ./frontend/public/index.html
+          docker compose -f docker-compose.yml build
+          docker compose -f docker-compose.yml push
+        # 참고: docker-compose.yml 파일에 image 이름을 명시해야 push가 동작합니다.
+        # 예: image: suho1/having-backend:latest
+
+      # 5. SSH로 OCI 서버에 접속하여 배포 스크립트 실행
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST_IP }}
+          username: ${{ secrets.HOST_USERNAME }}
+          key: ${{ secrets.HOST_SSH_PRIVATE_KEY }}
+          script: |
+            # 서버에서 실행될 스크립트
+            # 1. 프로젝트 디렉토리 변수 설정
+            PROJECT_DIR=~/study_group_having
+            
+            # 2. 프로젝트 디렉토리로 이동합니다. 없다면 clone 받습니다.
+            if [ -d "$PROJECT_DIR" ]; then
+              cd $PROJECT_DIR
+              echo "Pulling latest changes..."
+              git pull origin dev
+            else
+              cd ~
+              git clone https://github.com/suho149/study_group_having.git $PROJECT_DIR
+              cd $PROJECT_DIR
+            fi
+            
+            # 3. .env 파일 생성
+            echo "Creating .env file from GitHub Secrets..."
+            echo "${{ secrets.ENV_FILE }}" > .env
+            
+            # 4. Docker Hub에서 최신 이미지 pull
+            echo "Pulling latest images..."
+            docker compose pull
+            
+            # 5. 최신 이미지로 컨테이너 재시작
+            echo "Restarting containers..."
+            docker compose up -d
+            
+            # 6. 불필요한 Docker 이미지 정리
+            echo "Pruning unused images..."
+            docker image prune -f
+            
+            echo "Deployment successful!"

@@ -1,62 +1,70 @@
 package com.studygroup.domain.auth.service;
 
 import com.studygroup.domain.auth.dto.TokenResponse;
-import com.studygroup.domain.auth.entity.RefreshToken;
-import com.studygroup.domain.auth.repository.RefreshTokenRepository;
 import com.studygroup.domain.user.entity.User;
 import com.studygroup.domain.user.repository.UserRepository;
 import com.studygroup.global.jwt.TokenProvider;
 import com.studygroup.global.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
 
+import java.util.concurrent.TimeUnit;
+
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final TokenProvider tokenProvider;
-    private final RefreshTokenRepository refreshTokenRepository;
     private final UserRepository userRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    @Value("${jwt.refresh-token-validity}")
+    private long refreshTokenValidityInMilliseconds;
 
     @Transactional
     public TokenResponse refresh(String refreshTokenValue) {
-        // 리프레시 토큰 유효성 검사
+        // 1. 토큰 유효성 검사 (서명, 만료일 등)
         if (!tokenProvider.validateToken(refreshTokenValue)) {
-            throw new IllegalArgumentException("Invalid refresh token");
+            throw new IllegalArgumentException("Invalid refresh token supplied!");
         }
 
-        // 리프레시 토큰으로부터 사용자 ID 추출
-        Long userId = tokenProvider.getUserIdFromToken(refreshTokenValue);
+        // 2. 토큰에서 사용자 ID 추출
+        UserPrincipal principalFromToken = tokenProvider.getPrincipalFromToken(refreshTokenValue);
+        Long userId = principalFromToken.getId();
 
-        // 사용자 조회
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        // 3. Redis에서 해당 사용자 ID의 Refresh Token을 가져옴
+        String redisKey = "RT:" + userId;
+        String storedRefreshToken = redisTemplate.opsForValue().get(redisKey);
 
-        // UserPrincipal 생성 및 Authentication 객체 생성
-        UserPrincipal userPrincipal = new UserPrincipal(user, null);
-        Authentication authentication = new UsernamePasswordAuthenticationToken(
-                userPrincipal, null, userPrincipal.getAuthorities());
+        // 4. Redis에 토큰이 없거나(만료), 전달된 토큰과 일치하지 않으면 예외 발생
+        if (ObjectUtils.isEmpty(storedRefreshToken) || !storedRefreshToken.equals(refreshTokenValue)) {
+            throw new IllegalArgumentException("Refresh token not found in Redis or mismatched.");
+        }
 
-        // 새로운 액세스 토큰과 리프레시 토큰 생성
-        String newAccessToken = tokenProvider.createAccessToken(authentication);
-        String newRefreshToken = tokenProvider.createRefreshToken(authentication);
+        // 5. 사용자 정보 조회 및 새로운 토큰 쌍 생성
+        User user = userRepository.findById(userId).orElseThrow(/*...*/);
+        UserPrincipal principal = UserPrincipal.create(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
 
-        // 리프레시 토큰 저장 또는 업데이트
-        RefreshToken refreshToken = refreshTokenRepository.findByUserId(userId)
-                .map(token -> {
-                    token.updateToken(newRefreshToken);
-                    return token;
-                })
-                .orElseGet(() -> refreshTokenRepository.save(
-                        RefreshToken.builder()
-                                .userId(userId)
-                                .token(newRefreshToken)
-                                .build()
-                ));
+        String newAccessToken = tokenProvider.createToken(authentication);
+        String newRefreshTokenValue = tokenProvider.createRefreshToken(authentication);
 
-        return new TokenResponse(newAccessToken, newRefreshToken);
+        // 6. Redis에 새로운 Refresh Token을 저장 (Rotation)
+        redisTemplate.opsForValue().set(
+                redisKey,
+                newRefreshTokenValue,
+                refreshTokenValidityInMilliseconds,
+                TimeUnit.MILLISECONDS
+        );
+        log.info("Successfully refreshed and rotated token for user: {}", user.getEmail());
+
+        return new TokenResponse(newAccessToken, newRefreshTokenValue);
     }
 } 
