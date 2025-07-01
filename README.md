@@ -51,6 +51,15 @@
 
 <br>
 
+## 🎥 주요 기능 시연
+
+### 1. 소셜 로그인
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/xxxxxxxx/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.gif" alt="소셜 로그인" width="80%"/>
+</p>
+
+<br>
+
 ## 🌊 동작 시나리오 (Sequence Flow)
 
 ### 신규 사용자의 소셜 로그인
