@@ -61,13 +61,13 @@
 
 ### 2. 스터디 생성 및 상세화면
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/ab60882b-00d1-41be-bc3a-53798bd57842" alt="스터디 생성 및 상세화면" width="80%"/>
+  <img src="https://github.com/user-attachments/assets/ab60882b-00d1-41be-bc3a-53798bd57842" alt="스터디 생성 및 상세화면" width="90%"/>
 </p>
 <br>
 
 ### 3. 스터디 신청하기
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/fcb7ccb8-bd06-4e5c-aa26-48acd655a1b8" alt="스터디 신청하기" width="80%"/>
+  <img src="https://github.com/user-attachments/assets/fcb7ccb8-bd06-4e5c-aa26-48acd655a1b8" alt="스터디 신청하기" width="100%"/>
 </p>
 <br>
 
@@ -103,7 +103,7 @@
 
 ### 9. 카카오맵으로 주변 스터디 찾기
 <p align="center">
-  <img src="" alt="카카오맵으로 주변 스터디 찾기" width="80%"/>
+  <img src="https://github.com/user-attachments/assets/0f6117d8-71d8-43bf-ac1f-6425a555732b" alt="카카오맵으로 주변 스터디 찾기" width="80%"/>
 </p>
 <br>
 
