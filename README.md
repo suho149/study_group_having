@@ -57,7 +57,66 @@
 <p align="center">
   <img src="https://github.com/user-attachments/assets/c52c4723-75b1-423f-8167-57008533c312" alt="소셜 로그인" width="80%"/>
 </p>
+<br>
 
+### 2. 스터디 생성 및 상세화면
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/ab60882b-00d1-41be-bc3a-53798bd57842" alt="스터디 생성 및 상세화면" width="80%"/>
+</p>
+<br>
+
+### 3. 스터디 신청하기
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/fcb7ccb8-bd06-4e5c-aa26-48acd655a1b8" alt="스터디 신청하기" width="80%"/>
+</p>
+<br>
+
+### 4. 친구 신청 및 DM
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/06d64488-606b-4712-b82b-ddba7b309ca9" alt="친구 신청 및 DM" width="80%"/>
+</p>
+<br>
+
+### 5. 스터디 멤버 초대
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/1d7ac18a-559b-4707-92bd-bc6dad7afe0c" alt="스터디 멤버 초대" width="80%"/>
+</p>
+<br>
+
+### 6. 스터디 일정 추가 및 수정
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5a6cc3ea-701a-4ec5-b137-dde0789e06e2" alt="스터디 일정 추가 및 수정" width="80%"/>
+</p>
+<br>
+
+### 7. 채팅방 초대 및 채팅
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/9dafc5d0-56ea-4a07-a57c-2f91bd6a2db1" alt="채팅방 초대 및 채팅" width="80%"/>
+</p>
+<br>
+
+### 8. 채팅방 멤버 내보내기
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/4712067e-cdf1-42be-93c5-15c192683f13" alt="채팅방 멤버 내보내기" width="80%"/>
+</p>
+<br>
+
+### 9. 카카오맵으로 주변 스터디 찾기
+<p align="center">
+  <img src="" alt="카카오맵으로 주변 스터디 찾기" width="80%"/>
+</p>
+<br>
+
+### 10. 게시물 작성 및 댓글 작성
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b2abe27e-e03e-4af1-b628-c5eb1348e213" alt="게시물 작성 및 댓글 작성" width="80%"/>
+</p>
+<br>
+
+### 11. 신고 기능 및 관리자 신고 처리
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/49785b2b-da4c-476e-b497-576448d8932c" alt="소셜 로그인" width="80%"/>
+</p>
 <br>
 
 ## 🌊 동작 시나리오 (Sequence Flow)
