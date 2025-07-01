@@ -52,7 +52,8 @@
 <br>
 
 ## 🌊 동작 시나리오 (Sequence Flow)
-신규 사용자의 소셜 로그인
+
+###신규 사용자의 소셜 로그인
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -96,8 +97,9 @@ sequenceDiagram
     BE->>BE: 19. 컨트롤러 로직 실행
     BE-->>-User: 20. API 응답 반환
 ```
+<br>
 
-스터디 그룹 관리 (생성)
+###스터디 그룹 관리 (생성)
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -144,6 +146,117 @@ sequenceDiagram
     Controller-->>-API: 16. ResponseEntity (200 OK) 반환
     API-->>-FE: 17. API 응답 전달
     FE-->>-User: 18. 메인 페이지로 이동 또는 생성된 스터디 페이지로 이동
+```
+<br>
+
+###스터디 그룹 관리 (상세/목록 조회)
+```mermaid
+sequenceDiagram
+    participant User as 사용자(브라우저)
+    participant API as API(Nginx+Spring)
+    participant Service as StudyGroupService
+    participant Event as ApplicationEventPublisher
+    participant Repo as Repository (JPA)
+    participant Session as HttpSession
+
+    User->>+API: 1. 특정 스터디 클릭 (GET /api/studies/{id})
+    API->>+Service: 2. getStudyGroupDetail(id, userPrincipal) 호출
+    
+    Service->>+Repo: 3. studyGroupRepository.findById(id)
+    Repo-->>-Service: 4. StudyGroup 엔티티 반환
+    
+    Note over Service: 조회수 중복 방지 로직 실행
+    Service->>+Session: 5. 세션에서 해당 스터디의 마지막 조회 시간 확인
+    alt 첫 조회 또는 1초 경과 후 조회
+        Session-->>-Service: 6a. 시간이 없거나 오래됨
+        Service->>Service: 7a. studyGroup.incrementViewCount() 호출
+        Service->>+Session: 8a. 현재 시간을 세션에 기록
+    else 1초 내 중복 조회
+        Session-->>-Service: 6b. 시간이 얼마 지나지 않음
+    end
+
+    Note over Service: 사용자 관심사 분석을 위한 이벤트 발행
+    Service->>+Event: 9. publishEvent(TagInteractionEvent)
+    
+    Note over Service: 현재 사용자의 '좋아요' 여부 확인
+    Service->>+Repo: 10. studyLikeRepository.existsByUserAndStudyGroup(...)
+    Repo-->>-Service: 11. boolean (true/false) 값 반환
+
+    Service->>Service: 12. StudyGroupDetailResponse DTO로 변환
+    Service-->>-API: 13. DTO 반환
+    API-->>-User: 14. 상세 정보 응답 (JSON)
+```
+<br>
+
+###스터디 그룹 관리 (멤버 및 일정)
+```mermaid
+sequenceDiagram
+    participant User as 참여 신청자
+    participant Leader as 스터디장
+    participant API as API(Nginx+Spring)
+    participant Service as StudyGroupService
+    participant Noti as NotificationService
+
+    User->>+API: 1. '참여 신청' 버튼 클릭 (POST /api/studies/{id}/apply)
+    API->>+Service: 2. applyToStudyGroup(studyId, applicantId) 호출
+
+    Note over Service: 다양한 예외 조건 검증
+    Service->>Service: 3. 스터디 모집 상태, 정원, 중복 신청 여부 등 확인
+    
+    Service->>Service: 4. StudyMember 엔티티 생성 (status: PENDING)
+    Service->>Service: 5. studyGroup.addMember() 호출
+    
+    Service->>+Noti: 6. 스터디장에게 알림 생성 요청
+    Noti-->>-Service: 7. 알림 생성 완료
+
+    Service-->>-API: 8. 성공 응답 (200 OK)
+    API-->>-User: 9. "신청이 완료되었습니다."
+
+    Leader->>+API: 10. '신청 승인' 버튼 클릭 (PUT /api/studies/{id}/members/{userId}/status)
+    API->>+Service: 11. updateStudyMemberStatus(..., newStatus: APPROVED) 호출
+
+    Note over Service: 요청자가 스터디장인지 권한 확인
+    Service->>Service: 12. memberToUpdate.updateStatus(APPROVED) 호출
+
+    Service->>+Noti: 13. 신청자에게 '승인' 알림 생성 요청
+    Noti-->>-Service: 14. 알림 생성 완료
+
+    Service-->>-API: 15. 성공 응답 (200 OK)
+    API-->>-Leader: 16. 멤버 목록 UI 업데이트
+```
+<br>
+
+###위치 기반 주변 스터디 조회 (지도 연동)
+```mermaid
+sequenceDiagram
+    participant User as 사용자(브라우저)
+    participant MapPage as 지도 페이지(React)
+    participant API as API(Nginx+Spring)
+    participant Controller as StudyGroupController
+    participant Service as StudyGroupService
+    participant Repo as StudyGroupRepository
+    
+    User->>+MapPage: 1. 주변 스터디 지도 페이지 접속
+    MapPage->>+API: 2. GET /api/studies/map 요청
+    API->>+Controller: 3. getStudiesForMap() 호출
+    Controller->>+Service: 4. getStudiesForMap() 호출
+    
+    Note over Service: DB에서 지도에 표시할 스터디 필터링
+    Service->>+Repo: 5. findByStatusAndStudyTypeInAndLatitudeIsNotNull() 호출
+    Repo-->>-Service: 6. List<StudyGroup> 엔티티 목록 반환
+    
+    Note over Service: API 성능 최적화를 위한 DTO 변환
+    Service->>Service: 7. 각 StudyGroup을 StudyForMapDto로 변환
+    
+    Service-->>-Controller: 8. List<StudyForMapDto> 반환
+    Controller-->>-API: 9. ResponseEntity (200 OK) 반환
+    API-->>-MapPage: 10. 스터디 위치 정보 목록 (JSON) 수신
+    
+    Note over MapPage: 카카오맵 API를 사용하여 마커 렌더링
+    loop 각 스터디 정보에 대하여
+        MapPage->>MapPage: 11. 지도 위에 마커(핀) 생성
+    end
+    MapPage-->>-User: 12. 주변 스터디가 표시된 지도 UI 제공
 ```
 
 <br>
