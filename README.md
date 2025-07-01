@@ -51,8 +51,8 @@
 
 <br>
 
-## 🌊 주요 사용자 흐름 (User Flow)
-신규 사용자의 소셜 로그인 및 스터디 참여 신청 흐름
+## 🌊 동작 시나리오 (Sequence Flow)
+신규 사용자의 소셜 로그인
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -97,27 +97,53 @@ sequenceDiagram
     BE-->>-User: 20. API 응답 반환
 ```
 
+스터디 그룹 관리 (생성)
 ```mermaid
 sequenceDiagram
-    participant User as 사용자
-    participant FE as 프론트엔드
-    participant BE as 백엔드
-    participant Google as Google 서버
+    participant User as 사용자(브라우저)
+    participant FE as 프론트엔드(React)
+    participant API as API 게이트웨이(Nginx)
+    participant Controller as StudyGroupController
+    participant Service as StudyGroupService
+    participant Repo as Repository (JPA)
+    participant Event as ApplicationEventPublisher
+
+    User->>+FE: 1. 스터디 정보 입력 후 '만들기' 클릭
+    FE->>+API: 2. POST /api/studies (요청 DTO 전송)
+    API->>+Controller: 3. createStudyGroup() 호출
     
-    User->>FE: 1. 'Google로 로그인' 클릭
-    FE->>BE: 2. /oauth2/authorization/google 요청
-    BE->>Google: 3. Google 로그인 페이지로 리다이렉트
-    User->>Google: 4. Google 계정으로 인증
-    Google->>BE: 5. 인증 코드를 담아 콜백
-    BE->>BE: 6. 신규 사용자 확인 및 DB에 자동 회원가입
-    BE->>FE: 7. JWT(Access/Refresh) 토큰 발급 및 리다이렉트
-    Note over FE: 토큰 저장 및 로그인 상태로 전환
+    Note over Controller: @Valid로 DTO 유효성 검증
+    Controller->>+Service: 4. createStudyGroup(request, userId) 호출
     
-    User->>FE: 8. 스터디 탐색 후 '참여 신청' 클릭
-    FE->>BE: 9. POST /api/studies/{id}/apply (with JWT)
-    BE->>BE: 10. 신청자 정보 및 상태(PENDING) 저장
-    BE->>BE: 11. 스터디장에게 실시간 알림(SSE) 및 이메일 발송
-    BE-->>FE: 12. "신청 완료" 응답
+    Service->>+Repo: 5. findById(userId)로 User 엔티티 조회
+    Repo-->>-Service: 6. User(리더) 정보 반환
+
+    Note over Service: StudyGroup 엔티티 생성
+    Service->>Service: 7. StudyGroup.builder()...build()
+
+    Note over Service: 태그(Tag) 처리 (동적 생성 및 연결)
+    loop 각 태그에 대하여
+        Service->>Repo: 8. findByName(tagName)로 Tag 조회
+        Note right of Repo: DB에 태그가 없으면 새로 생성 후 반환,<br>있으면 기존 태그 반환
+        Repo->>Service: 9. Tag 엔티티 반환
+        Service->>Service: 10. StudyGroupTag 중간 엔티티 생성 및 연결
+    end
+    
+    Note over Service: 리더를 멤버로 자동 등록
+    Service->>Service: 11. StudyMember 엔티티 생성 (Role: LEADER, Status: APPROVED)
+    
+    Service->>+Repo: 12. studyGroupRepository.save(studyGroup)
+    Note over Repo: CascadeType.ALL 옵션으로<br/>StudyGroup, StudyMember, StudyGroupTag가<br/>하나의 트랜잭션으로 함께 저장됨
+    Repo-->>-Service: 13. 저장된 StudyGroup 엔티티 반환
+
+    Note over Service: 스터디 생성 이벤트 발행
+    Service->>+Event: 14. eventPublisher.publishEvent(activityEvent)
+    Event-->>-Service: 
+    
+    Service-->>-Controller: 15. 생성된 스터디 정보(DTO) 반환
+    Controller-->>-API: 16. ResponseEntity (200 OK) 반환
+    API-->>-FE: 17. API 응답 전달
+    FE-->>-User: 18. 메인 페이지로 이동 또는 생성된 스터디 페이지로 이동
 ```
 
 <br>
