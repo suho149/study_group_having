@@ -119,6 +119,231 @@ RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 
   <br>
   <em>(여기에 ERD 이미지를 추가하세요. Mermaid.js로 생성한 다이어그램 스크린샷 추천)</em>
 </p>
+```mermaid
+erDiagram
+    %% --- Central Entity: User ---
+    USER {
+        Long id PK
+        String email
+        String name
+        String profile
+        Role role
+        AuthProvider provider
+        int point
+        int level
+    }
+
+    %% --- User and Authentication ---
+    REFRESH_TOKEN {
+        Long id PK
+        Long userId FK
+        String token
+    }
+    USER ||--o{ REFRESH_TOKEN : "has one"
+
+    %% --- User and Badge (M:N) ---
+    BADGE {
+        Long id PK
+        String name
+        String description
+        String imageUrl
+    }
+    USER_BADGE {
+        Long id PK
+        Long user_id FK
+        Long badge_id FK
+    }
+    USER ||--|{ USER_BADGE : "has many"
+    BADGE ||--|{ USER_BADGE : "has many"
+
+    %% --- User and Friendship (Self-referencing M:N) ---
+    FRIENDSHIP {
+        Long id PK
+        Long user_id FK "requests"
+        Long friend_id FK "receives"
+        FriendshipStatus status
+    }
+    USER ||--o{ FRIENDSHIP : "sends"
+    USER ||--o{ FRIENDSHIP : "receives"
+
+    %% --- User and Feed/Notification ---
+    FEED {
+        Long id PK
+        Long owner_id FK "is owned by"
+        Long actor_id FK "is acted by"
+        ActivityType activityType
+        Long referenceId
+    }
+    NOTIFICATION {
+        Long id PK
+        Long receiver_id FK "receives"
+        Long sender_id FK "is sent by"
+        NotificationType type
+        Long referenceId
+    }
+    USER ||--o{ FEED : "owns"
+    USER ||--o{ FEED : "acts in"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ NOTIFICATION : "sends"
+
+    %% --- User and Report ---
+    REPORT {
+        Long id PK
+        Long reporter_id FK "reports"
+        Long reported_user_id FK "is reported"
+        ReportType reportType
+        Long targetId
+    }
+    USER ||--o{ REPORT : "reports"
+    USER ||--o{ REPORT : "is reported in"
+
+    %% --- StudyGroup and related entities ---
+    STUDY_GROUP {
+        Long id PK
+        Long leader_id FK
+        String title
+        StudyCategory category
+        int maxMembers
+        StudyStatus status
+        StudyType studyType
+        Double latitude
+        Double longitude
+    }
+    USER ||--o{ STUDY_GROUP : "leads"
+
+    %% --- StudyGroup and User (M:N via StudyMember) ---
+    STUDY_MEMBER {
+        Long id PK
+        Long user_id FK
+        Long study_group_id FK
+        StudyMemberRole role
+        StudyMemberStatus status
+    }
+    USER ||--|{ STUDY_MEMBER : "participates in"
+    STUDY_GROUP ||--|{ STUDY_MEMBER : "has"
+
+    %% --- StudyGroup and Tag (M:N via StudyGroupTag) ---
+    TAG {
+        Long id PK
+        String name
+    }
+    STUDY_GROUP_TAG {
+        Long id PK
+        Long study_group_id FK
+        Long tag_id FK
+    }
+    STUDY_GROUP ||--|{ STUDY_GROUP_TAG : "has"
+    TAG ||--|{ STUDY_GROUP_TAG : "is tagged on"
+    
+    %% --- User and Tag Preference (M:N) ---
+    USER_TAG_PREFERENCE {
+        Long id PK
+        Long user_id FK
+        Long tag_id FK
+        int score
+    }
+    USER ||--|{ USER_TAG_PREFERENCE : "has preference for"
+    TAG ||--|{ USER_TAG_PREFERENCE : "is preferred by"
+
+    %% --- StudyGroup and other entities ---
+    STUDY_LIKE {
+        Long id PK
+        Long user_id FK
+        Long study_group_id FK
+    }
+    STUDY_SCHEDULE {
+        Long id PK
+        Long study_group_id FK
+        String title
+        LocalDateTime startTime
+        LocalDateTime endTime
+    }
+    USER ||--o{ STUDY_LIKE : "likes"
+    STUDY_GROUP ||--o{ STUDY_LIKE : "is liked by"
+    STUDY_GROUP ||--o{ STUDY_SCHEDULE : "has"
+    
+    %% --- Board and related entities ---
+    BOARD_POST {
+        Long id PK
+        Long author_id FK
+        BoardCategory category
+        String title
+        int viewCount
+        int likeCount
+    }
+    USER ||--o{ BOARD_POST : "authors"
+    
+    BOARD_COMMENT {
+        Long id PK
+        Long board_post_id FK
+        Long author_id FK
+        Long parent_comment_id FK "replies to"
+        int likeCount
+    }
+    BOARD_POST ||--o{ BOARD_COMMENT : "has"
+    USER ||--o{ BOARD_COMMENT : "authors"
+    BOARD_COMMENT ||--o{ BOARD_COMMENT : "has reply"
+
+    POST_LIKE {
+        Long id PK
+        Long user_id FK
+        Long board_post_id FK
+        VoteType voteType
+    }
+    USER ||--o{ POST_LIKE : "votes on"
+    BOARD_POST ||--o{ POST_LIKE : "is voted on by"
+
+    COMMENT_LIKE {
+        Long id PK
+        Long user_id FK
+        Long board_comment_id FK
+        VoteType voteType
+    }
+    USER ||--o{ COMMENT_LIKE : "votes on"
+    BOARD_COMMENT ||--o{ COMMENT_LIKE : "is voted on by"
+    
+    %% --- Chat and DM entities ---
+    CHAT_ROOM {
+        Long id PK
+        Long study_group_id FK
+        String name
+    }
+    STUDY_GROUP ||--o{ CHAT_ROOM : "has"
+
+    CHAT_ROOM_MEMBER {
+        Long id PK
+        Long chat_room_id FK
+        Long user_id FK
+        ChatRoomMemberStatus status
+    }
+    CHAT_ROOM ||--|{ CHAT_ROOM_MEMBER : "has"
+    USER ||--|{ CHAT_ROOM_MEMBER : "is in"
+    
+    CHAT_MESSAGE {
+        Long id PK
+        Long chat_room_id FK
+        Long sender_id FK
+        MessageType messageType
+    }
+    CHAT_ROOM ||--o{ CHAT_MESSAGE : "has"
+    USER ||--o{ CHAT_MESSAGE : "sends"
+    
+    DM_ROOM {
+        Long id PK
+        Long user1_id FK
+        Long user2_id FK
+    }
+    USER ||--o{ DM_ROOM : "participates in (as user1)"
+    USER ||--o{ DM_ROOM : "participates in (as user2)"
+
+    DM_MESSAGE {
+        Long id PK
+        Long dm_room_id FK
+        Long sender_id FK
+    }
+    DM_ROOM ||--o{ DM_MESSAGE : "has"
+    USER ||--o{ DM_MESSAGE : "sends"
+```
 
 <br>
 
