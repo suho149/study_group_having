@@ -919,5 +919,3 @@ docker-compose up --build
 6. 복사한 키를 `.env` 파일의 `COMPOSE_REACT_APP_KAKAO_MAP_API_KEY` 값으로 입력합니다.
 
 ---
-
-A: `.env` 파일에는 DB 비밀번호, API 시크릿 키 등 절대 외부에 노출되어서는 안 되는 민감한 정보가 들어갑니다. 따라서 이 파일은 `.gitignore`에 등록하여 GitHub에 올라가지 않도록 하고, 각 사용자가 자신의 로컬 환경에 직접 생성하여 사용하도록 하는 것이 표준적인 보안 방식입니다.
