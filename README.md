@@ -534,13 +534,12 @@ sequenceDiagram
 RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 데이터의 특성에 따라 Redis를 다각도로 활용했습니다.
 - **Refresh Token 저장소**: 빈번한 인증 I/O 작업을 DB에서 분리하고, Redis의 TTL을 이용해 만료된 토큰을 자동 관리함으로써 인증 성능과 운영 효율성을 높였습니다.
 - **읽기 성능 최적화 (Look-Aside Caching)**: 반복 조회되는 스터디/게시글 상세 정보에 Spring Cache(`@Cacheable`, `@CacheEvict`)를 적용하여 DB 부하를 줄이고 응답 속도를 개선했습니다. 데이터 변경 시 캐시를 동기화하는 전략을 구현했습니다.
-- **랭킹보드 캐싱**: 집계 연산이 많은 '핫 게시물' 목록을 `@Scheduled`를 통해 주기적으로 미리 계산하고, Redis의 **Sorted Set(ZSET)**에 저장하여 DB 접근 없이 매우 빠른 랭킹 조회가 가능하도록 설계했습니다.
-- **조회수 중복 방지 및 업데이트 최적화**: 모든 조회 요청마다 발생하던 DB `UPDATE` 작업을 Redis의 `INCR` 명령어로 대체하여 쓰기 부하를 획기적으로 줄였습니다. Redis에 누적된 조회수는 스케줄러를 통해 주기적으로 DB에 동기화됩니다.
+- **랭킹보드 캐싱**: 집계 연산이 많은 '핫 게시물' 목록을 `@Scheduled`를 통해 주기적으로 미리 계산하고, Redis의 **Sorted Set(ZSET)** 에 저장하여 DB 접근 없이 매우 빠른 랭킹 조회가 가능하도록 설계했습니다.
 
 ### 2. 이벤트 기반 비동기 아키텍처
-사용자의 활동(글 작성, 스터디 생성 등)에 따른 부가적인 작업(포인트 부여, 뱃지 수여, 활동 피드 생성)을 비동기적으로 처리하기 위해 Spring의 **`ApplicationEventPublisher`**를 도입했습니다.
+사용자의 활동(글 작성, 스터디 생성 등)에 따른 부가적인 작업(포인트 부여, 뱃지 수여, 활동 피드 생성)을 비동기적으로 처리하기 위해 Spring의 **`ApplicationEventPublisher`** 를 도입했습니다.
 - `@TransactionalEventListener`와 `@Async`를 조합하여, 메인 트랜잭션이 성공적으로 커밋된 후에만 별도의 스레드에서 부가 작업을 실행하도록 보장했습니다.
-- 이를 통해 **메인 요청의 응답 시간을 단축**하고, 부가 기능의 실패가 원래의 비즈니스 로직에 영향을 주지 않는 **안정적이고 확장 가능한 시스템**을 구축했습니다.
+- 이를 통해 **메인 요청의 응답 시간을 단축** 하고, 부가 기능의 실패가 원래의 비즈니스 로직에 영향을 주지 않는 **안정적이고 확장 가능한 시스템**을 구축했습니다.
 
 ### 3. 실시간 통신 및 동시성 관리
 `WebSocket(STOMP)`과 `SSE`를 목적에 맞게 사용하여 실시간 기능을 구현했습니다.
@@ -582,18 +581,6 @@ RDBMS의 부하를 줄이고 사용자 응답 속도를 향상시키기 위해, 
 <br>
 
 ## 🏛️ 아키텍처 & ERD
-
-<p align="center">
-  <img src="[YOUR_ARCHITECTURE_DIAGRAM_URL]" alt="Architecture Diagram" width="800"/>
-  <br>
-  <em>(여기에 아키텍처 다이어그램 이미지를 추가하세요)</em>
-</p>
-<br>
-<p align="center">
-  <img src="[YOUR_ERD_IMAGE_URL]" alt="ERD" width="800"/>
-  <br>
-  <em>(여기에 ERD 이미지를 추가하세요. Mermaid.js로 생성한 다이어그램 스크린샷 추천)</em>
-</p>
 
 ```mermaid
 erDiagram
@@ -639,8 +626,8 @@ erDiagram
         Long friend_id FK "receives"
         FriendshipStatus status
     }
-    USER as "Sender" ||--o{ FRIENDSHIP : "sends"
-    USER as "Receiver" ||--o{ FRIENDSHIP : "receives"
+    USER ||--o{ FRIENDSHIP : "sends"
+    USER ||--o{ FRIENDSHIP : "receives"
 
     %% --- User and Feed/Notification ---
     FEED {
@@ -657,10 +644,10 @@ erDiagram
         NotificationType type
         Long referenceId
     }
-    USER as "FeedOwner" ||--o{ FEED : "owns"
-    USER as "FeedActor" ||--o{ FEED : "acts in"
-    USER as "NotificationReceiver" ||--o{ NOTIFICATION : "receives"
-    USER as "NotificationSender" ||--o{ NOTIFICATION : "sends"
+    USER ||--o{ FEED : "owns"
+    USER ||--o{ FEED : "acts in"
+    USER ||--o{ NOTIFICATION : "receives"
+    USER ||--o{ NOTIFICATION : "sends"
 
     %% --- User and Report ---
     REPORT {
@@ -670,8 +657,8 @@ erDiagram
         ReportType reportType
         Long targetId
     }
-    USER as "Reporter" ||--o{ REPORT : "reports"
-    USER as "ReportedUser" ||--o{ REPORT : "is reported in"
+    USER ||--o{ REPORT : "reports"
+    USER ||--o{ REPORT : "is reported in"
 
     %% --- StudyGroup and related entities ---
     STUDY_GROUP {
@@ -737,7 +724,7 @@ erDiagram
     USER ||--o{ STUDY_LIKE : "likes"
     STUDY_GROUP ||--o{ STUDY_LIKE : "is liked by"
     STUDY_GROUP ||--o{ STUDY_SCHEDULE : "has"
-
+    
     %% --- Board and related entities ---
     BOARD_POST {
         Long id PK
@@ -809,8 +796,8 @@ erDiagram
         Long user1_id FK
         Long user2_id FK
     }
-    USER as "User1" ||--o{ DM_ROOM : "participates in (as user1)"
-    USER as "User2" ||--o{ DM_ROOM : "participates in (as user2)"
+    USER ||--o{ DM_ROOM : "participates in (as user1)"
+    USER ||--o{ DM_ROOM : "participates in (as user2)"
 
     DM_MESSAGE {
         Long id PK
@@ -932,13 +919,5 @@ docker-compose up --build
 6. 복사한 키를 `.env` 파일의 `COMPOSE_REACT_APP_KAKAO_MAP_API_KEY` 값으로 입력합니다.
 
 ---
-
-### Q&A
-
-**Q: `docker-compose.yml` 파일은 왜 GitHub에 올라가 있나요?**
-
-A: `docker-compose.yml` 파일은 여러 서비스(백엔드, 프론트엔드, DB 등)를 어떻게 구성하고 연결할지에 대한 **"설계도"**와 같습니다. 이 파일 자체에는 민감한 정보가 없으며, `${...}` 형태로 `.env` 파일의 변수를 참조하도록 만들어져 있어 안전합니다. 이 설계도 파일이 있어야 다른 사람도 `docker-compose up` 명령어로 프로젝트를 쉽게 실행할 수 있습니다.
-
-**Q: `.env` 파일은 왜 직접 만들어야 하나요?**
 
 A: `.env` 파일에는 DB 비밀번호, API 시크릿 키 등 절대 외부에 노출되어서는 안 되는 민감한 정보가 들어갑니다. 따라서 이 파일은 `.gitignore`에 등록하여 GitHub에 올라가지 않도록 하고, 각 사용자가 자신의 로컬 환경에 직접 생성하여 사용하도록 하는 것이 표준적인 보안 방식입니다.
