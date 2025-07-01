@@ -97,6 +97,29 @@ sequenceDiagram
     BE-->>-User: 20. API 응답 반환
 ```
 
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant FE as 프론트엔드
+    participant BE as 백엔드
+    participant Google as Google 서버
+    
+    User->>FE: 1. 'Google로 로그인' 클릭
+    FE->>BE: 2. /oauth2/authorization/google 요청
+    BE->>Google: 3. Google 로그인 페이지로 리다이렉트
+    User->>Google: 4. Google 계정으로 인증
+    Google->>BE: 5. 인증 코드를 담아 콜백
+    BE->>BE: 6. 신규 사용자 확인 및 DB에 자동 회원가입
+    BE->>FE: 7. JWT(Access/Refresh) 토큰 발급 및 리다이렉트
+    Note over FE: 토큰 저장 및 로그인 상태로 전환
+    
+    User->>FE: 8. 스터디 탐색 후 '참여 신청' 클릭
+    FE->>BE: 9. POST /api/studies/{id}/apply (with JWT)
+    BE->>BE: 10. 신청자 정보 및 상태(PENDING) 저장
+    BE->>BE: 11. 스터디장에게 실시간 알림(SSE) 및 이메일 발송
+    BE-->>FE: 12. "신청 완료" 응답
+```
+
 <br>
 
 ## 🚀 기술적 도전 및 최적화 경험
