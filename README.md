@@ -51,6 +51,54 @@
 
 <br>
 
+## 🌊 주요 사용자 흐름 (User Flow)
+신규 사용자의 소셜 로그인 및 스터디 참여 신청 흐름
+```mermaid
+sequenceDiagram
+    participant User as 사용자(브라우저)
+    participant FE as 프론트엔드(Nginx)
+    participant BE as 백엔드(Spring Boot)
+    participant Google as Google 인증 서버
+    participant Redis
+
+    User->>+FE: 1. 'Google로 로그인' 클릭
+    FE->>+BE: 2. /oauth2/authorization/google 요청
+    BE->>+Google: 3. Google 로그인 페이지로 리다이렉트
+    Google-->>-User: 4. Google 로그인 창 표시
+    User->>+Google: 5. ID/PW 입력 및 인증
+    Google-->>-BE: 6. 인증 코드(code)와 함께 /login/oauth2/code/google로 리다이렉트
+    
+    Note over BE: CustomOAuth2UserService 실행
+    BE->>BE: 7. DB에서 이메일로 사용자 조회
+    alt 신규 사용자인 경우
+        BE->>BE: 8a. User 엔티티 생성 및 DB에 저장 (회원가입)
+        BE->>BE: 9a. 회원가입 이벤트 발행 (포인트/뱃지 부여 등)
+    else 기존 사용자인 경우
+        BE->>BE: 8b. 기존 사용자 정보 로드
+    end
+
+    Note over BE: OAuth2AuthenticationSuccessHandler 실행
+    BE->>BE: 10. Access/Refresh Token 생성 (by TokenProvider)
+    BE->>+Redis: 11. Refresh Token 저장 (Key: "RT:[userId]")
+    Redis-->>-BE: 12. 저장 완료
+    
+    BE-->>-User: 13. 토큰을 담아 프론트엔드로 리다이렉트<br>(.../oauth2/redirect?token=...)
+    
+    User->>+FE: 14. 리다이렉션 페이지 요청
+    Note over User: 프론트, 토큰을 localStorage에 저장 후 메인 페이지로 이동
+    
+    User->>+FE: 15. (이후) API 요청 (Authorization: Bearer [Token])
+    FE->>+BE: 16. API 요청 전달
+    
+    Note over BE: TokenAuthenticationFilter 실행
+    BE->>BE: 17. 토큰 유효성 검증 (by TokenProvider)
+    BE->>BE: 18. SecurityContext에 인증 정보 저장
+    BE->>BE: 19. 컨트롤러 로직 실행
+    BE-->>-User: 20. API 응답 반환
+```
+
+<br>
+
 ## 🚀 기술적 도전 및 최적화 경험
 
 본 프로젝트는 단순히 기능을 구현하는 것을 넘어, 실제 서비스 환경에서 발생할 수 있는 문제들을 예측하고 해결하는 데 중점을 두었습니다.
