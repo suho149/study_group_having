@@ -55,7 +55,7 @@
 
 ### 1. 소셜 로그인
 <p align="center">
-  <img src="https://user-images.githubusercontent.com/xxxxxxxx/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.gif" alt="소셜 로그인" width="80%"/>
+  <img src="https://github.com/user-attachments/assets/c52c4723-75b1-423f-8167-57008533c312" alt="소셜 로그인" width="80%"/>
 </p>
 
 <br>
