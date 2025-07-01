@@ -53,7 +53,7 @@
 
 ## 🌊 동작 시나리오 (Sequence Flow)
 
-###신규 사용자의 소셜 로그인
+### 신규 사용자의 소셜 로그인
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -99,7 +99,7 @@ sequenceDiagram
 ```
 <br>
 
-###스터디 그룹 관리 (생성)
+### 스터디 그룹 관리 (생성)
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -149,7 +149,7 @@ sequenceDiagram
 ```
 <br>
 
-###스터디 그룹 관리 (상세/목록 조회)
+### 스터디 그룹 관리 (상세/목록 조회)
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -188,7 +188,7 @@ sequenceDiagram
 ```
 <br>
 
-###스터디 그룹 관리 (멤버 및 일정)
+### 스터디 그룹 관리 (멤버 및 일정)
 ```mermaid
 sequenceDiagram
     participant User as 참여 신청자
@@ -226,7 +226,7 @@ sequenceDiagram
 ```
 <br>
 
-###위치 기반 주변 스터디 조회 (지도 연동)
+### 위치 기반 주변 스터디 조회 (지도 연동)
 ```mermaid
 sequenceDiagram
     participant User as 사용자(브라우저)
@@ -257,6 +257,152 @@ sequenceDiagram
         MapPage->>MapPage: 11. 지도 위에 마커(핀) 생성
     end
     MapPage-->>-User: 12. 주변 스터디가 표시된 지도 UI 제공
+```
+<br>
+
+### 커뮤니티 게시판
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant Editor as TOAST UI Editor
+    participant API as API(Nginx+Spring)
+    participant Controller as BoardController
+    participant Service as BoardService
+    participant Redis as Redis
+    participant Event as ApplicationEventPublisher
+
+    User->>+Editor: 1. 게시글 내용 작성 및 이미지 삽입
+    Editor->>+API: 2. (이미지 삽입 시) POST /api/images/upload
+    API-->>-Editor: 3. 업로드된 이미지 URL 반환
+    Editor-->>-User: 4. 본문에 이미지 렌더링
+    
+    User->>+API: 5. '작성 완료' 클릭 (POST /api/board/posts)
+    API->>+Controller: 6. createPost() 호출
+    Controller->>+Service: 7. createPost(request, userId) 호출
+    
+    Service->>Service: 8. BoardPost 엔티티 생성 및 저장
+    Service->>+Event: 9. 게시글 작성 이벤트 발행 (포인트 부여 등)
+    Service-->>-API: 10. 생성된 게시글 정보(DTO) 반환
+    API-->>-User: 11. "작성 완료" 및 페이지 이동
+
+    Note over User: 다른 사용자가 게시글에 '추천'을 누름
+    User->>+API: 12. POST /api/board/posts/{id}/vote (voteType: LIKE)
+    API->>+Controller: 13. voteForPost() 호출
+    Controller->>+Service: 14. voteForPost(postId, userId, 'LIKE') 호출
+    
+    Service->>Service: 15. PostLike 엔티티 생성/수정/삭제 로직 처리
+    Service->>Service: 16. BoardPost의 likeCount 업데이트
+    
+    Service->>+Redis: 17. ZINCRBY hot_posts 1 "postId" (핫 게시물 점수 1 증가)
+    Redis-->>-Service: 18. 업데이트 완료
+    
+    Service->>+Event: 19. '좋아요 받음' 이벤트 발행 (작성자 포인트 부여)
+    Service->>+API: 20. 알림 생성 요청 (NotificationService)
+    Service-->>-API: 21. 성공 응답 (200 OK)
+    API-->>-User: 22. UI 업데이트 (추천 버튼 활성화)
+```
+<br>
+
+### 커뮤니티 게시판 (계층형 댓글)
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant API as API(Nginx+Spring)
+    participant Controller as BoardController
+    participant Service as BoardService
+    participant Repo as Repository(JPA)
+    participant Noti as NotificationService
+
+    User->>+API: 1. '답글' 작성 후 제출 (POST /api/board/posts/{id}/comments)
+    Note over API: Request Body: { content: "...", parentId: 123 }
+    
+    API->>+Controller: 2. createComment() 호출
+    Controller->>+Service: 3. createComment(postId, request, authorId) 호출
+    
+    Service->>+Repo: 4. 게시글(BoardPost)과 작성자(User) 조회
+    Repo-->>-Service: 5. 엔티티 반환
+
+    Note over Service: parentId 유무로 대댓글 여부 판단
+    Service->>+Repo: 6. boardCommentRepository.findById(request.getParentId())
+    Repo-->>-Service: 7. 부모 댓글(parentComment) 엔티티 반환
+
+    Service->>Service: 8. new BoardComment 생성 (parentComment 설정)
+    Service->>+Repo: 9. boardCommentRepository.save(newComment)
+    Repo-->>-Service: 10. 저장된 대댓글 엔티티 반환
+
+    Service->>+Noti: 11. 부모 댓글 작성자에게 '답글' 알림 생성
+    
+    Service-->>-API: 12. 생성된 댓글 정보(DTO) 반환
+    API-->>-User: 13. "답글 작성 완료"
+```
+<br>
+
+### 커뮤니티 게시판 (핫 게시물 랭킹 시스템)
+```mermaid
+sequenceDiagram
+    participant Scheduler as 스케줄러(@Scheduled)
+    participant CacheService as BoardCacheService
+    participant DB as MariaDB (Repository)
+    participant Redis as Redis
+    participant User as 사용자
+    participant API as API
+    participant BoardService as BoardService
+
+    %% Caching Flow
+    Scheduler->>+CacheService: 1. 10분마다 cacheHotPosts() 실행
+    CacheService->>+DB: 2. findHotPosts() 쿼리 실행<br>(주간, 좋아요 N개 이상, 정렬)
+    DB-->>-CacheService: 3. 핫 게시물 목록(List<BoardPost>) 반환
+    CacheService->>+Redis: 4. 기존 캐시 삭제 (zSetOps.delete)
+    loop 각 게시물에 대하여
+        CacheService->>Redis: 5. zSetOps.add("hot_posts", postId, likeCount)
+    end
+    Redis-->>-CacheService: 6. 캐싱 완료
+    CacheService-->>-Scheduler: 7. 작업 종료
+
+    %% Reading Flow
+    User->>+API: 8. 메인 페이지 접속 (GET /api/board/posts/hot)
+    API->>+BoardService: 9. getHotPosts() 호출
+    BoardService->>+Redis: 10. zSetOps.reverseRange("hot_posts", 0, 2)
+    Redis-->>-BoardService: 11. 상위 3개 게시물 ID 목록 반환
+    BoardService->>+DB: 12. findAllById(idList) 로 게시물 상세 정보 조회 (IN 쿼리)
+    DB-->>-BoardService: 13. List<BoardPost> 반환
+    BoardService->>BoardService: 14. DTO로 변환
+    BoardService-->>-API: 15. 핫 게시물 목록(JSON) 응답
+    API-->>-User: 16. UI 렌더링
+```
+<br>
+
+### 사용자 활동과 비동기 보상 처리
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant API as API(Nginx+Spring)
+    participant BoardService as BoardService
+    participant EventPublisher as ApplicationEventPublisher
+    participant ActivityListener as UserActivityService
+
+    User->>+API: 1. 게시글 작성 요청 (POST /api/board/posts)
+    API->>+BoardService: 2. createPost() 호출
+    
+    Note over BoardService: 메인 트랜잭션 시작
+    BoardService->>BoardService: 3. BoardPost 엔티티 생성 및 저장
+    Note over BoardService: 메인 트랜잭션 성공 및 커밋 직전
+
+    BoardService->>+EventPublisher: 4. publishEvent(UserActivityEvent)
+    Note over EventPublisher: 트랜잭션 커밋 후 이벤트 전파
+    
+    BoardService-->>-API: 5. 게시글 생성 완료 응답 (즉시)
+    API-->>-User: 6. "작성 완료"
+    
+    EventPublisher-->>+ActivityListener: 7. @TransactionalEventListener가 이벤트 수신
+    Note over ActivityListener: 별도의 스레드(@Async)에서 새로운 트랜잭션 시작
+    
+    ActivityListener->>ActivityListener: 8. user.addPoint() 호출 (포인트 부여)
+    ActivityListener->>ActivityListener: 9. checkAndAwardBadges() 호출 (뱃지 조건 확인)
+    alt '첫 게시글 작성' 조건 만족 시
+        ActivityListener->>ActivityListener: 10a. awardBadge(user, "FIRST_POST")
+    end
+    Note over ActivityListener: 보상 트랜잭션 커밋
 ```
 
 <br>
