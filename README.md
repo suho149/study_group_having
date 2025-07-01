@@ -404,6 +404,125 @@ sequenceDiagram
     end
     Note over ActivityListener: 보상 트랜잭션 커밋
 ```
+<br>
+
+### 사용자 신고 및 관리자 처리
+```mermaid
+sequenceDiagram
+    participant User as 사용자
+    participant API as API(Nginx+Spring)
+    participant ReportController as ReportController
+    participant ReportService as ReportService
+    participant Admin as 관리자
+    participant AdminController as AdminController
+    participant AdminService as AdminService
+    
+    %% Reporting Flow
+    User->>+API: 1. '신고' 버튼 클릭 (POST /api/reports)
+    API->>+ReportController: 2. createReport() 호출
+    ReportController->>+ReportService: 3. createReport(dto, reporterId) 호출
+    Note over ReportService: 신고 대상 작성자(reportedUser) 조회
+    ReportService->>ReportService: 4. Report 엔티티 생성 (status: RECEIVED) 및 저장
+    ReportService-->>-API: 5. 성공 응답 (200 OK)
+    API-->>-User: 6. "신고가 접수되었습니다."
+
+    %% Admin Processing Flow
+    Admin->>+API: 7. 관리자 페이지에서 신고 목록 조회 (GET /api/admin/reports)
+    API->>+AdminController: 8. getReports() 호출
+    AdminController->>+AdminService: 9. getReports(pageable) 호출
+    Note over AdminService: 각 신고 대상의 콘텐츠 미리보기 생성
+    AdminService-->>-API: 10. ReportDetailDto 목록 반환
+    API-->>-Admin: 11. 신고 목록 렌더링
+    
+    Admin->>+API: 12. 특정 게시글 '숨김' 처리 클릭 (POST /api/admin/posts/{id}/blind)
+    API->>+AdminController: 13. blindPost() 호출
+    AdminController->>+AdminService: 14. blindPost(postId) 호출
+    Note over AdminService: Repository의 @Modifying 쿼리 실행
+    AdminService-->>-API: 15. 성공 응답 (200 OK)
+    
+    Admin->>+API: 16. 신고 건 상태 변경 (PATCH /api/admin/reports/{id})
+    API->>+AdminController: 17. processReport() 호출
+    AdminController->>+AdminService: 18. processReport(reportId, dto) 호출
+    Note over AdminService: Report 상태를 'COMPLETED'로 변경
+    AdminService-->>-API: 19. 성공 응답 (200 OK)
+    API-->>-Admin: 20. UI 업데이트 (신고 상태 변경)
+```
+<br>
+
+### 실시간 채팅 및 DM 시스템 (WebSocket & STOMP)
+```mermaid
+sequenceDiagram
+    participant UserA as 사용자 A
+    participant UserB as 사용자 B
+    participant Server as 백엔드 서버
+    participant MsgController as ChatMessageController
+    participant ChatService as ChatService
+    participant MsgBroker as STOMP 브로커
+
+    Note over UserA, UserB: 페이지 진입 시, WebSocket 연결 및 채팅방 구독
+    UserA->>Server: 1. CONNECT /ws-stomp (with JWT)
+    UserB->>Server: 2. CONNECT /ws-stomp (with JWT)
+    Server->>UserA: 3. CONNECTED
+    Server->>UserB: 4. CONNECTED
+    UserA->>Server: 5. SUBSCRIBE /sub/chat/room/{id}
+    UserB->>Server: 6. SUBSCRIBE /sub/chat/room/{id}
+
+    Note over UserA: 메시지 입력 후 '전송'
+    UserA->>+Server: 7. SEND /pub/chat/room/{id}/message (메시지 페이로드)
+    
+    Server->>+MsgController: 8. @MessageMapping 핸들러 호출
+    MsgController->>+ChatService: 9. processAndSendMessage() 호출
+    
+    ChatService->>ChatService: 10. 메시지 DB에 저장 (ChatMessage)
+    ChatService->>ChatService: 11. 채팅방 마지막 메시지 정보 업데이트 (ChatRoom)
+    
+    ChatService->>+MsgBroker: 12. convertAndSend("/sub/chat/room/{id}", messageDto)
+    
+    MsgBroker-->>UserA: 13. [PUSH] 메시지 브로드캐스트
+    MsgBroker-->>UserB: 14. [PUSH] 메시지 브로드캐스트
+    
+    ChatService-->>-MsgController: 15. 처리 완료
+    
+    # 마지막 라인 MsgController-->>-Server: 를 삭제했습니다.
+```
+<br>
+
+### 실시간 알림 시스템 (Server-Sent Events)
+```mermaid
+sequenceDiagram
+    participant UserA as 댓글 작성자
+    participant UserB as 게시글 작성자
+    participant API as API(Nginx+Spring)
+    participant BoardService as BoardService
+    participant NotiService as NotificationService
+    participant SseService as SseEmitterService
+
+    Note over UserB: 페이지 접속 시, SSE 구독 요청
+    UserB->>+API: 1. GET /api/notifications/subscribe
+    API->>+SseService: 2. subscribe(userB_Id) 호출
+    Note over SseService: UserB를 위한 SseEmitter 생성 및<br>Map에 저장, 하트비트 시작
+    SseService-->>-API: 3. SseEmitter 객체 반환
+    API-->>-UserB: 4. SSE 연결 수립 (HTTP Streaming)
+
+    UserA->>+API: 5. 댓글 작성 요청 (POST /api/board/posts/{id}/comments)
+    API->>+BoardService: 6. createComment() 호출
+    
+    BoardService->>BoardService: 7. 댓글 생성 및 DB 저장
+    
+    Note over BoardService: 알림 생성 로직 호출
+    BoardService->>+NotiService: 8. createNotification(sender:UserA, receiver:UserB, ...) 호출
+    
+    NotiService->>NotiService: 9. Notification 엔티티 생성 및 DB 저장
+    NotiService->>+SseService: 10. sendToClient(userB_Id, "new-notification", data) 호출
+    
+    Note over SseService: UserB의 Emitter를 Map에서 조회
+    SseService-->>UserB: 11. [PUSH] "new-notification" 이벤트 전송
+    Note over UserB: 프론트엔드, 스낵바 또는 알림 UI 렌더링
+    
+    NotiService-->>-BoardService: 12. 알림 생성 완료
+    BoardService-->>-API: 13. 댓글 생성 완료 응답
+    API-->>-UserA: 14. "댓글 작성 완료"
+```
 
 <br>
 
