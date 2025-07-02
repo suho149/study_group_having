@@ -34,7 +34,7 @@ const Home: React.FC = () => {
     if (isNewSearch) setIsLoading(true); else setIsLoadingMore(true);
 
     try {
-      const params: any = { keyword: keyword || undefined, page, size: 9 };
+      const params: any = { keyword: keyword || undefined, page, size: 9, sort: 'createdAt,desc' };
       if (tabIndex <= 2) {
         let categoryParam: 'PROJECT' | 'STUDY' | undefined;
         if (tabIndex === 1) categoryParam = 'PROJECT';
