@@ -8,6 +8,7 @@ import com.studygroup.domain.board.repository.BoardCommentRepository;
 import com.studygroup.domain.board.repository.BoardPostRepository;
 import com.studygroup.domain.report.dto.ReportProcessDto;
 import com.studygroup.domain.report.entity.Report;
+import com.studygroup.domain.report.entity.ReportType;
 import com.studygroup.domain.report.repository.ReportRepository;
 import com.studygroup.domain.study.entity.StudyGroup;
 import com.studygroup.domain.study.repository.StudyGroupRepository;
@@ -42,7 +43,15 @@ public class AdminService {
 
         return reportPage.map(report -> {
             String preview = getTargetContentPreview(report);
-            return new ReportDetailDto(report, preview);
+            Long parentPostId = null;
+            if (report.getReportType() == ReportType.COMMENT) {
+                // 댓글 ID로 댓글을 찾고, 그 댓글이 속한 게시글의 ID를 가져옵니다.
+                parentPostId = boardCommentRepository.findById(report.getTargetId())
+                        .map(comment -> comment.getBoardPost().getId())
+                        .orElse(null); // 댓글이 삭제된 경우 null일 수 있음
+            }
+
+            return new ReportDetailDto(report, preview, parentPostId);
         });
     }
 
