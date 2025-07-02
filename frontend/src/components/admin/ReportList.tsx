@@ -59,9 +59,9 @@ const ReportList: React.FC = () => {
             case 'POST':
                 return `/board/post/${report.targetId}`;
             case 'COMMENT':
-                // 댓글은 해당 게시글로 이동
-                // 이 기능을 완벽하게 하려면 백엔드에서 게시글 ID도 함께 내려줘야 함
-                return `/board/post/${report.targetId}`; // 임시로 targetId가 게시글 ID라고 가정
+                // 댓글 신고의 경우, 함께 받은 parentPostId를 사용하여 게시글 링크를 만듭니다.
+                // 해시(#)를 붙여 해당 댓글 위치로 스크롤되도록 할 수도 있습니다
+                return report.parentPostId ? `/board/post/${report.parentPostId}` : '#';
             case 'STUDY_GROUP':
                 return `/studies/${report.targetId}`;
             default:

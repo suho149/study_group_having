@@ -12,6 +12,7 @@ public class ReportDetailDto {
     private Long id;
     private ReportType reportType;
     private Long targetId;
+    private Long parentPostId; // 관련 게시글 ID를 담을 필드
     private String targetContentPreview; // 신고 대상 콘텐츠 미리보기
     private String reason;
     private ReportStatus status;
@@ -21,10 +22,11 @@ public class ReportDetailDto {
     private String adminMemo;
 
     // Report 엔티티와 미리보기 텍스트를 받아 DTO 생성
-    public ReportDetailDto(Report report, String targetContentPreview) {
+    public ReportDetailDto(Report report, String targetContentPreview, Long parentPostId) {
         this.id = report.getId();
         this.reportType = report.getReportType();
         this.targetId = report.getTargetId();
+        this.parentPostId = parentPostId;
         this.targetContentPreview = targetContentPreview;
         this.reason = report.getReason();
         this.status = report.getStatus();

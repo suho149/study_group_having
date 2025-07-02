@@ -44,6 +44,7 @@ export interface ReportDetailDto {
     id: number;
     reportType: ReportType;
     targetId: number;
+    parentPostId: number | null;
     targetContentPreview: string;
     reason: string;
     status: ReportStatus;
