@@ -130,4 +130,12 @@ public class NotificationService {
         // @Transactional에 의해 메소드 종료 시 변경사항이 한번에 DB에 반영됨
         log.info("Marked {} DM notifications as read for user ID {} and room ID {}", dmNotifications.size(), userId, roomId);
     }
+
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + userId));
+        notificationRepository.markAllAsReadForReceiver(user);
+        log.info("Marked all notifications as read for user: {}", userId);
+    }
 } 

@@ -45,6 +45,13 @@ public class NotificationController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/read-all") // 상태를 변경하므로 POST 또는 PATCH가 적합
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> markAllAsRead(@CurrentUser UserPrincipal userPrincipal) {
+        notificationService.markAllAsRead(userPrincipal.getId());
+        return ResponseEntity.ok().build();
+    }
+
     // SSE 구독 엔드포인트
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("isAuthenticated()")

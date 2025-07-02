@@ -4,6 +4,9 @@ import com.studygroup.domain.notification.entity.Notification;
 import com.studygroup.domain.notification.entity.NotificationType;
 import com.studygroup.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -19,4 +22,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     // --- 특정 사용자의 특정 채팅방 관련 모든 알림을 찾는 메소드 추가 ---
     List<Notification> findByReceiverAndReferenceIdAndType(User receiver, Long referenceId, NotificationType type);
+
+    @Modifying
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.receiver = :receiver AND n.isRead = false")
+    void markAllAsReadForReceiver(@Param("receiver") User receiver);
 } 
