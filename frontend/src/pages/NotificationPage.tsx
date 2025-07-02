@@ -16,6 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {Notification, NotificationType, NotificationTypeStrings} from '../types/notification'; // 공통 타입 사용
+import MarkChatReadIcon from '@mui/icons-material/MarkChatRead'; // '모두 읽음' 아이콘
 
 // 그룹화된 알림을 위한 새로운 타입 정의
 interface GroupedNotification extends Notification {
@@ -31,6 +32,7 @@ const NotificationPage: React.FC = () => {
   const [processingNotificationId, setProcessingNotificationId] = useState<number | null>(null);
   const [pageError, setPageError] = useState<string | null>(null); // 페이지 레벨 에러
   const navigate = useNavigate();
+  const [isMarkingAll, setIsMarkingAll] = useState(false); // '모두 읽음' 처리 중 로딩 상태
 
   const fetchAllData = useCallback(async () => {
     setLoading(true);
@@ -320,6 +322,21 @@ const NotificationPage: React.FC = () => {
     }
   };
 
+  // '모두 읽음' 버튼 클릭 핸들러 추가
+  const handleMarkAllAsRead = async () => {
+    setIsMarkingAll(true);
+    try {
+      await api.post('/api/notifications/read-all');
+      // 성공 후, 화면을 즉시 갱신하기 위해 목록을 다시 불러옵니다.
+      await fetchNotifications();
+    } catch (error) {
+      console.error("Failed to mark all as read:", error);
+      setPageError("알림을 모두 읽음 처리하는 중 오류가 발생했습니다.");
+    } finally {
+      setIsMarkingAll(false);
+    }
+  };
+
   if (loading) {
     return (
         <Container maxWidth="md" sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
@@ -328,11 +345,25 @@ const NotificationPage: React.FC = () => {
     );
   }
 
+  // 안 읽은 알림이 있는지 확인하는 변수
+  const hasUnread = notifications.some(n => !n.isRead);
+
   return (
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom sx={{mb:3}}>
-          알림
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography variant="h4" component="h1">
+            알림
+          </Typography>
+          {/* 안 읽은 알림이 있을 때만 버튼을 보여주고 활성화합니다. */}
+          <Button
+              variant="contained"
+              startIcon={isMarkingAll ? <CircularProgress size={20} color="inherit" /> : <MarkChatReadIcon />}
+              onClick={handleMarkAllAsRead}
+              disabled={!hasUnread || isMarkingAll}
+          >
+            모두 읽음
+          </Button>
+        </Box>
 
         {pageError && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPageError(null)}>
