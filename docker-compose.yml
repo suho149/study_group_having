@@ -14,6 +14,8 @@ services:
       - db
       - redis
     environment:
+      # 1. 백엔드 컨테이너 시간대 설정 추가
+      TZ: Asia/Seoul
       # --- Database Settings ---
       SPRING_DATASOURCE_URL: ${COMPOSE_DB_URL}
       SPRING_DATASOURCE_USERNAME: ${COMPOSE_DB_USERNAME}
@@ -64,6 +66,7 @@ services:
     image: mariadb:10.6
     container_name: having-db
     environment:
+      - TZ=Asia/Seoul
       - MARIADB_ROOT_PASSWORD=${COMPOSE_DB_PASSWORD} # 위와 동일한 비밀번호
       - MARIADB_DATABASE=studygroup
     volumes:
